@@ -1,0 +1,8 @@
+if(${TARGET} MATCHES ".*windows.*")
+    set(CMAKE_SYSTEM_NAME Windows)
+endif()
+
+set(CMAKE_C_COMPILER zig cc)
+set(CMAKE_CXX_COMPILER zig c++)
+set(CMAKE_C_COMPILER_TARGET ${TARGET})
+set(CMAKE_CXX_COMPILER_TARGET ${TARGET})
