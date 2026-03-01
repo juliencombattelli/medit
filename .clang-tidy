@@ -1,0 +1,33 @@
+---
+# Requires at least clang-tidy 17
+
+Checks:
+# Enable everything and blacklist unwanted checks
+- '*'
+# Disable project specific checks
+- '-altera-*'
+- '-fuchsia-*'
+- '-google-*'
+- '-llvmlibc-*'
+# Unwanted checks
+- '-readability-identifier-length' # Short identifiers are ok for common abbreviations
+- '-misc-non-private-member-variables-in-classes' # Would be great if it differentiates structs and classes
+- '-misc-use-anonymous-namespace' # static for functions is a well-known term, anonymous namespaces meaning module private is not that obvious IMHO
+- '-modernize-use-trailing-return-type' # Too noisy syntax
+- '-modernize-pass-by-value' # Supporting only ctor at the moment
+- '-cppcoreguidelines-macro-usage' # Intentionally used for conditional declarations that cannot be done with constexpr
+- '-cppcoreguidelines-pro-bounds-*' # Intentionally used, no more to say
+- '-hicpp-no-array-decay' # Ditto
+- '-*-vararg' # Intentionally used for C-style code
+- '-cert-dcl50-cpp' # Ditto
+- '-cert-dcl21-cpp' # Can't just return const objects from postfix ++/-- as const as no impact when returning by value
+- '-cert-dcl58-cpp' # Intentionally doing some specializations of std classes only when this is allowed by the standard
+- '-cert-err58-cpp' # Intentionally creating object at namespace scope, risking exception throwing that cannot be caught
+
+CheckOptions:
+  cppcoreguidelines-avoid-do-while.IgnoreMacros: true
+  readability-function-cognitive-complexity.IgnoreMacros: true
+
+WarningsAsErrors: '0'
+HeaderFilterRegex: ''
+FormatStyle: file # Use the associated .clang-format file
