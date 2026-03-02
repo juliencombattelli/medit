@@ -1,8 +1,23 @@
+#include "SDL3/SDL_pixels.h"
+#include "SDL3/SDL_render.h"
+#include "SDL3/SDL_scancode.h"
 #include <SDL3/SDL.h>
 #include <SDL3_ttf/SDL_ttf.h>
 
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
+
+#define FONT_SIZE 18
+
+typedef struct {
+    SDL_Renderer* renderer;
+    TTF_Font* font;
+    int char_width;
+    int char_height;
+    int cursor_x;
+    int cursor_y;
+} Meditor;
 
 void sdl_assert(bool condition, const char* sdl_call)
 {
@@ -13,29 +28,51 @@ void sdl_assert(bool condition, const char* sdl_call)
 }
 
 void render_text0(
-    SDL_Renderer* renderer,
-    TTF_Font* font,
+    Meditor* meditor,
     const char* text,
-    int x,
-    int y,
+    int cell_x,
+    int cell_y,
     SDL_Color color)
 {
     SDL_Surface* surface = TTF_RenderText_Blended(
-        font,
+        meditor->font,
         text,
         0,
-        text ? color : (SDL_Color) { 255, 255, 255, 255 });
+        text ? color : (SDL_Color) { .r = 255, .g = 255, .b = 255, .a = 255 });
     sdl_assert(surface, "TTF_RenderText_Blended");
 
-    SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface);
+    SDL_Texture* texture
+        = SDL_CreateTextureFromSurface(meditor->renderer, surface);
     sdl_assert(texture, "SDL_CreateTextureFromSurface");
 
-    SDL_FRect dest
-        = { (float)x, (float)y, (float)surface->w, (float)surface->h };
-    SDL_RenderTexture(renderer, texture, NULL, &dest);
+    SDL_FRect dest = {
+        .x = (float)(cell_x * meditor->char_width),
+        .y = (float)(cell_y * meditor->char_height),
+        .w = (float)surface->w,
+        .h = (float)surface->h,
+    };
+    SDL_RenderTexture(meditor->renderer, texture, NULL, &dest);
 
     SDL_DestroySurface(surface);
     SDL_DestroyTexture(texture);
+}
+
+void render_cursor(Meditor* meditor, SDL_Color color)
+{
+    const SDL_FRect rect = {
+        .x = (float)(meditor->cursor_x * meditor->char_width),
+        .y = (float)(meditor->cursor_y * meditor->char_height),
+        .w = (float)meditor->char_width,
+        .h = (float)meditor->char_height,
+    };
+
+    SDL_SetRenderDrawColor(
+        meditor->renderer,
+        color.r,
+        color.g,
+        color.b,
+        color.a);
+    SDL_RenderFillRect(meditor->renderer, &rect);
 }
 
 int main(int argc, char** argv)
@@ -50,8 +87,20 @@ int main(int argc, char** argv)
     sdl_assert(renderer, "SDL_CreateRenderer");
 
     // Load font
-    TTF_Font* font = TTF_OpenFont("asset/font/Consola.ttf", 16);
+    TTF_Font* font = TTF_OpenFont("asset/font/Consola.ttf", FONT_SIZE);
     sdl_assert(font, "TTF_OpenFont");
+
+    Meditor meditor = {
+        .renderer = renderer,
+        .font = font,
+        .char_width = 0,
+        .char_height = 0,
+        .cursor_x = 0,
+        .cursor_y = 0,
+    };
+
+    // Measure character dimensions once
+    TTF_GetStringSize(font, "M", 0, &meditor.char_width, &meditor.char_height);
 
     bool running = true;
     SDL_ShowWindow(window);
@@ -59,6 +108,9 @@ int main(int argc, char** argv)
     SDL_Event e;
     while (running) {
         while (SDL_PollEvent(&e) != 0) {
+            int win_width = 0;
+            int win_height = 0;
+            SDL_GetWindowSize(window, &win_width, &win_height);
             switch (e.type) {
                 case SDL_EVENT_QUIT:
                     running = false;
@@ -66,6 +118,28 @@ int main(int argc, char** argv)
                 case SDL_EVENT_KEY_DOWN: {
                     if (e.key.scancode == SDL_SCANCODE_ESCAPE) {
                         running = false;
+                    }
+                    if (e.key.scancode == SDL_SCANCODE_UP) {
+                        if (meditor.cursor_y != 0) {
+                            meditor.cursor_y -= 1;
+                        }
+                    }
+                    if (e.key.scancode == SDL_SCANCODE_DOWN) {
+                        if ((meditor.cursor_y + 1) * meditor.char_height
+                            < win_height) {
+                            meditor.cursor_y += 1;
+                        }
+                    }
+                    if (e.key.scancode == SDL_SCANCODE_LEFT) {
+                        if (meditor.cursor_x != 0) {
+                            meditor.cursor_x -= 1;
+                        }
+                    }
+                    if (e.key.scancode == SDL_SCANCODE_RIGHT) {
+                        if ((meditor.cursor_x + 1) * meditor.char_width
+                            < win_width) {
+                            meditor.cursor_x += 1;
+                        }
                     }
                 } break;
             }
@@ -79,9 +153,10 @@ int main(int argc, char** argv)
         SDL_Color cyan = { 0, 255, 255, 255 };
         SDL_Color lime = { 0, 255, 0, 255 };
 
-        render_text0(renderer, font, "TrueType Font Rendering", 50, 50, white);
-        render_text0(renderer, font, "With SDL_ttf", 50, 90, cyan);
-        render_text0(renderer, font, "Press ESC to exit", 50, 150, lime);
+        render_text0(&meditor, "TrueType Font Rendering", 10, 4, white);
+        render_text0(&meditor, "With SDL_ttf", 10, 6, cyan);
+        render_text0(&meditor, "Press ESC to exit", 10, 10, lime);
+        render_cursor(&meditor, white);
 
         SDL_RenderPresent(renderer);
     }
