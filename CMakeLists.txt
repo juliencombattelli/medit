@@ -13,11 +13,22 @@ FetchContent_Declare(
     GIT_TAG release-3.4.2
     GIT_PROGRESS ON
 )
-set(SDL_STATIC ON)
-set(SDL_SHARED OFF)
+# Disable unwanted subsystems
+set(SDL_AUDIO OFF)
+set(SDL_JOYSTICK OFF)
+set(SDL_HAPTIC OFF)
+set(SDL_HIDAPI OFF)
+set(SDL_SENSOR OFF)
+set(SDL_POWER OFF)
+set(SDL_DIALOG OFF)
+set(SDL_TRAY OFF)
+# Disable unwanted targets
 set(SDL_TEST_LIBRARY OFF)
 set(SDL_TESTS OFF)
 set(SDL_EXAMPLES OFF)
+# Force static linking
+set(SDL_STATIC ON)
+set(SDL_SHARED OFF)
 
 FetchContent_Declare(
     sdl_ttf
