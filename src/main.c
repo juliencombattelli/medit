@@ -1,6 +1,3 @@
-#include "SDL3/SDL_pixels.h"
-#include "SDL3/SDL_render.h"
-#include "SDL3/SDL_scancode.h"
 #include <SDL3/SDL.h>
 #include <SDL3_ttf/SDL_ttf.h>
 
@@ -85,6 +82,7 @@ int main(int argc, char** argv)
 
     SDL_Renderer* renderer = SDL_CreateRenderer(window, NULL);
     sdl_assert(renderer, "SDL_CreateRenderer");
+    SDL_SetRenderVSync(renderer, 1);
 
     // Load font
     TTF_Font* font = TTF_OpenFont("asset/font/Consola.ttf", FONT_SIZE);
