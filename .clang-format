@@ -39,3 +39,5 @@ AllowAllArgumentsOnNextLine: false
 AllowAllParametersOfDeclarationOnNextLine: false
 # Occasionally clang-format breaks lines between return type and function name. Disabling this.
 PenaltyReturnTypeOnItsOwnLine: 1000
+# It also breaks before assignment operator even when the operand is a function call. Disabling this.
+PenaltyBreakAssignment: 1000

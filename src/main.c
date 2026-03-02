@@ -38,8 +38,9 @@ void render_text0(
         text ? color : (SDL_Color) { .r = 255, .g = 255, .b = 255, .a = 255 });
     sdl_assert(surface, "TTF_RenderText_Blended");
 
-    SDL_Texture* texture
-        = SDL_CreateTextureFromSurface(meditor->renderer, surface);
+    SDL_Texture* texture = SDL_CreateTextureFromSurface(
+        meditor->renderer,
+        surface);
     sdl_assert(texture, "SDL_CreateTextureFromSurface");
 
     SDL_FRect dest = {
