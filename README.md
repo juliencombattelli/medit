@@ -1,6 +1,10 @@
-# Med
+# Medit
 
-My personal text editor, simple, the way I want it to work.
+My meditation on what editing should be.
+
+Medit is my personal text editor, built from the ground up for simplicity and
+performance. It reflects my opinionated views on editing: minimalist, fast, and
+tailored exactly to my workflow. No bloat, no compromise, just what I need.
 
 ## How to use
 
@@ -16,7 +20,7 @@ Medit uses the following external dependencies:
 You can install them with your system package manager if it provides a
 compatible version.
 
-Alternativelly you can build them from source and install them locally.
+Alternatively, you can build them from source and install them locally.
 If so, you may have to install additional software for your platform.
 
 #### SDL dependencies

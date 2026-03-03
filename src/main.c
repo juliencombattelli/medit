@@ -78,7 +78,11 @@ int main(int argc, char** argv)
     sdl_assert(SDL_Init(SDL_INIT_VIDEO), "SDL_Init");
     sdl_assert(TTF_Init(), "TTF_Init");
 
-    SDL_Window* window = SDL_CreateWindow("Med", 1280, 720, SDL_WINDOW_HIDDEN);
+    SDL_Window* window = SDL_CreateWindow(
+        "Medit",
+        1280,
+        720,
+        SDL_WINDOW_HIDDEN);
     sdl_assert(window, "SDL_CreateWindow");
 
     SDL_Renderer* renderer = SDL_CreateRenderer(window, NULL);
