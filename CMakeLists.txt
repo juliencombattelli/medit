@@ -5,15 +5,8 @@ set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
 
-find_package(SDL3 CONFIG)
-if(NOT DEFINED SDL3_FOUND)
-    include(cmake/FetchSDL3.cmake)
-endif()
-
-find_package(SDL3_ttf CONFIG)
-if(NOT DEFINED SDL3_ttf_FOUND)
-    include(cmake/FetchSDL3_ttf.cmake)
-endif()
+include(cmake/FindPackageOrFetchSDL3.cmake)
+include(cmake/FindPackageOrFetchSDL3_ttf.cmake)
 
 add_executable(med src/main.c)
 
