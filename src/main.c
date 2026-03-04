@@ -11,10 +11,10 @@ typedef struct {
     SDL_Window* window;
     SDL_Renderer* renderer;
     TTF_Font* font;
-    int char_width;
-    int char_height;
-    int cursor_x;
-    int cursor_y;
+    int cell_width;
+    int cell_height;
+    int cursor_col;
+    int cursor_row;
     bool draw_debug_grid;
 } Meditor;
 
@@ -27,74 +27,69 @@ void sdl_assert(bool condition, const char* sdl_call)
 }
 
 void render_text0(
-    Meditor* meditor,
+    Meditor* medit,
     const char* text,
     int cell_x,
     int cell_y,
     SDL_Color color)
 {
     SDL_Surface* surface = TTF_RenderText_Blended(
-        meditor->font,
+        medit->font,
         text,
         0,
         text ? color : (SDL_Color) { .r = 255, .g = 255, .b = 255, .a = 255 });
     sdl_assert(surface, "TTF_RenderText_Blended");
 
     SDL_Texture* texture = SDL_CreateTextureFromSurface(
-        meditor->renderer,
+        medit->renderer,
         surface);
     sdl_assert(texture, "SDL_CreateTextureFromSurface");
 
     SDL_FRect dest = {
-        .x = (float)(cell_x * meditor->char_width),
-        .y = (float)(cell_y * meditor->char_height),
+        .x = (float)(cell_x * medit->cell_width),
+        .y = (float)(cell_y * medit->cell_height),
         .w = (float)surface->w,
         .h = (float)surface->h,
     };
-    SDL_RenderTexture(meditor->renderer, texture, NULL, &dest);
+    SDL_RenderTexture(medit->renderer, texture, NULL, &dest);
 
     SDL_DestroySurface(surface);
     SDL_DestroyTexture(texture);
 }
 
-void render_cursor(Meditor* meditor, SDL_Color color)
+void render_cursor(Meditor* medit, SDL_Color color)
 {
     const SDL_FRect rect = {
-        .x = (float)(meditor->cursor_x * meditor->char_width),
-        .y = (float)(meditor->cursor_y * meditor->char_height),
-        .w = (float)meditor->char_width,
-        .h = (float)meditor->char_height,
+        .x = (float)(medit->cursor_col * medit->cell_width),
+        .y = (float)(medit->cursor_row * medit->cell_height),
+        .w = (float)medit->cell_width,
+        .h = (float)medit->cell_height,
     };
 
-    SDL_SetRenderDrawColor(
-        meditor->renderer,
-        color.r,
-        color.g,
-        color.b,
-        color.a);
-    SDL_RenderFillRect(meditor->renderer, &rect);
+    SDL_SetRenderDrawColor(medit->renderer, color.r, color.g, color.b, color.a);
+    SDL_RenderFillRect(medit->renderer, &rect);
 }
 
-void render_debug_grid(Meditor* meditor)
+void render_debug_grid(Meditor* medit)
 {
-    if (!meditor->draw_debug_grid) {
+    if (!medit->draw_debug_grid) {
         return;
     }
 
     int win_width = 0;
     int win_height = 0;
-    SDL_GetWindowSize(meditor->window, &win_width, &win_height);
+    SDL_GetWindowSize(medit->window, &win_width, &win_height);
 
-    int grid_rows = win_height / meditor->char_height;
-    int grid_cols = win_width / meditor->char_width;
+    int grid_rows = win_height / medit->cell_height;
+    int grid_cols = win_width / medit->cell_width;
 
-    SDL_SetRenderDrawColor(meditor->renderer, 255, 0, 255, 100);
+    SDL_SetRenderDrawColor(medit->renderer, 255, 0, 255, 100);
 
     for (int i = 0; i < grid_cols + 1; i++) {
         SDL_RenderRect(
-            meditor->renderer,
+            medit->renderer,
             &(SDL_FRect) {
-                .x = (float)(i * meditor->char_width),
+                .x = (float)(i * medit->cell_width),
                 .y = (float)0,
                 .w = (float)1,
                 .h = (float)win_height,
@@ -102,10 +97,10 @@ void render_debug_grid(Meditor* meditor)
     }
     for (int i = 0; i < grid_rows + 1; i++) {
         SDL_RenderRect(
-            meditor->renderer,
+            medit->renderer,
             &(SDL_FRect) {
                 .x = (float)0,
-                .y = (float)(i * meditor->char_height),
+                .y = (float)(i * medit->cell_height),
                 .w = (float)win_width,
                 .h = (float)1,
             });
@@ -132,19 +127,19 @@ int main(int argc, char** argv)
     TTF_Font* font = TTF_OpenFont("asset/font/Consola.ttf", FONT_SIZE);
     sdl_assert(font, "TTF_OpenFont");
 
-    Meditor meditor = {
+    Meditor medit = {
         .window = window,
         .renderer = renderer,
         .font = font,
-        .char_width = 0,
-        .char_height = 0,
-        .cursor_x = 0,
-        .cursor_y = 0,
+        .cell_width = 0,
+        .cell_height = 0,
+        .cursor_col = 0,
+        .cursor_row = 0,
         .draw_debug_grid = false,
     };
 
     // Measure character dimensions once
-    TTF_GetStringSize(font, "M", 0, &meditor.char_width, &meditor.char_height);
+    TTF_GetStringSize(font, "M", 0, &medit.cell_width, &medit.cell_height);
 
     bool running = true;
     SDL_ShowWindow(window);
@@ -168,31 +163,31 @@ int main(int argc, char** argv)
                 case SDL_EVENT_KEY_DOWN:
                     if (event.key.key == SDLK_G
                         && (event.key.mod & SDL_KMOD_CTRL)) {
-                        meditor.draw_debug_grid = !meditor.draw_debug_grid;
+                        medit.draw_debug_grid = !medit.draw_debug_grid;
                     }
                     if (event.key.scancode == SDL_SCANCODE_ESCAPE) {
                         running = false;
                     }
                     if (event.key.scancode == SDL_SCANCODE_UP) {
-                        if (meditor.cursor_y != 0) {
-                            meditor.cursor_y -= 1;
+                        if (medit.cursor_row != 0) {
+                            medit.cursor_row -= 1;
                         }
                     }
                     if (event.key.scancode == SDL_SCANCODE_DOWN) {
-                        if ((meditor.cursor_y + 1) * meditor.char_height
+                        if ((medit.cursor_row + 1) * medit.cell_height
                             < win_height) {
-                            meditor.cursor_y += 1;
+                            medit.cursor_row += 1;
                         }
                     }
                     if (event.key.scancode == SDL_SCANCODE_LEFT) {
-                        if (meditor.cursor_x != 0) {
-                            meditor.cursor_x -= 1;
+                        if (medit.cursor_col != 0) {
+                            medit.cursor_col -= 1;
                         }
                     }
                     if (event.key.scancode == SDL_SCANCODE_RIGHT) {
-                        if ((meditor.cursor_x + 1) * meditor.char_width
+                        if ((medit.cursor_col + 1) * medit.cell_width
                             < win_width) {
-                            meditor.cursor_x += 1;
+                            medit.cursor_col += 1;
                         }
                     }
                     break;
@@ -208,7 +203,7 @@ int main(int argc, char** argv)
                     // TODO TTF_GetStringSize only on the input string and
                     // increment the cursor
                     TTF_GetStringSize(font, text, text_size, &text_width, NULL);
-                    meditor.cursor_x = text_width / meditor.char_width;
+                    medit.cursor_col = text_width / medit.cell_width;
                 } break;
             }
         }
@@ -221,16 +216,16 @@ int main(int argc, char** argv)
         SDL_Color cyan = { 0, 255, 255, 255 };
         SDL_Color lime = { 0, 255, 0, 255 };
 
-        render_debug_grid(&meditor);
+        render_debug_grid(&medit);
 
-        render_text0(&meditor, "TrueType Font Rendering", 10, 4, white);
-        render_text0(&meditor, "With SDL_ttf", 10, 6, cyan);
-        render_text0(&meditor, "Press ESC to exit", 10, 10, lime);
+        render_text0(&medit, "TrueType Font Rendering", 10, 4, white);
+        render_text0(&medit, "With SDL_ttf", 10, 6, cyan);
+        render_text0(&medit, "Press ESC to exit", 10, 10, lime);
 
         if (text_size != 0) {
-            render_text0(&meditor, text, 0, 0, white);
+            render_text0(&medit, text, 0, 0, white);
         }
-        render_cursor(&meditor, white);
+        render_cursor(&medit, white);
 
         SDL_RenderPresent(renderer);
     }

@@ -5,4 +5,7 @@
     "[cpp]": {
         "editor.formatOnSave": true
     },
+    "clangd.arguments": [
+        "--header-insertion=never"
+    ],
 }
