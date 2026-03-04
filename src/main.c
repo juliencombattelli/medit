@@ -165,26 +165,26 @@ int main(int argc, char** argv)
                         && (event.key.mod & SDL_KMOD_CTRL)) {
                         medit.draw_debug_grid = !medit.draw_debug_grid;
                     }
-                    if (event.key.scancode == SDL_SCANCODE_ESCAPE) {
+                    if (event.key.key == SDLK_ESCAPE) {
                         running = false;
                     }
-                    if (event.key.scancode == SDL_SCANCODE_UP) {
+                    if (event.key.key == SDLK_UP) {
                         if (medit.cursor_row != 0) {
                             medit.cursor_row -= 1;
                         }
                     }
-                    if (event.key.scancode == SDL_SCANCODE_DOWN) {
+                    if (event.key.key == SDLK_DOWN) {
                         if ((medit.cursor_row + 1) * medit.cell_height
                             < win_height) {
                             medit.cursor_row += 1;
                         }
                     }
-                    if (event.key.scancode == SDL_SCANCODE_LEFT) {
+                    if (event.key.key == SDLK_LEFT) {
                         if (medit.cursor_col != 0) {
                             medit.cursor_col -= 1;
                         }
                     }
-                    if (event.key.scancode == SDL_SCANCODE_RIGHT) {
+                    if (event.key.key == SDLK_RIGHT) {
                         if ((medit.cursor_col + 1) * medit.cell_width
                             < win_width) {
                             medit.cursor_col += 1;
