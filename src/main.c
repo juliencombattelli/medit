@@ -8,12 +8,14 @@
 #define FONT_SIZE 18
 
 typedef struct {
+    SDL_Window* window;
     SDL_Renderer* renderer;
     TTF_Font* font;
     int char_width;
     int char_height;
     int cursor_x;
     int cursor_y;
+    bool draw_debug_grid;
 } Meditor;
 
 void sdl_assert(bool condition, const char* sdl_call)
@@ -73,6 +75,43 @@ void render_cursor(Meditor* meditor, SDL_Color color)
     SDL_RenderFillRect(meditor->renderer, &rect);
 }
 
+void render_debug_grid(Meditor* meditor)
+{
+    if (!meditor->draw_debug_grid) {
+        return;
+    }
+
+    int win_width = 0;
+    int win_height = 0;
+    SDL_GetWindowSize(meditor->window, &win_width, &win_height);
+
+    int grid_rows = win_height / meditor->char_height;
+    int grid_cols = win_width / meditor->char_width;
+
+    SDL_SetRenderDrawColor(meditor->renderer, 255, 0, 255, 100);
+
+    for (int i = 0; i < grid_cols + 1; i++) {
+        SDL_RenderRect(
+            meditor->renderer,
+            &(SDL_FRect) {
+                .x = (float)(i * meditor->char_width),
+                .y = (float)0,
+                .w = (float)1,
+                .h = (float)win_height,
+            });
+    }
+    for (int i = 0; i < grid_rows + 1; i++) {
+        SDL_RenderRect(
+            meditor->renderer,
+            &(SDL_FRect) {
+                .x = (float)0,
+                .y = (float)(i * meditor->char_height),
+                .w = (float)win_width,
+                .h = (float)1,
+            });
+    }
+}
+
 int main(int argc, char** argv)
 {
     sdl_assert(SDL_Init(SDL_INIT_VIDEO), "SDL_Init");
@@ -94,12 +133,14 @@ int main(int argc, char** argv)
     sdl_assert(font, "TTF_OpenFont");
 
     Meditor meditor = {
+        .window = window,
         .renderer = renderer,
         .font = font,
         .char_width = 0,
         .char_height = 0,
         .cursor_x = 0,
         .cursor_y = 0,
+        .draw_debug_grid = false,
     };
 
     // Measure character dimensions once
@@ -114,8 +155,8 @@ int main(int argc, char** argv)
     char text[TEXT_CAPACITY] = { 0 };
     size_t text_size = 0;
 
-    SDL_Event event;
     while (running) {
+        SDL_Event event = { 0 };
         while (SDL_PollEvent(&event) != 0) {
             int win_width = 0;
             int win_height = 0;
@@ -124,7 +165,11 @@ int main(int argc, char** argv)
                 case SDL_EVENT_QUIT:
                     running = false;
                     break;
-                case SDL_EVENT_KEY_DOWN: {
+                case SDL_EVENT_KEY_DOWN:
+                    if (event.key.key == SDLK_G
+                        && (event.key.mod & SDL_KMOD_CTRL)) {
+                        meditor.draw_debug_grid = !meditor.draw_debug_grid;
+                    }
                     if (event.key.scancode == SDL_SCANCODE_ESCAPE) {
                         running = false;
                     }
@@ -150,9 +195,9 @@ int main(int argc, char** argv)
                             meditor.cursor_x += 1;
                         }
                     }
-                } break;
+                    break;
                 case SDL_EVENT_TEXT_INPUT: {
-                    size_t input_size = strlen(event.text.text);
+                    const size_t input_size = strlen(event.text.text);
                     const size_t free_space = TEXT_CAPACITY - text_size;
                     if (text_size > free_space) {
                         text_size = free_space;
@@ -175,6 +220,8 @@ int main(int argc, char** argv)
         SDL_Color white = { 255, 255, 255, 255 };
         SDL_Color cyan = { 0, 255, 255, 255 };
         SDL_Color lime = { 0, 255, 0, 255 };
+
+        render_debug_grid(&meditor);
 
         render_text0(&meditor, "TrueType Font Rendering", 10, 4, white);
         render_text0(&meditor, "With SDL_ttf", 10, 6, cyan);
