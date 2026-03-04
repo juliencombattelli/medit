@@ -31,31 +31,35 @@ void sdl_assert(bool condition, const char* sdl_call)
     }
 }
 
-void meditor_cursor_up(Meditor* medit)
+void meditor_cursor_up(Meditor* medit, int cells)
 {
-    if (medit->cursor_row != 0) {
-        medit->cursor_row -= 1;
+    medit->cursor_row -= cells;
+    if (medit->cursor_row < 0) {
+        medit->cursor_row = 0;
     }
 }
 
-void meditor_cursor_down(Meditor* medit)
+void meditor_cursor_down(Meditor* medit, int cells)
 {
-    if ((medit->cursor_row + 1) * medit->cell_height < medit->window_height) {
-        medit->cursor_row += 1;
+    medit->cursor_row += cells;
+    if (medit->cursor_row * medit->cell_height > medit->window_height) {
+        medit->cursor_row = (medit->window_height / medit->cell_height) - 1;
     }
 }
 
-void meditor_cursor_left(Meditor* medit)
+void meditor_cursor_left(Meditor* medit, int cells)
 {
-    if (medit->cursor_col != 0) {
-        medit->cursor_col -= 1;
+    medit->cursor_col -= cells;
+    if (medit->cursor_col < 0) {
+        medit->cursor_col = 0;
     }
 }
 
-void meditor_cursor_right(Meditor* medit)
+void meditor_cursor_right(Meditor* medit, int cells)
 {
-    if ((medit->cursor_col + 1) * medit->cell_width < medit->window_width) {
-        medit->cursor_col += 1;
+    medit->cursor_col += cells;
+    if (medit->cursor_col * medit->cell_width > medit->window_width) {
+        medit->cursor_col = (medit->window_width / medit->cell_width) - 1;
     }
 }
 
@@ -212,16 +216,16 @@ int main(int argc, char** argv)
                         running = false;
                     }
                     if (event.key.key == SDLK_UP) {
-                        meditor_cursor_up(&medit);
+                        meditor_cursor_up(&medit, 1);
                     }
                     if (event.key.key == SDLK_DOWN) {
-                        meditor_cursor_down(&medit);
+                        meditor_cursor_down(&medit, 1);
                     }
                     if (event.key.key == SDLK_LEFT) {
-                        meditor_cursor_left(&medit);
+                        meditor_cursor_left(&medit, 1);
                     }
                     if (event.key.key == SDLK_RIGHT) {
-                        meditor_cursor_right(&medit);
+                        meditor_cursor_right(&medit, 1);
                     }
                     break;
                 case SDL_EVENT_TEXT_INPUT: {
