@@ -19,3 +19,6 @@ endif()
 target_compile_options(medit PRIVATE ${WARNINGS})
 
 target_link_libraries(medit PRIVATE SDL3::SDL3 SDL3_ttf::SDL3_ttf)
+
+# target_compile_options(medit PRIVATE -fsanitize=address,undefined)
+# target_link_options(medit PRIVATE -fsanitize=address,undefined)
