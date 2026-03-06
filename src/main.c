@@ -44,6 +44,8 @@ int main(int argc, char** argv)
     medit.grid_cols = renderer.window_width / renderer.cell_width;
     medit.grid_rows = renderer.window_height / renderer.cell_height;
 
+    meditor_append_text(&medit, "😀 Hello, world! 😀");
+
     while (running) {
         SDL_Event event = { 0 };
         while (SDL_PollEvent(&event) != 0) {
