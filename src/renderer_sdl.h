@@ -23,6 +23,8 @@ void sdl_render_load_font(
     const char* path,
     int size);
 
+int sdl_get_text_cells(RendererSDL* renderer, const char* text);
+
 void sdl_render_text0(
     RendererSDL* renderer,
     Meditor* medit,

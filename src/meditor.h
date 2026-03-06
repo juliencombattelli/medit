@@ -52,6 +52,7 @@ typedef struct {
     int grid_rows;
     bool draw_debug_grid;
     size_t text_size;
+    int text_cells;
     char text[TEXT_CAPACITY];
 } Meditor;
 
@@ -60,6 +61,6 @@ void meditor_cursor_down(Meditor* medit, int cells);
 void meditor_cursor_left(Meditor* medit, int cells);
 void meditor_cursor_right(Meditor* medit, int cells);
 
-void meditor_append_text(Meditor* medit, const char* text);
+void meditor_append_text(Meditor* medit, const char* text, int cells);
 
 #endif // MEDIT_MEDITOR_H_

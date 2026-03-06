@@ -44,7 +44,9 @@ int main(int argc, char** argv)
     medit.grid_cols = renderer.window_width / renderer.cell_width;
     medit.grid_rows = renderer.window_height / renderer.cell_height;
 
-    meditor_append_text(&medit, "😀 Hello, world! 😀");
+    const char welcome_message[] = "😀 Hello, world! 😀";
+    const int text_cells = sdl_get_text_cells(&renderer, welcome_message);
+    meditor_append_text(&medit, welcome_message, text_cells);
 
     while (running) {
         SDL_Event event = { 0 };
@@ -82,17 +84,11 @@ int main(int argc, char** argv)
                     }
                     break;
                 case SDL_EVENT_TEXT_INPUT: {
-                    meditor_append_text(&medit, event.text.text);
-                    int text_width = 0;
-                    // TODO TTF_GetStringSize only on the input string and
-                    // increment the cursor
-                    TTF_GetStringSize(
-                        renderer.font_editor,
-                        medit.text,
-                        medit.text_size,
-                        &text_width,
-                        NULL);
-                    medit.cursor_col = text_width / renderer.cell_width;
+                    const int text_cells = sdl_get_text_cells(
+                        &renderer,
+                        event.text.text);
+                    meditor_append_text(&medit, event.text.text, text_cells);
+                    meditor_cursor_right(&medit, text_cells);
                 } break;
             }
         }

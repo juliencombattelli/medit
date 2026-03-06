@@ -32,9 +32,12 @@ void meditor_cursor_right(Meditor* medit, int cells)
     if (medit->cursor_col >= medit->grid_cols) {
         medit->cursor_col = medit->grid_cols - 1;
     }
+    if (medit->cursor_col >= medit->text_cells) {
+        medit->cursor_col = medit->text_cells;
+    }
 }
 
-void meditor_append_text(Meditor* medit, const char* text)
+void meditor_append_text(Meditor* medit, const char* text, int cells)
 {
     const size_t input_size = strlen(text);
     const size_t free_space = TEXT_CAPACITY - medit->text_size;
@@ -43,4 +46,5 @@ void meditor_append_text(Meditor* medit, const char* text)
     }
     memcpy(medit->text + medit->text_size, text, input_size);
     medit->text_size += input_size;
+    medit->text_cells += cells;
 }

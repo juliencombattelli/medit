@@ -129,6 +129,13 @@ void sdl_render_load_font(
     }
 }
 
+int sdl_get_text_cells(RendererSDL* renderer, const char* text)
+{
+    int text_width = 0;
+    TTF_MeasureString(renderer->font_editor, text, 0, 0, &text_width, NULL);
+    return text_width / renderer->cell_width;
+}
+
 void sdl_render_text0(
     RendererSDL* renderer,
     Meditor* medit,
