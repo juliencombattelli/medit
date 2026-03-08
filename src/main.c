@@ -100,7 +100,6 @@ void load_default_keymap()
 {
     SDL_Keymod modstate = SDL_KMOD_CTRL;
     SDL_Scancode scancode = SDL_GetScancodeFromKey(SDLK_G, &modstate);
-    printf("Debug: scancode=%u\n", scancode);
     set_keymap_action(scancode, KEY_MOD_CTRL, toggle_debug_grid);
 }
 
