@@ -3,6 +3,107 @@
 
 #include <assert.h>
 
+typedef void(KeyMapHandler)(RendererSDL* renderer, Meditor* medit);
+
+#define KEY_COUNT 512
+typedef KeyMapHandler*(KeyMap)[KEY_COUNT];
+
+static KeyMap keymap_no_mod;
+static KeyMap keymap_ctrl;
+static KeyMap keymap_alt;
+static KeyMap keymap_shift;
+static KeyMap keymap_ctrl_alt;
+static KeyMap keymap_ctrl_shift;
+static KeyMap keymap_alt_shit;
+static KeyMap keymap_ctrl_alt_shift;
+
+static inline bool bits_set(unsigned value, unsigned mask)
+{
+    return (value | mask) == mask;
+}
+
+typedef unsigned int KeyCode;
+
+typedef unsigned int KeyMod;
+#define KEY_MOD_NONE 0u
+#define KEY_MOD_CTRL 1u << 0u
+#define KEY_MOD_SHIFT 1u << 1u
+#define KEY_MOD_ALT 1u << 2u
+
+KeyMod sdl_to_keymod(SDL_Keymod keymod)
+{
+    KeyMod result = KEY_MOD_NONE;
+    if (keymod & SDL_KMOD_CTRL) {
+        result |= KEY_MOD_CTRL;
+    }
+    if (keymod & SDL_KMOD_SHIFT) {
+        result |= KEY_MOD_SHIFT;
+    }
+    if (keymod & SDL_KMOD_ALT) {
+        result |= KEY_MOD_ALT;
+    }
+    return result;
+}
+
+SDL_Keymod sdl_from_keymod(KeyMod keymod)
+{
+    return SDL_KMOD_NONE;
+}
+
+KeyMap* get_keymap(KeyMod keymod)
+{
+    switch (keymod) {
+        case KEY_MOD_NONE:
+            return &keymap_no_mod;
+        case KEY_MOD_CTRL:
+            return &keymap_ctrl;
+        case KEY_MOD_ALT:
+            return &keymap_alt;
+        case KEY_MOD_SHIFT:
+            return &keymap_shift;
+        case KEY_MOD_CTRL | KEY_MOD_SHIFT:
+            return &keymap_ctrl_shift;
+        case KEY_MOD_CTRL | KEY_MOD_ALT:
+            return &keymap_ctrl_alt;
+        case KEY_MOD_ALT | KEY_MOD_SHIFT:
+            return &keymap_alt_shit;
+        case KEY_MOD_CTRL | KEY_MOD_ALT | KEY_MOD_SHIFT:
+            return &keymap_ctrl_alt_shift;
+        default:
+            return NULL;
+    }
+}
+
+void set_keymap_action(KeyCode keycode, KeyMod keymod, KeyMapHandler* handler)
+{
+    KeyMap* keymap = get_keymap(keymod);
+    assert(keymap);
+    assert(keycode < KEY_COUNT);
+    (*keymap)[keycode] = handler;
+}
+
+KeyMapHandler* get_keymap_action(KeyCode keycode, KeyMod keymod)
+{
+    KeyMap* keymap = get_keymap(keymod);
+    assert(keymap);
+    assert(keycode < KEY_COUNT);
+    return (*keymap)[keycode];
+}
+
+void toggle_debug_grid(RendererSDL* renderer, Meditor* medit)
+{
+    (void)renderer;
+    medit->draw_debug_grid = !medit->draw_debug_grid;
+}
+
+void load_default_keymap()
+{
+    SDL_Keymod modstate = SDL_KMOD_CTRL;
+    SDL_Scancode scancode = SDL_GetScancodeFromKey(SDLK_G, &modstate);
+    printf("Debug: scancode=%u\n", scancode);
+    set_keymap_action(scancode, KEY_MOD_CTRL, toggle_debug_grid);
+}
+
 bool keycode_ctrl(SDL_Event event, SDL_Keycode keycode)
 {
     return event.key.key == keycode && (event.key.mod & SDL_KMOD_CTRL);
@@ -62,6 +163,8 @@ int main(int argc, char** argv)
     medit.grid_cols = renderer.window_width / renderer.cell_width;
     medit.grid_rows = renderer.window_height / renderer.cell_height;
 
+    load_default_keymap();
+
     // const char welcome_message[] = "😀 Hello, world! 😀";
     const char welcome_message[] = "Hello, world! 😀";
     const int text_cells = sdl_get_text_cells(&renderer, welcome_message);
@@ -85,8 +188,12 @@ int main(int argc, char** argv)
                         / renderer.cell_height;
                     break;
                 case SDL_EVENT_KEY_DOWN: {
-                    if (keycode_ctrl(event, SDLK_G)) {
-                        medit.draw_debug_grid = !medit.draw_debug_grid;
+                    KeyMod keymod = sdl_to_keymod(event.key.mod);
+                    KeyMapHandler* handler = get_keymap_action(
+                        event.key.scancode,
+                        keymod);
+                    if (handler) {
+                        (*handler)(&renderer, &medit);
                     }
 
                     SDL_Keycode keycode = SDL_GetKeyFromScancode(
