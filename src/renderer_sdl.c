@@ -2,13 +2,21 @@
 
 #include <stdio.h>
 
-static void sdl_assert(bool condition, const char* sdl_call)
-{
-    if (!condition) {
-        fprintf(stderr, "Error: %s: %s\n", sdl_call, SDL_GetError());
-        exit(1);
-    }
-}
+#define FORCE_MONOSPACE_FONTS
+
+#define sdl_assert(condition, sdl_call)                                        \
+    do {                                                                       \
+        if (!(condition)) {                                                    \
+            fprintf(                                                           \
+                stderr,                                                        \
+                "%s:%d: Error: %s: %s\n",                                      \
+                __FILE__,                                                      \
+                __LINE__,                                                      \
+                (sdl_call),                                                    \
+                SDL_GetError());                                               \
+            exit(1);                                                           \
+        }                                                                      \
+    } while (0)
 
 static SDL_Color to_sdl_color(Color color)
 {
@@ -78,6 +86,7 @@ static TTF_Font* load_emoji_font_aligned_to_main_font(
     const char* path,
     int size)
 {
+#ifdef FORCE_MONOSPACE_FONTS
     const int main_font_w = glyph_width(main_font, editor_font_test_string);
     float factor = 1.0f;
     int iter = 1024;
@@ -94,6 +103,9 @@ static TTF_Font* load_emoji_font_aligned_to_main_font(
         TTF_CloseFont(emoji_font);
     }
     return NULL;
+#else
+    return TTF_OpenFont(path, (float)size);
+#endif
 }
 
 void sdl_render_load_font(
@@ -102,7 +114,12 @@ void sdl_render_load_font(
     const char* path,
     int size)
 {
+    printf("Info: loading font %s with size %d\n", path, size);
     renderer->font_editor = TTF_OpenFont(path, (float)size);
+    if (!renderer->font_editor) {
+        printf("Error: failed to load font %s with size %d\n", path, size);
+        exit(1);
+    }
 
     TTF_GetStringSize(
         renderer->font_editor,
@@ -113,12 +130,12 @@ void sdl_render_load_font(
 
     TTF_Font* emoji_fallback = load_emoji_font_aligned_to_main_font(
         renderer->font_editor,
-        "asset/font/NotoColorEmoji-Regular.ttf",
+        // "asset/font/NotoColorEmoji-Regular.ttf",
+        "asset/font/OpenMoji-color-colr0_svg.ttf",
         size);
     if (!emoji_fallback) {
-        printf(
-            "Warning: failed to find a size aligned to the grid for emoji "
-            "font\n");
+        printf("Warning: failed to find a size aligned to the grid for emoji "
+               "font\n");
     } else {
         if (!TTF_AddFallbackFont(renderer->font_editor, emoji_fallback)) {
             printf(
@@ -127,6 +144,12 @@ void sdl_render_load_font(
             exit(1);
         }
     }
+}
+
+void sdl_render_unload_font(RendererSDL* renderer, Meditor* medit)
+{
+    TTF_ClearFallbackFonts(renderer->font_editor);
+    TTF_CloseFont(renderer->font_editor);
 }
 
 int sdl_get_text_cells(RendererSDL* renderer, const char* text)
@@ -144,12 +167,29 @@ void sdl_render_text0(
     int cell_y,
     Color color)
 {
-    // TODO avoid creating repeatedly the surface and texture
+    size_t text_bytes = strlen(text);
+
+    int text_width = 0;
+    size_t text_bytes_max = 0;
+    TTF_MeasureString(
+        renderer->font_editor,
+        text,
+        0,
+        // take one extra cell to allow display partial chars
+        renderer->window_width + renderer->cell_width,
+        &text_width,
+        &text_bytes_max);
+
+    size_t printed_bytes = SDL_min(text_bytes, text_bytes_max);
+
+    if (text_width == 0) {
+        return;
+    }
 
     SDL_Surface* surface = TTF_RenderText_Blended(
         renderer->font_editor,
         text,
-        0,
+        printed_bytes,
         text ? to_sdl_color(color)
              : (SDL_Color) { .r = 255, .g = 255, .b = 255, .a = 255 });
     sdl_assert(surface, "TTF_RenderText_Blended");

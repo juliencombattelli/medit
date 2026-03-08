@@ -1,13 +1,29 @@
 #include "meditor.h"
 #include "renderer.h"
 
+#include <assert.h>
+
 bool keycode_ctrl(SDL_Event event, SDL_Keycode keycode)
 {
     return event.key.key == keycode && (event.key.mod & SDL_KMOD_CTRL);
 }
 
-#define FONT_SIZE 18
-#define FONT_PATH "asset/font/Consola.ttf"
+#define FONT_SIZE_MIN 2
+#define FONT_SIZE_MAX 128
+
+#define DEFAULT_FONT_SIZE 20
+#define DEFAULT_FONT_PATH "asset/font/Consola.ttf"
+
+void set_font_size_clamped(int* font, int value)
+{
+    if (value > FONT_SIZE_MAX) {
+        value = FONT_SIZE_MAX;
+    }
+    if (value < FONT_SIZE_MIN) {
+        value = FONT_SIZE_MIN;
+    }
+    *font = value;
+}
 
 int main(int argc, char** argv)
 {
@@ -30,7 +46,9 @@ int main(int argc, char** argv)
         renderer.renderer = sdl_renderer;
     }
 
-    sdl_render_load_font(&renderer, &medit, FONT_PATH, FONT_SIZE);
+    int font_size = DEFAULT_FONT_SIZE;
+    const char* font_path = DEFAULT_FONT_PATH;
+    sdl_render_load_font(&renderer, &medit, font_path, font_size);
 
     bool running = true;
     SDL_ShowWindow(renderer.window);
@@ -44,13 +62,16 @@ int main(int argc, char** argv)
     medit.grid_cols = renderer.window_width / renderer.cell_width;
     medit.grid_rows = renderer.window_height / renderer.cell_height;
 
-    const char welcome_message[] = "😀 Hello, world! 😀";
+    // const char welcome_message[] = "😀 Hello, world! 😀";
+    const char welcome_message[] = "Hello, world! 😀";
     const int text_cells = sdl_get_text_cells(&renderer, welcome_message);
     meditor_append_text(&medit, welcome_message, text_cells);
 
+    bool input_in_frame = true;
     while (running) {
         SDL_Event event = { 0 };
         while (SDL_PollEvent(&event) != 0) {
+            input_in_frame = true;
             switch (event.type) {
                 case SDL_EVENT_QUIT:
                     running = false;
@@ -63,9 +84,37 @@ int main(int argc, char** argv)
                     medit.grid_rows = renderer.window_height
                         / renderer.cell_height;
                     break;
-                case SDL_EVENT_KEY_DOWN:
+                case SDL_EVENT_KEY_DOWN: {
                     if (keycode_ctrl(event, SDLK_G)) {
                         medit.draw_debug_grid = !medit.draw_debug_grid;
+                    }
+
+                    SDL_Keycode keycode = SDL_GetKeyFromScancode(
+                        event.key.scancode,
+                        event.key.mod,
+                        false);
+
+                    if (keycode_ctrl(event, SDLK_KP_MINUS)
+                        || (keycode == '-'
+                            && (event.key.mod & SDL_KMOD_CTRL))) {
+                        set_font_size_clamped(&font_size, font_size - 2);
+                        sdl_render_unload_font(&renderer, &medit);
+                        sdl_render_load_font(
+                            &renderer,
+                            &medit,
+                            font_path,
+                            font_size);
+                    } else if (
+                        keycode_ctrl(event, SDLK_KP_PLUS)
+                        || (keycode == '+'
+                            && (event.key.mod & SDL_KMOD_CTRL))) {
+                        set_font_size_clamped(&font_size, font_size + 2);
+                        sdl_render_unload_font(&renderer, &medit);
+                        sdl_render_load_font(
+                            &renderer,
+                            &medit,
+                            font_path,
+                            font_size);
                     }
                     if (event.key.key == SDLK_ESCAPE) {
                         running = false;
@@ -83,6 +132,7 @@ int main(int argc, char** argv)
                         meditor_cursor_right(&medit, 1);
                     }
                     break;
+                }
                 case SDL_EVENT_TEXT_INPUT: {
                     const int text_cells = sdl_get_text_cells(
                         &renderer,
@@ -92,6 +142,11 @@ int main(int argc, char** argv)
                 } break;
             }
         }
+
+        if (!input_in_frame) {
+            continue;
+        }
+        input_in_frame = false;
 
         SDL_SetRenderDrawColor(renderer.renderer, 30, 30, 30, 255);
         SDL_RenderClear(renderer.renderer);
