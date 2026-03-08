@@ -2,6 +2,13 @@
 
 ./scripts/setup.sh ../medit-deps ../medit-deps-install
 
+echo "Downloading fonts..."
+mkdir -p asset/font
+wget https://github.com/hfg-gmuend/openmoji/raw/16.0.0/font/OpenMoji-color-colr0_svg/OpenMoji-color-colr0_svg.ttf \
+    --output-document=asset/font/OpenMoji-color-colr0_svg.ttf
+wget https://github.com/google/fonts/raw/refs/heads/main/ofl/inconsolata/static/Inconsolata-Regular.ttf \
+    --output-document=asset/font/Inconsolata-Regular.ttf
+
 cmake -S . -B build \
     -DCMAKE_BUILD_TYPE=RelWithDebInfo -DFETCHCONTENT_QUIET=NO \
     -DSDL3_DIR=../medit-deps-install/lib/cmake/SDL3 \

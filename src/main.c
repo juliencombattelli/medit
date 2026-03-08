@@ -111,8 +111,8 @@ bool keycode_ctrl(SDL_Event event, SDL_Keycode keycode)
 #define FONT_SIZE_MIN 2
 #define FONT_SIZE_MAX 128
 
-#define DEFAULT_FONT_SIZE 20
-#define DEFAULT_FONT_PATH "asset/font/Consola.ttf"
+#define DEFAULT_FONT_SIZE 22
+#define DEFAULT_FONT_PATH "asset/font/Inconsolata-Regular.ttf"
 
 void set_font_size_clamped(int* font, int value)
 {
