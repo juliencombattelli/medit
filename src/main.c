@@ -1,75 +1,62 @@
+#include "keymap.h"
 #include "meditor.h"
 #include "renderer.h"
 
-#define assert(EXPR)                                                           \
-    do {                                                                       \
-        if (!(EXPR)) {                                                         \
-            (void)fprintf(stderr, "%s:%u: %s\n", __FILE__, __LINE__, #EXPR);   \
-            exit(1);                                                           \
-        }                                                                      \
-    } while (0)
-
-typedef unsigned int KeyCode;
-
-typedef unsigned int KeyMod;
-#define KEY_MOD_NONE (0u)
-#define KEY_MOD_CTRL (1u << 0u)
-#define KEY_MOD_SHIFT (1u << 1u)
-#define KEY_MOD_ALT (1u << 2u)
-#define KEY_MOD_COUNT ((KEY_MOD_CTRL | KEY_MOD_SHIFT | KEY_MOD_ALT) + 1)
-
-typedef void(KeyMapHandler)(RendererSDL* renderer, Meditor* medit);
-
-#define KEY_COUNT 512
-typedef KeyMapHandler*(KeyMap)[KEY_COUNT];
-
-static KeyMap keymaps[KEY_MOD_COUNT];
-
 KeyMod sdl_to_keymod(SDL_Keymod keymod)
 {
-    KeyMod result = KEY_MOD_NONE;
+    KeyMod result = KEYMOD_NONE;
     if (keymod & SDL_KMOD_CTRL) {
-        result |= KEY_MOD_CTRL;
+        result |= KEYMOD_CTRL;
     }
     if (keymod & SDL_KMOD_SHIFT) {
-        result |= KEY_MOD_SHIFT;
+        result |= KEYMOD_SHIFT;
     }
     if (keymod & SDL_KMOD_ALT) {
-        result |= KEY_MOD_ALT;
+        result |= KEYMOD_ALT;
     }
     return result;
 }
 
 SDL_Keymod sdl_from_keymod(KeyMod keymod)
 {
-    return SDL_KMOD_NONE;
+    SDL_Keymod result = 0;
+    if (keymod & KEYMOD_CTRL) {
+        result |= SDL_KMOD_CTRL;
+    }
+    if (keymod & KEYMOD_SHIFT) {
+        result |= SDL_KMOD_SHIFT;
+    }
+    if (keymod & KEYMOD_ALT) {
+        result |= SDL_KMOD_ALT;
+    }
+    return result;
 }
 
-void reset_keymaps()
+Key sdl_key_from_scancode(SDL_Scancode scancode, SDL_Keymod mods)
 {
-    memset(keymaps, 0, sizeof(keymaps));
+    return (Key) {
+        .code = scancode,
+        .mod = sdl_to_keymod(mods),
+    };
 }
 
-KeyMap* get_keymap(KeyMod keymod)
+Key sdl_key_from_keycode(SDL_Keycode keycode, SDL_Keymod mods)
 {
-    assert(keymod < KEY_MOD_COUNT);
-    return &keymaps[keymod];
+    const SDL_Keymod dup_mods = mods;
+    SDL_Scancode scancode = SDL_GetScancodeFromKey(keycode, &mods);
+    return sdl_key_from_scancode(scancode, dup_mods);
 }
 
-void set_keymap_action(KeyCode keycode, KeyMod keymod, KeyMapHandler* handler)
+void sdl_key_from_string(
+    const char* keyname,
+    KeyMod keymods,
+    SDL_Scancode* sdl_scancode,
+    SDL_Keymod* sdl_keymods)
 {
-    KeyMap* keymap = get_keymap(keymod);
-    assert(keymap);
-    assert(keycode < KEY_COUNT);
-    (*keymap)[keycode] = handler;
-}
-
-KeyMapHandler* get_keymap_action(KeyCode keycode, KeyMod keymod)
-{
-    KeyMap* keymap = get_keymap(keymod);
-    assert(keymap);
-    assert(keycode < KEY_COUNT);
-    return (*keymap)[keycode];
+    SDL_Keycode sdl_keycode = SDL_GetKeyFromName(keyname);
+    SDL_Keymod _sdl_keymods = sdl_from_keymod(keymods);
+    *sdl_keymods = _sdl_keymods;
+    *sdl_scancode = SDL_GetScancodeFromKey(sdl_keycode, &_sdl_keymods);
 }
 
 void toggle_debug_grid(RendererSDL* renderer, Meditor* medit)
@@ -80,9 +67,9 @@ void toggle_debug_grid(RendererSDL* renderer, Meditor* medit)
 
 void load_default_keymap()
 {
-    SDL_Keymod modstate = SDL_KMOD_CTRL;
-    SDL_Scancode scancode = SDL_GetScancodeFromKey(SDLK_A, &modstate);
-    set_keymap_action(scancode, KEY_MOD_CTRL, toggle_debug_grid);
+    set_keymap_action(
+        (Key) { .code = KEYCODE_A, .mod = KEYMOD_CTRL },
+        toggle_debug_grid);
 }
 
 bool keycode_ctrl(SDL_Event event, SDL_Keycode keycode)
@@ -170,10 +157,8 @@ int main(int argc, char** argv)
                         / renderer.cell_height;
                     break;
                 case SDL_EVENT_KEY_DOWN: {
-                    KeyMod keymod = sdl_to_keymod(event.key.mod);
                     KeyMapHandler* handler = get_keymap_action(
-                        event.key.scancode,
-                        keymod);
+                        sdl_key_from_keycode(event.key.key, event.key.mod));
                     if (handler) {
                         (*handler)(&renderer, &medit);
                     }

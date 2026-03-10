@@ -42,7 +42,7 @@ typedef struct {
 
 #define TEXT_CAPACITY (size_t)(1024 * 1024)
 
-typedef struct {
+typedef struct Meditor {
     // Files opened_files;
     // FileViews file_views;
     // FileView focused_view;

@@ -7,7 +7,7 @@
 #include <SDL3/SDL.h>
 #include <SDL3_ttf/SDL_ttf.h>
 
-typedef struct {
+typedef struct RendererSDL {
     SDL_Window* window;
     SDL_Renderer* renderer;
     TTF_Font* font_editor;
