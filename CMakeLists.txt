@@ -8,7 +8,10 @@ set(CMAKE_C_EXTENSIONS OFF)
 include(cmake/FindPackageOrFetchSDL3.cmake)
 include(cmake/FindPackageOrFetchSDL3_ttf.cmake)
 
-add_executable(medit src/main.c src/meditor.c src/renderer_sdl.c)
+add_executable(medit
+    src/main.c src/meditor.c src/keybind.c
+    src/renderer_sdl.c src/keybind_sdl3.c
+)
 
 if(MSVC)
     set(WARNINGS /W4)

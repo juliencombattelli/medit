@@ -1,88 +1,17 @@
+#include "keybind.h"
+#include "keybind_sdl3.h"
 #include "meditor.h"
 #include "renderer.h"
 
-#define assert(EXPR)                                                           \
-    do {                                                                       \
-        if (!(EXPR)) {                                                         \
-            (void)fprintf(stderr, "%s:%u: %s\n", __FILE__, __LINE__, #EXPR);   \
-            exit(1);                                                           \
-        }                                                                      \
-    } while (0)
-
-typedef unsigned int KeyCode;
-
-typedef unsigned int KeyMod;
-#define KEY_MOD_NONE (0u)
-#define KEY_MOD_CTRL (1u << 0u)
-#define KEY_MOD_SHIFT (1u << 1u)
-#define KEY_MOD_ALT (1u << 2u)
-#define KEY_MOD_COUNT ((KEY_MOD_CTRL | KEY_MOD_SHIFT | KEY_MOD_ALT) + 1)
-
-typedef void(KeyMapHandler)(RendererSDL* renderer, Meditor* medit);
-
-#define KEY_COUNT 512
-typedef KeyMapHandler*(KeyMap)[KEY_COUNT];
-
-static KeyMap keymaps[KEY_MOD_COUNT];
-
-KeyMod sdl_to_keymod(SDL_Keymod keymod)
+void toggle_debug_grid(void* user_data)
 {
-    KeyMod result = KEY_MOD_NONE;
-    if (keymod & SDL_KMOD_CTRL) {
-        result |= KEY_MOD_CTRL;
-    }
-    if (keymod & SDL_KMOD_SHIFT) {
-        result |= KEY_MOD_SHIFT;
-    }
-    if (keymod & SDL_KMOD_ALT) {
-        result |= KEY_MOD_ALT;
-    }
-    return result;
-}
-
-SDL_Keymod sdl_from_keymod(KeyMod keymod)
-{
-    return SDL_KMOD_NONE;
-}
-
-void reset_keymaps()
-{
-    memset(keymaps, 0, sizeof(keymaps));
-}
-
-KeyMap* get_keymap(KeyMod keymod)
-{
-    assert(keymod < KEY_MOD_COUNT);
-    return &keymaps[keymod];
-}
-
-void set_keymap_action(KeyCode keycode, KeyMod keymod, KeyMapHandler* handler)
-{
-    KeyMap* keymap = get_keymap(keymod);
-    assert(keymap);
-    assert(keycode < KEY_COUNT);
-    (*keymap)[keycode] = handler;
-}
-
-KeyMapHandler* get_keymap_action(KeyCode keycode, KeyMod keymod)
-{
-    KeyMap* keymap = get_keymap(keymod);
-    assert(keymap);
-    assert(keycode < KEY_COUNT);
-    return (*keymap)[keycode];
-}
-
-void toggle_debug_grid(RendererSDL* renderer, Meditor* medit)
-{
-    (void)renderer;
+    Meditor* medit = user_data;
     medit->draw_debug_grid = !medit->draw_debug_grid;
 }
 
-void load_default_keymap()
+void load_default_keymap(Keybind* keybind, Meditor* medit)
 {
-    SDL_Keymod modstate = SDL_KMOD_CTRL;
-    SDL_Scancode scancode = SDL_GetScancodeFromKey(SDLK_A, &modstate);
-    set_keymap_action(scancode, KEY_MOD_CTRL, toggle_debug_grid);
+    keybind_bind(keybind, KEY_A, MOD_CTRL, toggle_debug_grid, medit);
 }
 
 bool keycode_ctrl(SDL_Event event, SDL_Keycode keycode)
@@ -144,8 +73,10 @@ int main(int argc, char** argv)
     medit.grid_cols = renderer.window_width / renderer.cell_width;
     medit.grid_rows = renderer.window_height / renderer.cell_height;
 
+    Keybind keybind = { 0 };
+
     printf("Loading keymapping\n");
-    load_default_keymap();
+    load_default_keymap(&keybind, &medit);
 
     // const char welcome_message[] = "😀 Hello, world! 😀";
     const char welcome_message[] = "Hello, world! 😀";
@@ -170,12 +101,10 @@ int main(int argc, char** argv)
                         / renderer.cell_height;
                     break;
                 case SDL_EVENT_KEY_DOWN: {
-                    KeyMod keymod = sdl_to_keymod(event.key.mod);
-                    KeyMapHandler* handler = get_keymap_action(
-                        event.key.scancode,
-                        keymod);
-                    if (handler) {
-                        (*handler)(&renderer, &medit);
+                    {
+                        KeybindEvent keybind_event
+                            = keybind_sdl3_translate_event(&event);
+                        keybind_handle_event(&keybind, &keybind_event);
                     }
 
                     SDL_Keycode keycode = SDL_GetKeyFromScancode(
@@ -231,8 +160,8 @@ int main(int argc, char** argv)
                 } break;
                 case SDL_EVENT_KEYMAP_CHANGED: {
                     printf("Reloading keymapping\n");
-                    reset_keymaps();
-                    load_default_keymap();
+                    keybind_reinit(&keybind);
+                    load_default_keymap(&keybind, &medit);
                 } break;
             }
         }
