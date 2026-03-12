@@ -195,6 +195,39 @@ static Key sdl3_keycode_to_keybind_key(SDL_Keycode keycode)
         case SDLK_DOLLAR:
             return KEY_DOLLAR;
 
+        case SDLK_KP_0:
+            return KEY_NPAD_0;
+        case SDLK_KP_1:
+            return KEY_NPAD_1;
+        case SDLK_KP_2:
+            return KEY_NPAD_2;
+        case SDLK_KP_3:
+            return KEY_NPAD_3;
+        case SDLK_KP_4:
+            return KEY_NPAD_4;
+        case SDLK_KP_5:
+            return KEY_NPAD_5;
+        case SDLK_KP_6:
+            return KEY_NPAD_6;
+        case SDLK_KP_7:
+            return KEY_NPAD_7;
+        case SDLK_KP_8:
+            return KEY_NPAD_8;
+        case SDLK_KP_9:
+            return KEY_NPAD_9;
+        case SDLK_KP_PLUS:
+            return KEY_NPAD_PLUS;
+        case SDLK_KP_MINUS:
+            return KEY_NPAD_MINUS;
+        case SDLK_KP_DIVIDE:
+            return KEY_NPAD_DIVIDE;
+        case SDLK_KP_MULTIPLY:
+            return KEY_NPAD_MULTIPLY;
+        case SDLK_KP_ENTER:
+            return KEY_NPAD_ENTER;
+        case SDLK_KP_PERIOD:
+            return KEY_NPAD_PERIOD;
+
         case 0xB2:
             return KEY_SUPERSCRIPT2;
         case 0xF9:

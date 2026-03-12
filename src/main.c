@@ -3,22 +3,6 @@
 #include "meditor.h"
 #include "renderer.h"
 
-void toggle_debug_grid(void* user_data)
-{
-    Meditor* medit = user_data;
-    medit->draw_debug_grid = !medit->draw_debug_grid;
-}
-
-void load_default_keymap(Keybind* keybind, Meditor* medit)
-{
-    keybind_bind(keybind, KEY_A, MOD_CTRL, toggle_debug_grid, medit);
-}
-
-bool keycode_ctrl(SDL_Event event, SDL_Keycode keycode)
-{
-    return event.key.key == keycode && (event.key.mod & SDL_KMOD_CTRL);
-}
-
 enum {
     FONT_SIZE_MIN = 2,
     FONT_SIZE_MAX = 128,
@@ -36,6 +20,94 @@ void set_font_size_clamped(int* font, int value)
         value = FONT_SIZE_MIN;
     }
     *font = value;
+}
+
+typedef struct {
+    Meditor* medit;
+    RendererSDL* renderer;
+} BundledMeditorData;
+
+void action_toggle_debug_grid(void* user_data)
+{
+    Meditor* medit = user_data;
+    medit->draw_debug_grid = !medit->draw_debug_grid;
+}
+
+void action_font_zoom_out(void* user_data)
+{
+    BundledMeditorData* data = (BundledMeditorData*)user_data;
+
+    set_font_size_clamped(
+        &data->medit->editor_font_size,
+        data->medit->editor_font_size - 2);
+    sdl_render_unload_font(data->renderer, data->medit);
+    sdl_render_load_font(data->renderer, data->medit);
+}
+
+void action_font_zoom_in(void* user_data)
+{
+    BundledMeditorData* data = (BundledMeditorData*)user_data;
+
+    set_font_size_clamped(
+        &data->medit->editor_font_size,
+        data->medit->editor_font_size + 2);
+    sdl_render_unload_font(data->renderer, data->medit);
+    sdl_render_load_font(data->renderer, data->medit);
+}
+
+void action_cursor_up(void* user_data)
+{
+    BundledMeditorData* data = (BundledMeditorData*)user_data;
+    meditor_cursor_up(data->medit, 1);
+}
+
+void action_cursor_down(void* user_data)
+{
+    BundledMeditorData* data = (BundledMeditorData*)user_data;
+    meditor_cursor_down(data->medit, 1);
+}
+
+void action_cursor_left(void* user_data)
+{
+    BundledMeditorData* data = (BundledMeditorData*)user_data;
+    meditor_cursor_left(data->medit, 1);
+}
+
+void action_cursor_right(void* user_data)
+{
+    BundledMeditorData* data = (BundledMeditorData*)user_data;
+    meditor_cursor_right(data->medit, 1);
+}
+
+void load_default_keymap(Keybind* keybind, BundledMeditorData* data)
+{
+    keybind_bind(
+        keybind,
+        KEY_A,
+        MOD_CTRL,
+        action_toggle_debug_grid,
+        data->medit);
+
+    keybind_bind(keybind, KEY_NPAD_PLUS, MOD_CTRL, action_font_zoom_in, data);
+    keybind_bind(
+        keybind,
+        KEY_EQUALS,
+        MOD_SHIFT_CTRL,
+        action_font_zoom_in,
+        data);
+
+    keybind_bind(keybind, KEY_NPAD_MINUS, MOD_CTRL, action_font_zoom_out, data);
+    keybind_bind(keybind, KEY_6, MOD_CTRL, action_font_zoom_out, data);
+
+    keybind_bind(keybind, KEY_UP, MOD_NONE, action_cursor_up, data);
+    keybind_bind(keybind, KEY_DOWN, MOD_NONE, action_cursor_down, data);
+    keybind_bind(keybind, KEY_LEFT, MOD_NONE, action_cursor_left, data);
+    keybind_bind(keybind, KEY_RIGHT, MOD_NONE, action_cursor_right, data);
+}
+
+bool keycode_ctrl(SDL_Event event, SDL_Keycode keycode)
+{
+    return event.key.key == keycode && (event.key.mod & SDL_KMOD_CTRL);
 }
 
 int main(int argc, char** argv)
@@ -79,8 +151,13 @@ int main(int argc, char** argv)
 
     Keybind keybind = { 0 };
 
+    BundledMeditorData medit_bundle = {
+        .medit = &medit,
+        .renderer = &renderer,
+    };
+
     printf("Loading keymapping\n");
-    load_default_keymap(&keybind, &medit);
+    load_default_keymap(&keybind, &medit_bundle);
 
     // const char welcome_message[] = "😀 Hello, world! 😀";
     const char welcome_message[] = "Hello, world! 😀";
@@ -107,50 +184,12 @@ int main(int argc, char** argv)
                         / renderer.cell_height;
                     break;
                 case SDL_EVENT_KEY_DOWN: {
-                    {
-                        KeybindEvent keybind_event
-                            = keybind_sdl3_translate_event(&event);
-                        keybind_handle_event(&keybind, &keybind_event);
-                    }
-
-                    SDL_Keycode keycode = SDL_GetKeyFromScancode(
-                        event.key.scancode,
-                        event.key.mod,
-                        false);
-
-                    if (keycode_ctrl(event, SDLK_KP_MINUS)
-                        || (keycode == '-'
-                            && (event.key.mod & SDL_KMOD_CTRL))) {
-                        set_font_size_clamped(
-                            &medit.editor_font_size,
-                            medit.editor_font_size - 2);
-                        sdl_render_unload_font(&renderer, &medit);
-                        sdl_render_load_font(&renderer, &medit);
-                    } else if (
-                        keycode_ctrl(event, SDLK_KP_PLUS)
-                        || (keycode == '+'
-                            && (event.key.mod & SDL_KMOD_CTRL))) {
-                        set_font_size_clamped(
-                            &medit.editor_font_size,
-                            medit.editor_font_size + 2);
-                        sdl_render_unload_font(&renderer, &medit);
-                        sdl_render_load_font(&renderer, &medit);
-                    }
                     if (event.key.key == SDLK_ESCAPE) {
                         running = false;
                     }
-                    if (event.key.key == SDLK_UP) {
-                        meditor_cursor_up(&medit, 1);
-                    }
-                    if (event.key.key == SDLK_DOWN) {
-                        meditor_cursor_down(&medit, 1);
-                    }
-                    if (event.key.key == SDLK_LEFT) {
-                        meditor_cursor_left(&medit, 1);
-                    }
-                    if (event.key.key == SDLK_RIGHT) {
-                        meditor_cursor_right(&medit, 1);
-                    }
+                    KeybindEvent keybind_event = keybind_sdl3_translate_event(
+                        &event);
+                    keybind_handle_event(&keybind, &keybind_event);
                     break;
                 }
                 case SDL_EVENT_TEXT_INPUT: {
@@ -163,7 +202,7 @@ int main(int argc, char** argv)
                 case SDL_EVENT_KEYMAP_CHANGED: {
                     printf("Reloading keymapping\n");
                     keybind_reinit(&keybind);
-                    load_default_keymap(&keybind, &medit);
+                    load_default_keymap(&keybind, &medit_bundle);
                 } break;
             }
         }
