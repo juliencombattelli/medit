@@ -4,18 +4,18 @@
 
 #define FORCE_MONOSPACE_FONTS
 
-#define sdl_assert(condition, sdl_call)                                        \
-    do {                                                                       \
-        if (!(condition)) {                                                    \
-            fprintf(                                                           \
-                stderr,                                                        \
-                "%s:%d: Error: %s: %s\n",                                      \
-                __FILE__,                                                      \
-                __LINE__,                                                      \
-                (sdl_call),                                                    \
-                SDL_GetError());                                               \
-            exit(1);                                                           \
-        }                                                                      \
+#define sdl_assert(condition, sdl_call)                                                            \
+    do {                                                                                           \
+        if (!(condition)) {                                                                        \
+            fprintf(                                                                               \
+                stderr,                                                                            \
+                "%s:%d: Error: %s: %s\n",                                                          \
+                __FILE__,                                                                          \
+                __LINE__,                                                                          \
+                (sdl_call),                                                                        \
+                SDL_GetError());                                                                   \
+            exit(1);                                                                               \
+        }                                                                                          \
     } while (0)
 
 static SDL_Color to_sdl_color(Color color)
@@ -50,10 +50,7 @@ static const char editor_font_test_string[] = //
     "MMMMMMMMMM"
     "MMMMMMMMMM"
     "MMMMMMMMMM";
-_Static_assert(
-    sizeof(editor_font_test_string) - 1
-        == FONT_TEST_CHAR_COUNT * (sizeof("M") - 1),
-    "");
+_Static_assert(sizeof(editor_font_test_string) - 1 == FONT_TEST_CHAR_COUNT * (sizeof("M") - 1), "");
 
 static const char emoji_font_test_string[] = //
     "😀😀😀😀😀😀😀😀😀😀"
@@ -66,10 +63,7 @@ static const char emoji_font_test_string[] = //
     "😀😀😀😀😀😀😀😀😀😀"
     "😀😀😀😀😀😀😀😀😀😀"
     "😀😀😀😀😀😀😀😀😀😀";
-_Static_assert(
-    sizeof(emoji_font_test_string) - 1
-        == FONT_TEST_CHAR_COUNT * (sizeof("😀") - 1),
-    "");
+_Static_assert(sizeof(emoji_font_test_string) - 1 == FONT_TEST_CHAR_COUNT * (sizeof("😀") - 1), "");
 
 static int glyph_width(TTF_Font* font, const char* s)
 {
@@ -116,9 +110,7 @@ void sdl_render_load_font(RendererSDL* renderer, Meditor* medit)
         "Info: loading font %s with size %d\n",
         medit->editor_font_path,
         medit->editor_font_size);
-    renderer->font_editor = TTF_OpenFont(
-        medit->editor_font_path,
-        (float)medit->editor_font_size);
+    renderer->font_editor = TTF_OpenFont(medit->editor_font_path, (float)medit->editor_font_size);
     if (!renderer->font_editor) {
         printf(
             "Error: failed to load font %s with size %d\n",
@@ -127,12 +119,7 @@ void sdl_render_load_font(RendererSDL* renderer, Meditor* medit)
         exit(1);
     }
 
-    TTF_GetStringSize(
-        renderer->font_editor,
-        "M",
-        0,
-        &renderer->cell_width,
-        &renderer->cell_height);
+    TTF_GetStringSize(renderer->font_editor, "M", 0, &renderer->cell_width, &renderer->cell_height);
 
     TTF_Font* emoji_fallback = load_emoji_font_aligned_to_main_font(
         renderer->font_editor,
@@ -145,9 +132,7 @@ void sdl_render_load_font(RendererSDL* renderer, Meditor* medit)
             "font\n");
     } else {
         if (!TTF_AddFallbackFont(renderer->font_editor, emoji_fallback)) {
-            printf(
-                "Warning: failed to load fallback emoji font: %s\n",
-                SDL_GetError());
+            printf("Warning: failed to load fallback emoji font: %s\n", SDL_GetError());
             exit(1);
         }
     }
@@ -200,13 +185,10 @@ void sdl_render_text0(
         renderer->font_editor,
         text,
         printed_bytes,
-        text ? to_sdl_color(color)
-             : (SDL_Color) { .r = 255, .g = 255, .b = 255, .a = 255 });
+        text ? to_sdl_color(color) : (SDL_Color) { .r = 255, .g = 255, .b = 255, .a = 255 });
     sdl_assert(surface, "TTF_RenderText_Blended");
 
-    SDL_Texture* texture = SDL_CreateTextureFromSurface(
-        renderer->renderer,
-        surface);
+    SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer->renderer, surface);
     sdl_assert(texture, "SDL_CreateTextureFromSurface");
 
     const SDL_FRect glyph_rect = {
@@ -231,12 +213,7 @@ void sdl_render_cursor(RendererSDL* renderer, Meditor* medit, Color color)
         .h = (float)(renderer->cell_height),
     };
 
-    SDL_SetRenderDrawColor(
-        renderer->renderer,
-        color.r,
-        color.g,
-        color.b,
-        color.a);
+    SDL_SetRenderDrawColor(renderer->renderer, color.r, color.g, color.b, color.a);
     SDL_RenderFillRect(renderer->renderer, &cursor_rect);
 }
 

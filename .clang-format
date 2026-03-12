@@ -2,7 +2,7 @@
 BasedOnStyle: WebKit
 Language: Cpp
 Standard: c++20
-ColumnLimit: 80
+ColumnLimit: 100
 
 # Switch/case settings
 IndentCaseLabels: true
@@ -13,9 +13,10 @@ CommentPragmas: '^\s*NOLINT'
 # Force braces after control statements (if, else, for, do, and while)
 InsertBraces: true
 
-# Disable short blocks on single line
+# Disable short blocks on single line except for switch cases
 AllowShortEnumsOnASingleLine: false
 AllowShortFunctionsOnASingleLine: false
+AllowShortCaseLabelsOnASingleLine: true
 
 # Concept/require clause settings
 IndentRequires: true

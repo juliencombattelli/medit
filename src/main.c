@@ -29,17 +29,15 @@ typedef struct {
 
 void action_toggle_debug_grid(void* user_data)
 {
-    Meditor* medit = user_data;
-    medit->draw_debug_grid = !medit->draw_debug_grid;
+    BundledMeditorData* data = (BundledMeditorData*)user_data;
+    data->medit->draw_debug_grid = !data->medit->draw_debug_grid;
 }
 
 void action_font_zoom_out(void* user_data)
 {
     BundledMeditorData* data = (BundledMeditorData*)user_data;
 
-    set_font_size_clamped(
-        &data->medit->editor_font_size,
-        data->medit->editor_font_size - 2);
+    set_font_size_clamped(&data->medit->editor_font_size, data->medit->editor_font_size - 2);
     sdl_render_unload_font(data->renderer, data->medit);
     sdl_render_load_font(data->renderer, data->medit);
 }
@@ -48,9 +46,7 @@ void action_font_zoom_in(void* user_data)
 {
     BundledMeditorData* data = (BundledMeditorData*)user_data;
 
-    set_font_size_clamped(
-        &data->medit->editor_font_size,
-        data->medit->editor_font_size + 2);
+    set_font_size_clamped(&data->medit->editor_font_size, data->medit->editor_font_size + 2);
     sdl_render_unload_font(data->renderer, data->medit);
     sdl_render_load_font(data->renderer, data->medit);
 }
@@ -81,20 +77,10 @@ void action_cursor_right(void* user_data)
 
 void load_default_keymap(Keybind* keybind, BundledMeditorData* data)
 {
-    keybind_bind(
-        keybind,
-        KEY_A,
-        MOD_CTRL,
-        action_toggle_debug_grid,
-        data->medit);
+    keybind_bind(keybind, KEY_A, MOD_CTRL, action_toggle_debug_grid, data);
 
     keybind_bind(keybind, KEY_NPAD_PLUS, MOD_CTRL, action_font_zoom_in, data);
-    keybind_bind(
-        keybind,
-        KEY_EQUALS,
-        MOD_SHIFT_CTRL,
-        action_font_zoom_in,
-        data);
+    keybind_bind(keybind, KEY_EQUALS, MOD_SHIFT_CTRL, action_font_zoom_in, data);
 
     keybind_bind(keybind, KEY_NPAD_MINUS, MOD_CTRL, action_font_zoom_out, data);
     keybind_bind(keybind, KEY_6, MOD_CTRL, action_font_zoom_out, data);
@@ -120,11 +106,7 @@ int main(int argc, char** argv)
     Meditor medit = { 0 };
     RendererSDL renderer = { 0 };
     {
-        SDL_Window* sdl_window = SDL_CreateWindow(
-            "Medit",
-            1280,
-            720,
-            SDL_WINDOW_HIDDEN);
+        SDL_Window* sdl_window = SDL_CreateWindow("Medit", 1280, 720, SDL_WINDOW_HIDDEN);
 
         SDL_Renderer* sdl_renderer = SDL_CreateRenderer(sdl_window, NULL);
         SDL_SetRenderVSync(sdl_renderer, 1);
@@ -142,10 +124,7 @@ int main(int argc, char** argv)
 
     SDL_StartTextInput(renderer.window);
 
-    SDL_GetWindowSize(
-        renderer.window,
-        &renderer.window_width,
-        &renderer.window_height);
+    SDL_GetWindowSize(renderer.window, &renderer.window_width, &renderer.window_height);
     medit.grid_cols = renderer.window_width / renderer.cell_width;
     medit.grid_rows = renderer.window_height / renderer.cell_height;
 
@@ -172,30 +151,23 @@ int main(int argc, char** argv)
         while (SDL_PollEvent(&event) != 0) {
             input_in_frame = true;
             switch (event.type) {
-                case SDL_EVENT_QUIT:
-                    running = false;
-                    break;
+                case SDL_EVENT_QUIT: running = false; break;
                 case SDL_EVENT_WINDOW_RESIZED:
                     renderer.window_width = (int)event.window.data1;
                     renderer.window_height = (int)event.window.data2;
-                    medit.grid_cols = renderer.window_width
-                        / renderer.cell_width;
-                    medit.grid_rows = renderer.window_height
-                        / renderer.cell_height;
+                    medit.grid_cols = renderer.window_width / renderer.cell_width;
+                    medit.grid_rows = renderer.window_height / renderer.cell_height;
                     break;
                 case SDL_EVENT_KEY_DOWN: {
                     if (event.key.key == SDLK_ESCAPE) {
                         running = false;
                     }
-                    KeybindEvent keybind_event = keybind_sdl3_translate_event(
-                        &event);
+                    KeybindEvent keybind_event = keybind_sdl3_translate_event(&event);
                     keybind_handle_event(&keybind, &keybind_event);
                     break;
                 }
                 case SDL_EVENT_TEXT_INPUT: {
-                    const int text_cells = sdl_get_text_cells(
-                        &renderer,
-                        event.text.text);
+                    const int text_cells = sdl_get_text_cells(&renderer, event.text.text);
                     meditor_append_text(&medit, event.text.text, text_cells);
                     meditor_cursor_right(&medit, text_cells);
                 } break;
@@ -222,13 +194,7 @@ int main(int argc, char** argv)
 
         sdl_render_debug_grid(&renderer, &medit);
 
-        sdl_render_text0(
-            &renderer,
-            &medit,
-            "TrueType Font Rendering",
-            10,
-            4,
-            white);
+        sdl_render_text0(&renderer, &medit, "TrueType Font Rendering", 10, 4, white);
         sdl_render_text0(&renderer, &medit, "With SDL_ttf", 10, 6, cyan);
         sdl_render_text0(&renderer, &medit, "Press ESC to exit", 10, 10, lime);
 
