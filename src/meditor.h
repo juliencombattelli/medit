@@ -54,6 +54,8 @@ typedef struct {
     size_t text_size;
     int text_cells;
     char text[TEXT_CAPACITY];
+    int editor_font_size;
+    const char* editor_font_path;
 } Meditor;
 
 void meditor_cursor_up(Meditor* medit, int cells);

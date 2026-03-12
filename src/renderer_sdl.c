@@ -108,18 +108,22 @@ static TTF_Font* load_emoji_font_aligned_to_main_font(
 #endif
 }
 
-void sdl_render_load_font(
-    RendererSDL* renderer,
-    Meditor* medit,
-    const char* path,
-    int size)
+void sdl_render_load_font(RendererSDL* renderer, Meditor* medit)
 {
     (void)medit;
 
-    printf("Info: loading font %s with size %d\n", path, size);
-    renderer->font_editor = TTF_OpenFont(path, (float)size);
+    printf(
+        "Info: loading font %s with size %d\n",
+        medit->editor_font_path,
+        medit->editor_font_size);
+    renderer->font_editor = TTF_OpenFont(
+        medit->editor_font_path,
+        (float)medit->editor_font_size);
     if (!renderer->font_editor) {
-        printf("Error: failed to load font %s with size %d\n", path, size);
+        printf(
+            "Error: failed to load font %s with size %d\n",
+            medit->editor_font_path,
+            medit->editor_font_size);
         exit(1);
     }
 
@@ -134,7 +138,7 @@ void sdl_render_load_font(
         renderer->font_editor,
         // "asset/font/NotoColorEmoji-Regular.ttf",
         "asset/font/OpenMoji-color-colr0_svg.ttf",
-        size);
+        medit->editor_font_size);
     if (!emoji_fallback) {
         printf(
             "Warning: failed to find a size aligned to the grid for emoji "

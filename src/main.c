@@ -61,9 +61,9 @@ int main(int argc, char** argv)
         renderer.renderer = sdl_renderer;
     }
 
-    int font_size = FONT_SIZE_DEFAULT;
-    const char* font_path = FONT_PATH_DEFAULT;
-    sdl_render_load_font(&renderer, &medit, font_path, font_size);
+    medit.editor_font_size = FONT_SIZE_DEFAULT;
+    medit.editor_font_path = FONT_PATH_DEFAULT;
+    sdl_render_load_font(&renderer, &medit);
 
     bool running = true;
     SDL_ShowWindow(renderer.window);
@@ -121,24 +121,20 @@ int main(int argc, char** argv)
                     if (keycode_ctrl(event, SDLK_KP_MINUS)
                         || (keycode == '-'
                             && (event.key.mod & SDL_KMOD_CTRL))) {
-                        set_font_size_clamped(&font_size, font_size - 2);
+                        set_font_size_clamped(
+                            &medit.editor_font_size,
+                            medit.editor_font_size - 2);
                         sdl_render_unload_font(&renderer, &medit);
-                        sdl_render_load_font(
-                            &renderer,
-                            &medit,
-                            font_path,
-                            font_size);
+                        sdl_render_load_font(&renderer, &medit);
                     } else if (
                         keycode_ctrl(event, SDLK_KP_PLUS)
                         || (keycode == '+'
                             && (event.key.mod & SDL_KMOD_CTRL))) {
-                        set_font_size_clamped(&font_size, font_size + 2);
+                        set_font_size_clamped(
+                            &medit.editor_font_size,
+                            medit.editor_font_size + 2);
                         sdl_render_unload_font(&renderer, &medit);
-                        sdl_render_load_font(
-                            &renderer,
-                            &medit,
-                            font_path,
-                            font_size);
+                        sdl_render_load_font(&renderer, &medit);
                     }
                     if (event.key.key == SDLK_ESCAPE) {
                         running = false;

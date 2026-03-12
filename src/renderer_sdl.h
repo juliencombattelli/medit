@@ -17,11 +17,7 @@ typedef struct {
     int window_height;
 } RendererSDL;
 
-void sdl_render_load_font(
-    RendererSDL* renderer,
-    Meditor* medit,
-    const char* path,
-    int size);
+void sdl_render_load_font(RendererSDL* renderer, Meditor* medit);
 
 void sdl_render_unload_font(RendererSDL* renderer, Meditor* medit);
 
