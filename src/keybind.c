@@ -309,4 +309,5 @@ const char* keybind_key_to_string(Key key)
         case KEY_COUNT:
             assert(false && "Key out of range");
     }
+    return "";
 }

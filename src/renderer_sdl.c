@@ -114,6 +114,8 @@ void sdl_render_load_font(
     const char* path,
     int size)
 {
+    (void)medit;
+
     printf("Info: loading font %s with size %d\n", path, size);
     renderer->font_editor = TTF_OpenFont(path, (float)size);
     if (!renderer->font_editor) {
@@ -134,8 +136,9 @@ void sdl_render_load_font(
         "asset/font/OpenMoji-color-colr0_svg.ttf",
         size);
     if (!emoji_fallback) {
-        printf("Warning: failed to find a size aligned to the grid for emoji "
-               "font\n");
+        printf(
+            "Warning: failed to find a size aligned to the grid for emoji "
+            "font\n");
     } else {
         if (!TTF_AddFallbackFont(renderer->font_editor, emoji_fallback)) {
             printf(
@@ -148,6 +151,7 @@ void sdl_render_load_font(
 
 void sdl_render_unload_font(RendererSDL* renderer, Meditor* medit)
 {
+    (void)medit;
     TTF_ClearFallbackFonts(renderer->font_editor);
     TTF_CloseFont(renderer->font_editor);
 }
@@ -167,6 +171,8 @@ void sdl_render_text0(
     int cell_y,
     Color color)
 {
+    (void)medit;
+
     size_t text_bytes = strlen(text);
 
     int text_width = 0;

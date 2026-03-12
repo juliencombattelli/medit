@@ -28,13 +28,14 @@ static inline void render_text0(
 {
     switch (renderer->id) {
         case RENDERER_SDL:
-            return sdl_render_text0(
+            sdl_render_text0(
                 &renderer->sdl,
                 medit,
                 text,
                 cell_x,
                 cell_y,
                 color);
+            return;
     }
     printf("WARNING: Unimplemented: %s\n", __func__);
 }
@@ -46,7 +47,8 @@ static inline void render_cursor(
 {
     switch (renderer->id) {
         case RENDERER_SDL:
-            return sdl_render_cursor(&renderer->sdl, medit, color);
+            sdl_render_cursor(&renderer->sdl, medit, color);
+            return;
     }
     printf("WARNING: Unimplemented: %s\n", __func__);
 }
@@ -55,7 +57,8 @@ static inline void render_debug_grid(Renderer* renderer, Meditor* medit)
 {
     switch (renderer->id) {
         case RENDERER_SDL:
-            return sdl_render_debug_grid(&renderer->sdl, medit);
+            sdl_render_debug_grid(&renderer->sdl, medit);
+            return;
     }
     printf("WARNING: Unimplemented: %s\n", __func__);
 }

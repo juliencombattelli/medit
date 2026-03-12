@@ -15,8 +15,8 @@ add_executable(medit
 
 if(MSVC)
     set(WARNINGS /W4)
-elseif(CMAKE_CXX_COMPILER_ID MATCHES ".*Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    set(WARNINGS -Wall -Wextra -Wshadow -Wconversion)
+elseif(CMAKE_C_COMPILER_ID MATCHES ".*Clang" OR CMAKE_C_COMPILER_ID STREQUAL "GNU")
+    set(WARNINGS -Wall -Wextra -Wshadow -Wconversion -pedantic)
 endif()
 
 target_compile_options(medit PRIVATE ${WARNINGS})

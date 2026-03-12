@@ -19,11 +19,13 @@ bool keycode_ctrl(SDL_Event event, SDL_Keycode keycode)
     return event.key.key == keycode && (event.key.mod & SDL_KMOD_CTRL);
 }
 
-#define FONT_SIZE_MIN 2
-#define FONT_SIZE_MAX 128
+enum {
+    FONT_SIZE_MIN = 2,
+    FONT_SIZE_MAX = 128,
+    FONT_SIZE_DEFAULT = 20,
+};
 
-#define DEFAULT_FONT_SIZE 20
-#define DEFAULT_FONT_PATH "asset/font/consola.ttf"
+#define FONT_PATH_DEFAULT "asset/font/consola.ttf"
 
 void set_font_size_clamped(int* font, int value)
 {
@@ -38,11 +40,13 @@ void set_font_size_clamped(int* font, int value)
 
 int main(int argc, char** argv)
 {
+    (void)argc, (void)argv;
+
     SDL_Init(SDL_INIT_VIDEO);
     TTF_Init();
 
-    Meditor medit = {};
-    RendererSDL renderer = {};
+    Meditor medit = { 0 };
+    RendererSDL renderer = { 0 };
     {
         SDL_Window* sdl_window = SDL_CreateWindow(
             "Medit",
@@ -57,8 +61,8 @@ int main(int argc, char** argv)
         renderer.renderer = sdl_renderer;
     }
 
-    int font_size = DEFAULT_FONT_SIZE;
-    const char* font_path = DEFAULT_FONT_PATH;
+    int font_size = FONT_SIZE_DEFAULT;
+    const char* font_path = FONT_PATH_DEFAULT;
     sdl_render_load_font(&renderer, &medit, font_path, font_size);
 
     bool running = true;
@@ -80,8 +84,10 @@ int main(int argc, char** argv)
 
     // const char welcome_message[] = "😀 Hello, world! 😀";
     const char welcome_message[] = "Hello, world! 😀";
-    const int text_cells = sdl_get_text_cells(&renderer, welcome_message);
-    meditor_append_text(&medit, welcome_message, text_cells);
+    {
+        const int text_cells = sdl_get_text_cells(&renderer, welcome_message);
+        meditor_append_text(&medit, welcome_message, text_cells);
+    }
 
     bool input_in_frame = true;
     while (running) {
