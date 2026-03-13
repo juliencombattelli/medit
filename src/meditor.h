@@ -66,7 +66,8 @@ typedef struct Meditor {
     // Files opened_files;
     // FileViews file_views;
     // FileView focused_view;
-    Vec2 cursor_pos;
+    size_t cursor_index;
+    Vec2 cursor_pos[16]; // TODO create it dynamically
     Vec2 grid_size;
     int text_cells; // TODO switch to size_t
     size_t text_size;

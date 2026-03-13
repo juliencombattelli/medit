@@ -52,6 +52,19 @@ void action_cursor_right(Meditor* medit)
     meditor_cursor_right(medit, 1);
 }
 
+void action_restore_cursor(Meditor* medit)
+{
+    medit->cursor_index = 0;
+    // TODO memset other cursors
+}
+
+void action_add_cursor_down(Meditor* medit)
+{
+    Vec2* prev_cursor = &medit->cursor_pos[medit->cursor_index];
+    Vec2* new_cursor = &medit->cursor_pos[++medit->cursor_index];
+    *new_cursor = vec2(prev_cursor->x, prev_cursor->y + 1);
+}
+
 void meditor_load_default_gui_keybind(Meditor* medit)
 {
     Keybind* keybind = &medit->keybind;
@@ -68,6 +81,9 @@ void meditor_load_default_gui_keybind(Meditor* medit)
     keybind_bind(keybind, KEY_DOWN, MOD_NONE, action_cursor_down, medit);
     keybind_bind(keybind, KEY_LEFT, MOD_NONE, action_cursor_left, medit);
     keybind_bind(keybind, KEY_RIGHT, MOD_NONE, action_cursor_right, medit);
+
+    keybind_bind(keybind, KEY_ESCAPE, MOD_NONE, action_restore_cursor, medit);
+    keybind_bind(keybind, KEY_DOWN, MOD_CTRL_ALT, action_add_cursor_down, medit);
 }
 
 void meditor_load_default_tui_keybind(Meditor* medit)
@@ -77,36 +93,48 @@ void meditor_load_default_tui_keybind(Meditor* medit)
 
 void meditor_cursor_up(Meditor* medit, int cells)
 {
-    medit->cursor_pos.row -= cells;
-    if (medit->cursor_pos.row < 0) {
-        medit->cursor_pos.row = 0;
+    for (size_t c = 0; c <= medit->cursor_index; ++c) {
+        Vec2* cursor = &medit->cursor_pos[c];
+        cursor->row -= cells;
+        if (cursor->row < 0) {
+            cursor->row = 0;
+        }
     }
 }
 
 void meditor_cursor_down(Meditor* medit, int cells)
 {
-    medit->cursor_pos.row += cells;
-    if (medit->cursor_pos.row >= medit->grid_size.row) {
-        medit->cursor_pos.row = medit->grid_size.row - 1;
+    for (size_t c = 0; c <= medit->cursor_index; ++c) {
+        Vec2* cursor = &medit->cursor_pos[c];
+        cursor->row += cells;
+        if (cursor->row >= medit->grid_size.row) {
+            cursor->row = medit->grid_size.row - 1;
+        }
     }
 }
 
 void meditor_cursor_left(Meditor* medit, int cells)
 {
-    medit->cursor_pos.col -= cells;
-    if (medit->cursor_pos.col < 0) {
-        medit->cursor_pos.col = 0;
+    for (size_t c = 0; c <= medit->cursor_index; ++c) {
+        Vec2* cursor = &medit->cursor_pos[c];
+        cursor->col -= cells;
+        if (cursor->col < 0) {
+            cursor->col = 0;
+        }
     }
 }
 
 void meditor_cursor_right(Meditor* medit, int cells)
 {
-    medit->cursor_pos.col += cells;
-    if (medit->cursor_pos.col >= medit->grid_size.col) {
-        medit->cursor_pos.col = medit->grid_size.col - 1;
-    }
-    if (medit->cursor_pos.col >= medit->text_cells) {
-        medit->cursor_pos.col = medit->text_cells;
+    for (size_t c = 0; c <= medit->cursor_index; ++c) {
+        Vec2* cursor = &medit->cursor_pos[c];
+        cursor->col += cells;
+        if (cursor->col >= medit->grid_size.col) {
+            cursor->col = medit->grid_size.col - 1;
+        }
+        if (cursor->col >= medit->text_cells) {
+            cursor->col = medit->text_cells;
+        }
     }
 }
 

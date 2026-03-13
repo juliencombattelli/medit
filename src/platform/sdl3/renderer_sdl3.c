@@ -213,9 +213,6 @@ static void sdl3_handle_events(Meditor* medit)
                 medit->grid_size = vec2_div(renderer->window_size, renderer->cell_size);
                 break;
             case SDL_EVENT_KEY_DOWN: {
-                if (event.key.key == SDLK_ESCAPE) {
-                    medit->running = false;
-                }
                 KeybindEvent keybind_event = keybind_sdl3_translate_event(&event);
                 keybind_handle_event(&medit->keybind, &keybind_event);
                 break;
@@ -284,15 +281,19 @@ static void sdl3_render_cursor(Meditor* medit, Color color)
 {
     RendererSDL3* renderer = (RendererSDL3*)medit->renderer.data;
 
-    const SDL_FRect cursor_rect = {
-        .x = (float)(medit->cursor_pos.col * renderer->cell_size.width),
-        .y = (float)(medit->cursor_pos.row * renderer->cell_size.height),
-        .w = (float)(renderer->cell_size.width),
-        .h = (float)(renderer->cell_size.height),
-    };
+    for (size_t c = 0; c <= medit->cursor_index; ++c) {
+        Vec2* cursor = &medit->cursor_pos[c];
 
-    SDL_SetRenderDrawColor(renderer->renderer, color.r, color.g, color.b, color.a);
-    SDL_RenderFillRect(renderer->renderer, &cursor_rect);
+        const SDL_FRect cursor_rect = {
+            .x = (float)(cursor->col * renderer->cell_size.width),
+            .y = (float)(cursor->row * renderer->cell_size.height),
+            .w = (float)(renderer->cell_size.width),
+            .h = (float)(renderer->cell_size.height),
+        };
+
+        SDL_SetRenderDrawColor(renderer->renderer, color.r, color.g, color.b, color.a);
+        SDL_RenderFillRect(renderer->renderer, &cursor_rect);
+    }
 }
 
 static void sdl3_render_debug_grid(Meditor* medit)
