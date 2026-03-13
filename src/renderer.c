@@ -4,6 +4,17 @@
 
 #include <stdio.h>
 
+void medit_renderer_create(Meditor* medit)
+{
+    Renderer* renderer = &medit->renderer;
+    RendererCreateFn* create = renderer->fns.create;
+    if (!create) {
+        printf("WARNING: Unimplemented: %s for renderer %s\n", __func__, renderer->name);
+        return;
+    }
+    create(medit);
+}
+
 void medit_load_font(Meditor* medit)
 {
     Renderer* renderer = &medit->renderer;
@@ -46,6 +57,17 @@ void medit_clear_screen(Meditor* medit, Color color)
         return;
     }
     clear_screen(medit, color);
+}
+
+void medit_handle_events(Meditor* medit)
+{
+    Renderer* renderer = &medit->renderer;
+    RendererHandleEventsFn* handle_events = renderer->fns.handle_events;
+    if (!handle_events) {
+        printf("WARNING: Unimplemented: %s for renderer %s\n", __func__, renderer->name);
+        return;
+    }
+    handle_events(medit);
 }
 
 void medit_render_text0(Meditor* medit, const char* text, int cell_x, int cell_y, Color color)

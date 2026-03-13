@@ -1,8 +1,6 @@
 #ifndef MEDIT_KEYBIND_H_
 #define MEDIT_KEYBIND_H_
 
-#include "assert.h"
-
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>

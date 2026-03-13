@@ -1,11 +1,20 @@
 #ifndef MEDIT_MEDITOR_H_
 #define MEDIT_MEDITOR_H_
 
+#include "keybind.h"
 #include "linalg.h"
 #include "renderer.h"
 
 #include <stdbool.h>
 #include <stdlib.h>
+
+enum {
+    FONT_SIZE_MIN = 2,
+    FONT_SIZE_MAX = 128,
+    FONT_SIZE_DEFAULT = 20,
+};
+
+#define FONT_PATH_DEFAULT "asset/font/consola.ttf"
 
 typedef struct {
     char* items;
@@ -44,17 +53,21 @@ typedef struct {
 #define TEXT_CAPACITY (size_t)(1024 * 1024)
 
 typedef struct {
-    int initial_window_width;
-    int initial_window_height;
+    int window_width;
+    int window_height;
     int editor_font_size;
     const char* editor_font_path;
 } Config;
 
 typedef struct Meditor {
     Renderer renderer;
+    Config startup_config;
+    Keybind keybind;
     // Files opened_files;
     // FileViews file_views;
     // FileView focused_view;
+    bool running;
+    bool input_in_frame;
     int cursor_col;
     int cursor_row;
     int grid_cols;
@@ -66,6 +79,9 @@ typedef struct Meditor {
     int editor_font_size;
     const char* editor_font_path;
 } Meditor;
+
+void meditor_load_default_gui_keybind(Meditor* medit);
+void meditor_load_default_tui_keybind(Meditor* medit);
 
 void meditor_cursor_up(Meditor* medit, int cells);
 void meditor_cursor_down(Meditor* medit, int cells);

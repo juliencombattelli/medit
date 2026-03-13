@@ -1,4 +1,7 @@
 #include "keybind.h"
+#include "assert.h"
+
+#include <stdio.h>
 
 void keybind_reinit(Keybind* keybind)
 {
@@ -190,6 +193,7 @@ const char* keybind_key_to_string(Key key)
         case KEY_NPAD_ENTER: return "Numpad Enter";
         case KEY_NPAD_PERIOD: return "Numpad Period";
 
-        case KEY_COUNT: assert(false && "Key out of range"); return NULL;
+        case KEY_COUNT: break;
     }
+    assert(false && "Key out of range");
 }

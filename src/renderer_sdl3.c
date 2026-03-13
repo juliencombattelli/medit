@@ -1,7 +1,23 @@
 #include "renderer_sdl3.h"
 #include "assert.h"
+#include "keybind_sdl3.h"
+#include "meditor.h"
+
+#include <SDL3/SDL.h>
+#include <SDL3_ttf/SDL_ttf.h>
 
 #include <stdio.h>
+
+typedef struct {
+    SDL_Window* window;
+    SDL_Renderer* renderer;
+    TTF_Font* font_editor;
+    TTF_Font* font_emoji;
+    int cell_width;
+    int cell_height;
+    int window_width;
+    int window_height;
+} RendererSDL3;
 
 #define FORCE_MONOSPACE_FONTS
 
@@ -89,7 +105,29 @@ static TTF_Font* load_emoji_font_aligned_to_main_font(
 #endif
 }
 
-void sdl3_render_load_font(Meditor* medit)
+static void sdl3_renderer_create(Meditor* medit)
+{
+    RendererSDL3* renderer = (RendererSDL3*)medit->renderer.data;
+
+    SDL_Init(SDL_INIT_VIDEO);
+    TTF_Init();
+
+    SDL_Window* sdl_window = SDL_CreateWindow("Medit", 1280, 720, SDL_WINDOW_HIDDEN);
+
+    SDL_Renderer* sdl_renderer = SDL_CreateRenderer(sdl_window, NULL);
+    SDL_SetRenderVSync(sdl_renderer, 1);
+
+    renderer->window = sdl_window;
+    renderer->renderer = sdl_renderer;
+
+    SDL_ShowWindow(renderer->window);
+
+    SDL_StartTextInput(renderer->window);
+
+    meditor_load_default_gui_keybind(medit);
+}
+
+static void sdl3_render_load_font(Meditor* medit)
 {
     RendererSDL3* renderer = (RendererSDL3*)medit->renderer.data;
 
@@ -108,6 +146,10 @@ void sdl3_render_load_font(Meditor* medit)
 
     TTF_GetStringSize(renderer->font_editor, "M", 0, &renderer->cell_width, &renderer->cell_height);
 
+    SDL_GetWindowSize(renderer->window, &renderer->window_width, &renderer->window_height);
+    medit->grid_cols = renderer->window_width / renderer->cell_width;
+    medit->grid_rows = renderer->window_height / renderer->cell_height;
+
     renderer->font_emoji = load_emoji_font_aligned_to_main_font(
         renderer->font_editor,
         // "asset/font/NotoColorEmoji-Regular.ttf",
@@ -125,7 +167,7 @@ void sdl3_render_load_font(Meditor* medit)
     }
 }
 
-void sdl3_render_unload_font(Meditor* medit)
+static void sdl3_render_unload_font(Meditor* medit)
 {
     RendererSDL3* renderer = (RendererSDL3*)medit->renderer.data;
 
@@ -134,7 +176,7 @@ void sdl3_render_unload_font(Meditor* medit)
     TTF_CloseFont(renderer->font_editor);
 }
 
-int sdl3_get_text_cells(Meditor* medit, const char* text)
+static int sdl3_get_text_cells(Meditor* medit, const char* text)
 {
     RendererSDL3* renderer = (RendererSDL3*)medit->renderer.data;
 
@@ -149,6 +191,43 @@ static void sdl3_clear_screen(Meditor* medit, Color color)
 
     SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
     SDL_RenderClear(renderer);
+}
+
+static void sdl3_handle_events(Meditor* medit)
+{
+    RendererSDL3* renderer = (RendererSDL3*)medit->renderer.data;
+
+    SDL_Event event = { 0 };
+    while (SDL_PollEvent(&event) != 0) {
+        medit->input_in_frame = true;
+        switch (event.type) {
+            case SDL_EVENT_QUIT: medit->running = false; break;
+            case SDL_EVENT_WINDOW_RESIZED:
+                renderer->window_width = (int)event.window.data1;
+                renderer->window_height = (int)event.window.data2;
+                medit->grid_cols = renderer->window_width / renderer->cell_width;
+                medit->grid_rows = renderer->window_height / renderer->cell_height;
+                break;
+            case SDL_EVENT_KEY_DOWN: {
+                if (event.key.key == SDLK_ESCAPE) {
+                    medit->running = false;
+                }
+                KeybindEvent keybind_event = keybind_sdl3_translate_event(&event);
+                keybind_handle_event(&medit->keybind, &keybind_event);
+                break;
+            }
+            case SDL_EVENT_TEXT_INPUT: {
+                const int text_cells = medit_get_text_cells(medit, event.text.text);
+                meditor_append_text(medit, event.text.text, text_cells);
+                meditor_cursor_right(medit, text_cells);
+            } break;
+            case SDL_EVENT_KEYMAP_CHANGED: {
+                printf("Reloading keymapping\n");
+                keybind_reinit(&medit->keybind);
+                meditor_load_default_gui_keybind(medit);
+            } break;
+        }
+    }
 }
 
 static void sdl3_render_text0(Meditor* medit, const char* text, int cell_x, int cell_y, Color color)
@@ -182,7 +261,7 @@ static void sdl3_render_text0(Meditor* medit, const char* text, int cell_x, int 
     assert(surface);
 
     SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer->renderer, surface);
-    assert(texture);
+    assert(texture != NULL);
 
     const SDL_FRect glyph_rect = {
         .x = (float)(cell_x * renderer->cell_width),
@@ -267,16 +346,20 @@ void sdl3_destroy(Meditor* medit)
 
     TTF_Quit();
     SDL_Quit();
+
+    free(renderer);
 }
 
-Renderer create_sdl3_renderer(RendererSDL3* sdl)
+Renderer renderer_sdl3(void)
 {
     return (Renderer) {
-        .data = sdl,
+        .data = calloc(1, sizeof(RendererSDL3)),
         .fns = {
+            .create = sdl3_renderer_create,
             .load_font = sdl3_render_load_font,
             .unload_font = sdl3_render_unload_font,
             .get_text_cells = sdl3_get_text_cells,
+            .handle_events = sdl3_handle_events,
             .clear_screen = sdl3_clear_screen,
             .render_text0 = sdl3_render_text0,
             .render_cursor = sdl3_render_cursor,
