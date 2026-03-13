@@ -1,8 +1,5 @@
-#include "keybind.h"
 #include "meditor.h"
-#include "renderer_sdl3.h"
-
-#include <stdio.h>
+#include "platform/sdl3/sdl3.h"
 
 static const Color color_editor_fg = { .r = 0xD4, .g = 0xD4, .b = 0xD4, .a = 0xFF };
 static const Color color_editor_bg = { .r = 0x1F, .g = 0x1F, .b = 0x1F, .a = 0xFF };

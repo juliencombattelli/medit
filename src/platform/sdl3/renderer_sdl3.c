@@ -1,7 +1,6 @@
-#include "renderer_sdl3.h"
 #include "assert.h"
-#include "keybind_sdl3.h"
 #include "meditor.h"
+#include "sdl3.h"
 
 #include <SDL3/SDL.h>
 #include <SDL3_ttf/SDL_ttf.h>

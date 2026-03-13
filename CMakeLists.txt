@@ -10,8 +10,10 @@ include(cmake/FindPackageOrFetchSDL3_ttf.cmake)
 
 add_executable(medit
     src/main.c src/meditor.c src/keybind.c src/renderer.c
-    src/renderer_sdl3.c src/keybind_sdl3.c
+    src/platform/sdl3/renderer_sdl3.c src/platform/sdl3/keybind_sdl3.c
 )
+
+target_include_directories(medit PRIVATE src)
 
 if(MSVC)
     set(WARNINGS /W4)

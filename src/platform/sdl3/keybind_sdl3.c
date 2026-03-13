@@ -1,4 +1,4 @@
-#include "keybind_sdl3.h"
+#include "sdl3.h"
 
 #include <SDL3/SDL.h>
 
