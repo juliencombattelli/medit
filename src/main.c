@@ -45,12 +45,13 @@ int main(int argc, char** argv)
 
         medit_render_debug_grid(&medit);
 
-        medit_render_text0(&medit, "TrueType Font Rendering", 10, 4, white);
-        medit_render_text0(&medit, "With SDL_ttf", 10, 6, cyan);
-        medit_render_text0(&medit, "Press ESC to exit", 10, 10, lime);
+        medit_render_text0(&medit, "TrueType Font Rendering", vec2(10, 4), white);
+        medit_render_text0(&medit, "Using renderer ", vec2(10, 6), cyan);
+        medit_render_text0(&medit, medit.renderer.name, vec2(25, 6), cyan);
+        medit_render_text0(&medit, "Press ESC to exit", vec2(10, 10), lime);
 
         if (medit.text_size != 0) {
-            medit_render_text0(&medit, medit.text, 0, 0, color_editor_fg);
+            medit_render_text0(&medit, medit.text, vec2(0, 0), color_editor_fg);
         }
         medit_render_cursor(&medit, color_editor_fg);
 

@@ -66,18 +66,16 @@ typedef struct Meditor {
     // Files opened_files;
     // FileViews file_views;
     // FileView focused_view;
+    Vec2 cursor_pos;
+    Vec2 grid_size;
+    int text_cells; // TODO switch to size_t
+    size_t text_size;
+    char text[TEXT_CAPACITY];
+    const char* editor_font_path;
+    int editor_font_size; // TODO switch to size_t
     bool running;
     bool input_in_frame;
-    int cursor_col;
-    int cursor_row;
-    int grid_cols;
-    int grid_rows;
     bool draw_debug_grid;
-    size_t text_size;
-    int text_cells;
-    char text[TEXT_CAPACITY];
-    int editor_font_size;
-    const char* editor_font_path;
 } Meditor;
 
 void meditor_load_default_gui_keybind(Meditor* medit);

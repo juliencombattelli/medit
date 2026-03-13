@@ -77,36 +77,36 @@ void meditor_load_default_tui_keybind(Meditor* medit)
 
 void meditor_cursor_up(Meditor* medit, int cells)
 {
-    medit->cursor_row -= cells;
-    if (medit->cursor_row < 0) {
-        medit->cursor_row = 0;
+    medit->cursor_pos.row -= cells;
+    if (medit->cursor_pos.row < 0) {
+        medit->cursor_pos.row = 0;
     }
 }
 
 void meditor_cursor_down(Meditor* medit, int cells)
 {
-    medit->cursor_row += cells;
-    if (medit->cursor_row >= medit->grid_rows) {
-        medit->cursor_row = medit->grid_rows - 1;
+    medit->cursor_pos.row += cells;
+    if (medit->cursor_pos.row >= medit->grid_size.row) {
+        medit->cursor_pos.row = medit->grid_size.row - 1;
     }
 }
 
 void meditor_cursor_left(Meditor* medit, int cells)
 {
-    medit->cursor_col -= cells;
-    if (medit->cursor_col < 0) {
-        medit->cursor_col = 0;
+    medit->cursor_pos.col -= cells;
+    if (medit->cursor_pos.col < 0) {
+        medit->cursor_pos.col = 0;
     }
 }
 
 void meditor_cursor_right(Meditor* medit, int cells)
 {
-    medit->cursor_col += cells;
-    if (medit->cursor_col >= medit->grid_cols) {
-        medit->cursor_col = medit->grid_cols - 1;
+    medit->cursor_pos.col += cells;
+    if (medit->cursor_pos.col >= medit->grid_size.col) {
+        medit->cursor_pos.col = medit->grid_size.col - 1;
     }
-    if (medit->cursor_col >= medit->text_cells) {
-        medit->cursor_col = medit->text_cells;
+    if (medit->cursor_pos.col >= medit->text_cells) {
+        medit->cursor_pos.col = medit->text_cells;
     }
 }
 

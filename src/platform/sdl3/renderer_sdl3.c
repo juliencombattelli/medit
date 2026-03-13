@@ -12,10 +12,8 @@ typedef struct {
     SDL_Renderer* renderer;
     TTF_Font* font_editor;
     TTF_Font* font_emoji;
-    int cell_width;
-    int cell_height;
-    int window_width;
-    int window_height;
+    Vec2 cell_size;
+    Vec2 window_size;
 } RendererSDL3;
 
 #define FORCE_MONOSPACE_FONTS
@@ -143,11 +141,19 @@ static void sdl3_render_load_font(Meditor* medit)
         exit(1);
     }
 
-    TTF_GetStringSize(renderer->font_editor, "M", 0, &renderer->cell_width, &renderer->cell_height);
+    TTF_GetStringSize(
+        renderer->font_editor,
+        "M",
+        0,
+        &renderer->cell_size.width,
+        &renderer->cell_size.height);
 
-    SDL_GetWindowSize(renderer->window, &renderer->window_width, &renderer->window_height);
-    medit->grid_cols = renderer->window_width / renderer->cell_width;
-    medit->grid_rows = renderer->window_height / renderer->cell_height;
+    SDL_GetWindowSize(
+        renderer->window,
+        &renderer->window_size.width,
+        &renderer->window_size.height);
+
+    medit->grid_size = vec2_div(renderer->window_size, renderer->cell_size);
 
     renderer->font_emoji = load_emoji_font_aligned_to_main_font(
         renderer->font_editor,
@@ -181,7 +187,7 @@ static int sdl3_get_text_cells(Meditor* medit, const char* text)
 
     int text_width = 0;
     TTF_MeasureString(renderer->font_editor, text, 0, 0, &text_width, NULL);
-    return text_width / renderer->cell_width;
+    return text_width / renderer->cell_size.width;
 }
 
 static void sdl3_clear_screen(Meditor* medit, Color color)
@@ -202,10 +208,9 @@ static void sdl3_handle_events(Meditor* medit)
         switch (event.type) {
             case SDL_EVENT_QUIT: medit->running = false; break;
             case SDL_EVENT_WINDOW_RESIZED:
-                renderer->window_width = (int)event.window.data1;
-                renderer->window_height = (int)event.window.data2;
-                medit->grid_cols = renderer->window_width / renderer->cell_width;
-                medit->grid_rows = renderer->window_height / renderer->cell_height;
+                renderer->window_size.width = (int)event.window.data1;
+                renderer->window_size.height = (int)event.window.data2;
+                medit->grid_size = vec2_div(renderer->window_size, renderer->cell_size);
                 break;
             case SDL_EVENT_KEY_DOWN: {
                 if (event.key.key == SDLK_ESCAPE) {
@@ -229,7 +234,7 @@ static void sdl3_handle_events(Meditor* medit)
     }
 }
 
-static void sdl3_render_text0(Meditor* medit, const char* text, int cell_x, int cell_y, Color color)
+static void sdl3_render_text0(Meditor* medit, const char* text, Vec2 cell, Color color)
 {
     RendererSDL3* renderer = (RendererSDL3*)medit->renderer.data;
 
@@ -242,7 +247,7 @@ static void sdl3_render_text0(Meditor* medit, const char* text, int cell_x, int 
         text,
         0,
         // take one extra cell to allow display partial chars
-        renderer->window_width + renderer->cell_width,
+        renderer->window_size.width + renderer->cell_size.width,
         &text_width,
         &text_bytes_max);
 
@@ -263,8 +268,8 @@ static void sdl3_render_text0(Meditor* medit, const char* text, int cell_x, int 
     assert(texture != NULL);
 
     const SDL_FRect glyph_rect = {
-        .x = (float)(cell_x * renderer->cell_width),
-        .y = (float)(cell_y * renderer->cell_height),
+        .x = (float)(cell.x * renderer->cell_size.width),
+        .y = (float)(cell.y * renderer->cell_size.height),
         .w = (float)(surface->w),
         .h = (float)(surface->h),
     };
@@ -280,10 +285,10 @@ static void sdl3_render_cursor(Meditor* medit, Color color)
     RendererSDL3* renderer = (RendererSDL3*)medit->renderer.data;
 
     const SDL_FRect cursor_rect = {
-        .x = (float)(medit->cursor_col * renderer->cell_width),
-        .y = (float)(medit->cursor_row * renderer->cell_height),
-        .w = (float)(renderer->cell_width),
-        .h = (float)(renderer->cell_height),
+        .x = (float)(medit->cursor_pos.col * renderer->cell_size.width),
+        .y = (float)(medit->cursor_pos.row * renderer->cell_size.height),
+        .w = (float)(renderer->cell_size.width),
+        .h = (float)(renderer->cell_size.height),
     };
 
     SDL_SetRenderDrawColor(renderer->renderer, color.r, color.g, color.b, color.a);
@@ -302,24 +307,21 @@ static void sdl3_render_debug_grid(Meditor* medit)
     int win_height = 0;
     SDL_GetWindowSize(renderer->window, &win_width, &win_height);
 
-    int grid_rows = win_height / renderer->cell_height;
-    int grid_cols = win_width / renderer->cell_width;
-
     SDL_SetRenderDrawColor(renderer->renderer, 255, 0, 255, 100);
 
-    for (int i = 0; i < grid_cols + 1; i++) {
+    for (int i = 0; i < medit->grid_size.col + 1; i++) {
         const SDL_FRect vertical_line = {
-            .x = (float)(i * renderer->cell_width),
+            .x = (float)(i * renderer->cell_size.width),
             .y = (float)0,
             .w = (float)1,
             .h = (float)win_height,
         };
         SDL_RenderRect(renderer->renderer, &vertical_line);
     }
-    for (int i = 0; i < grid_rows + 1; i++) {
+    for (int i = 0; i < medit->grid_size.row + 1; i++) {
         const SDL_FRect horizontal_line = {
             .x = (float)0,
-            .y = (float)(i * renderer->cell_height),
+            .y = (float)(i * renderer->cell_size.height),
             .w = (float)win_width,
             .h = (float)1,
         };

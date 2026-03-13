@@ -2,6 +2,7 @@
 #define MEDIT_RENDERER_H_
 
 #include "color.h"
+#include "linalg.h"
 
 typedef struct Meditor Meditor;
 
@@ -11,12 +12,7 @@ typedef void RendererUnloadFontFn(Meditor* medit);
 typedef int RendererGetTextCellsFn(Meditor* medit, const char* text);
 typedef void RendererHandleEventsFn(Meditor* medit);
 typedef void RendererClearScreenFn(Meditor* medit, Color color);
-typedef void RendererRenderText0Fn(
-    Meditor* medit,
-    const char* text,
-    int cell_x,
-    int cell_y,
-    Color color);
+typedef void RendererRenderText0Fn(Meditor* medit, const char* text, Vec2 cell, Color color);
 typedef void RendererRenderCursorFn(Meditor* medit, Color color);
 typedef void RendererRenderDebugGridFn(Meditor* medit);
 typedef void RendererPresentFn(Meditor* medit);
@@ -48,7 +44,7 @@ void medit_unload_font(Meditor* medit);
 int medit_get_text_cells(Meditor* medit, const char* text);
 void medit_handle_events(Meditor* medit);
 void medit_clear_screen(Meditor* medit, Color color);
-void medit_render_text0(Meditor* medit, const char* text, int cell_x, int cell_y, Color color);
+void medit_render_text0(Meditor* medit, const char* text, Vec2 cell, Color color);
 void medit_render_cursor(Meditor* medit, Color color);
 void medit_render_debug_grid(Meditor* medit);
 void medit_renderer_present(Meditor* medit);
