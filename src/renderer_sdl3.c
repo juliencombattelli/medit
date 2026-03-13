@@ -1,22 +1,9 @@
-#include "renderer_sdl.h"
+#include "renderer_sdl3.h"
+#include "assert.h"
 
 #include <stdio.h>
 
 #define FORCE_MONOSPACE_FONTS
-
-#define sdl_assert(condition, sdl_call)                                                            \
-    do {                                                                                           \
-        if (!(condition)) {                                                                        \
-            fprintf(                                                                               \
-                stderr,                                                                            \
-                "%s:%d: Error: %s: %s\n",                                                          \
-                __FILE__,                                                                          \
-                __LINE__,                                                                          \
-                (sdl_call),                                                                        \
-                SDL_GetError());                                                                   \
-            exit(1);                                                                               \
-        }                                                                                          \
-    } while (0)
 
 static SDL_Color to_sdl_color(Color color)
 {
@@ -102,9 +89,9 @@ static TTF_Font* load_emoji_font_aligned_to_main_font(
 #endif
 }
 
-void sdl_render_load_font(RendererSDL* renderer, Meditor* medit)
+void sdl3_render_load_font(Meditor* medit)
 {
-    (void)medit;
+    RendererSDL3* renderer = (RendererSDL3*)medit->renderer.data;
 
     printf(
         "Info: loading font %s with size %d\n",
@@ -121,46 +108,52 @@ void sdl_render_load_font(RendererSDL* renderer, Meditor* medit)
 
     TTF_GetStringSize(renderer->font_editor, "M", 0, &renderer->cell_width, &renderer->cell_height);
 
-    TTF_Font* emoji_fallback = load_emoji_font_aligned_to_main_font(
+    renderer->font_emoji = load_emoji_font_aligned_to_main_font(
         renderer->font_editor,
         // "asset/font/NotoColorEmoji-Regular.ttf",
         "asset/font/OpenMoji-color-colr0_svg.ttf",
         medit->editor_font_size);
-    if (!emoji_fallback) {
+    if (!renderer->font_emoji) {
         printf(
             "Warning: failed to find a size aligned to the grid for emoji "
             "font\n");
     } else {
-        if (!TTF_AddFallbackFont(renderer->font_editor, emoji_fallback)) {
+        if (!TTF_AddFallbackFont(renderer->font_editor, renderer->font_emoji)) {
             printf("Warning: failed to load fallback emoji font: %s\n", SDL_GetError());
             exit(1);
         }
     }
 }
 
-void sdl_render_unload_font(RendererSDL* renderer, Meditor* medit)
+void sdl3_render_unload_font(Meditor* medit)
 {
-    (void)medit;
+    RendererSDL3* renderer = (RendererSDL3*)medit->renderer.data;
+
     TTF_ClearFallbackFonts(renderer->font_editor);
+    TTF_CloseFont(renderer->font_emoji);
     TTF_CloseFont(renderer->font_editor);
 }
 
-int sdl_get_text_cells(RendererSDL* renderer, const char* text)
+int sdl3_get_text_cells(Meditor* medit, const char* text)
 {
+    RendererSDL3* renderer = (RendererSDL3*)medit->renderer.data;
+
     int text_width = 0;
     TTF_MeasureString(renderer->font_editor, text, 0, 0, &text_width, NULL);
     return text_width / renderer->cell_width;
 }
 
-void sdl_render_text0(
-    RendererSDL* renderer,
-    Meditor* medit,
-    const char* text,
-    int cell_x,
-    int cell_y,
-    Color color)
+static void sdl3_clear_screen(Meditor* medit, Color color)
 {
-    (void)medit;
+    SDL_Renderer* renderer = ((RendererSDL3*)medit->renderer.data)->renderer;
+
+    SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
+    SDL_RenderClear(renderer);
+}
+
+static void sdl3_render_text0(Meditor* medit, const char* text, int cell_x, int cell_y, Color color)
+{
+    RendererSDL3* renderer = (RendererSDL3*)medit->renderer.data;
 
     size_t text_bytes = strlen(text);
 
@@ -186,10 +179,10 @@ void sdl_render_text0(
         text,
         printed_bytes,
         text ? to_sdl_color(color) : (SDL_Color) { .r = 255, .g = 255, .b = 255, .a = 255 });
-    sdl_assert(surface, "TTF_RenderText_Blended");
+    assert(surface);
 
     SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer->renderer, surface);
-    sdl_assert(texture, "SDL_CreateTextureFromSurface");
+    assert(texture);
 
     const SDL_FRect glyph_rect = {
         .x = (float)(cell_x * renderer->cell_width),
@@ -204,8 +197,10 @@ void sdl_render_text0(
     SDL_DestroyTexture(texture);
 }
 
-void sdl_render_cursor(RendererSDL* renderer, Meditor* medit, Color color)
+static void sdl3_render_cursor(Meditor* medit, Color color)
 {
+    RendererSDL3* renderer = (RendererSDL3*)medit->renderer.data;
+
     const SDL_FRect cursor_rect = {
         .x = (float)(medit->cursor_col * renderer->cell_width),
         .y = (float)(medit->cursor_row * renderer->cell_height),
@@ -217,8 +212,10 @@ void sdl_render_cursor(RendererSDL* renderer, Meditor* medit, Color color)
     SDL_RenderFillRect(renderer->renderer, &cursor_rect);
 }
 
-void sdl_render_debug_grid(RendererSDL* renderer, Meditor* medit)
+static void sdl3_render_debug_grid(Meditor* medit)
 {
+    RendererSDL3* renderer = (RendererSDL3*)medit->renderer.data;
+
     if (!medit->draw_debug_grid) {
         return;
     }
@@ -250,4 +247,43 @@ void sdl_render_debug_grid(RendererSDL* renderer, Meditor* medit)
         };
         SDL_RenderRect(renderer->renderer, &horizontal_line);
     }
+}
+
+void sdl3_present(Meditor* medit)
+{
+    SDL_Renderer* renderer = ((RendererSDL3*)medit->renderer.data)->renderer;
+
+    SDL_RenderPresent(renderer);
+}
+
+void sdl3_destroy(Meditor* medit)
+{
+    RendererSDL3* renderer = (RendererSDL3*)medit->renderer.data;
+
+    SDL_StopTextInput(renderer->window);
+
+    SDL_DestroyRenderer(renderer->renderer);
+    SDL_DestroyWindow(renderer->window);
+
+    TTF_Quit();
+    SDL_Quit();
+}
+
+Renderer create_sdl3_renderer(RendererSDL3* sdl)
+{
+    return (Renderer) {
+        .data = sdl,
+        .fns = {
+            .load_font = sdl3_render_load_font,
+            .unload_font = sdl3_render_unload_font,
+            .get_text_cells = sdl3_get_text_cells,
+            .clear_screen = sdl3_clear_screen,
+            .render_text0 = sdl3_render_text0,
+            .render_cursor = sdl3_render_cursor,
+            .render_debug_grid = sdl3_render_debug_grid,
+            .present = sdl3_present,
+            .destroy = sdl3_destroy,
+        },
+        .name = "SDL3",
+    };
 }

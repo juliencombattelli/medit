@@ -2,52 +2,50 @@
 #define MEDIT_RENDERER_H_
 
 #include "color.h"
-#include "meditor.h"
-#include "renderer_sdl.h"
 
-#include <stdio.h>
+typedef struct Meditor Meditor;
 
-typedef enum {
-    RENDERER_SDL,
-} RendererId;
-
-typedef struct {
-    RendererId id;
-    union {
-        RendererSDL sdl;
-    };
-} Renderer;
-
-static inline void render_text0(
-    Renderer* renderer,
+typedef void RendererLoadFontFn(Meditor* medit);
+typedef void RendererUnloadFontFn(Meditor* medit);
+typedef int RendererGetTextCellsFn(Meditor* medit, const char* text);
+typedef void RendererClearScreenFn(Meditor* medit, Color color);
+typedef void RendererRenderText0Fn(
     Meditor* medit,
     const char* text,
     int cell_x,
     int cell_y,
-    Color color)
-{
-    switch (renderer->id) {
-        case RENDERER_SDL:
-            sdl_render_text0(&renderer->sdl, medit, text, cell_x, cell_y, color);
-            return;
-    }
-    printf("WARNING: Unimplemented: %s\n", __func__);
-}
+    Color color);
+typedef void RendererRenderCursorFn(Meditor* medit, Color color);
+typedef void RendererRenderDebugGridFn(Meditor* medit);
+typedef void RendererPresentFn(Meditor* medit);
+typedef void RendererDestroyFn(Meditor* medit);
 
-static inline void render_cursor(Renderer* renderer, Meditor* medit, Color color)
-{
-    switch (renderer->id) {
-        case RENDERER_SDL: sdl_render_cursor(&renderer->sdl, medit, color); return;
-    }
-    printf("WARNING: Unimplemented: %s\n", __func__);
-}
+typedef struct {
+    RendererLoadFontFn* load_font;
+    RendererUnloadFontFn* unload_font;
+    RendererGetTextCellsFn* get_text_cells;
+    RendererClearScreenFn* clear_screen;
+    RendererRenderText0Fn* render_text0;
+    RendererRenderCursorFn* render_cursor;
+    RendererRenderDebugGridFn* render_debug_grid;
+    RendererPresentFn* present;
+    RendererDestroyFn* destroy;
+} RendererFns;
 
-static inline void render_debug_grid(Renderer* renderer, Meditor* medit)
-{
-    switch (renderer->id) {
-        case RENDERER_SDL: sdl_render_debug_grid(&renderer->sdl, medit); return;
-    }
-    printf("WARNING: Unimplemented: %s\n", __func__);
-}
+typedef struct {
+    RendererFns fns;
+    void* data;
+    const char* name;
+} Renderer;
+
+void medit_load_font(Meditor* medit);
+void medit_unload_font(Meditor* medit);
+int medit_get_text_cells(Meditor* medit, const char* text);
+void medit_clear_screen(Meditor* medit, Color color);
+void medit_render_text0(Meditor* medit, const char* text, int cell_x, int cell_y, Color color);
+void medit_render_cursor(Meditor* medit, Color color);
+void medit_render_debug_grid(Meditor* medit);
+void medit_renderer_present(Meditor* medit);
+void medit_renderer_destroy(Meditor* medit);
 
 #endif // MEDIT_RENDERER_H_

@@ -7,14 +7,6 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define assert(EXPR)                                                                               \
-    do {                                                                                           \
-        if (!(EXPR)) {                                                                             \
-            (void)fprintf(stderr, "%s:%u: %s\n", __FILE__, __LINE__, #EXPR);                       \
-            exit(1);                                                                               \
-        }                                                                                          \
-    } while (0)
-
 // Logical key representation - independent of physical layout
 // Only usual keys from US QWERTY and French AZERTY layouts are supported
 typedef enum {
@@ -95,11 +87,13 @@ typedef struct {
 #error "KEY_COUNT must not exceed MAX_KEY_STATES"
 #endif
 
-typedef void(KeyActionFn)(void* user_data);
+typedef struct Meditor Meditor;
+
+typedef void(KeyActionFn)(Meditor* medit);
 
 typedef struct {
     KeyActionFn* callback;
-    void* user_data;
+    Meditor* medit;
 } KeybindEntry;
 
 typedef struct {
@@ -113,7 +107,7 @@ bool keybind_bind(
     Key key,
     uint32_t modifiers,
     KeyActionFn* callback,
-    void* user_data);
+    Meditor* medit);
 
 void keybind_unbind(Keybind* keybind, Key key, uint32_t modifiers);
 

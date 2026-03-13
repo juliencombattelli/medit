@@ -2,6 +2,7 @@
 #define MEDIT_MEDITOR_H_
 
 #include "linalg.h"
+#include "renderer.h"
 
 #include <stdbool.h>
 #include <stdlib.h>
@@ -43,6 +44,14 @@ typedef struct {
 #define TEXT_CAPACITY (size_t)(1024 * 1024)
 
 typedef struct {
+    int initial_window_width;
+    int initial_window_height;
+    int editor_font_size;
+    const char* editor_font_path;
+} Config;
+
+typedef struct Meditor {
+    Renderer renderer;
     // Files opened_files;
     // FileViews file_views;
     // FileView focused_view;

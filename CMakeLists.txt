@@ -9,8 +9,8 @@ include(cmake/FindPackageOrFetchSDL3.cmake)
 include(cmake/FindPackageOrFetchSDL3_ttf.cmake)
 
 add_executable(medit
-    src/main.c src/meditor.c src/keybind.c
-    src/renderer_sdl.c src/keybind_sdl3.c
+    src/main.c src/meditor.c src/keybind.c src/renderer.c
+    src/renderer_sdl3.c src/keybind_sdl3.c
 )
 
 if(MSVC)
@@ -23,5 +23,5 @@ target_compile_options(medit PRIVATE ${WARNINGS})
 
 target_link_libraries(medit PRIVATE SDL3::SDL3 SDL3_ttf::SDL3_ttf)
 
-# target_compile_options(medit PRIVATE -fsanitize=address,undefined)
-# target_link_options(medit PRIVATE -fsanitize=address,undefined)
+target_compile_options(medit PRIVATE -fsanitize=address,undefined)
+target_link_options(medit PRIVATE -fsanitize=address,undefined)

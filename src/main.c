@@ -1,7 +1,7 @@
 #include "keybind.h"
 #include "keybind_sdl3.h"
 #include "meditor.h"
-#include "renderer.h"
+#include "renderer_sdl3.h"
 
 enum {
     FONT_SIZE_MIN = 2,
@@ -22,79 +22,69 @@ void set_font_size_clamped(int* font, int value)
     *font = value;
 }
 
-typedef struct {
-    Meditor* medit;
-    RendererSDL* renderer;
-} BundledMeditorData;
-
-void action_toggle_debug_grid(void* user_data)
+void action_toggle_debug_grid(Meditor* medit)
 {
-    BundledMeditorData* data = (BundledMeditorData*)user_data;
-    data->medit->draw_debug_grid = !data->medit->draw_debug_grid;
+    medit->draw_debug_grid = !medit->draw_debug_grid;
 }
 
-void action_font_zoom_out(void* user_data)
+void action_font_zoom_out(Meditor* medit)
 {
-    BundledMeditorData* data = (BundledMeditorData*)user_data;
-
-    set_font_size_clamped(&data->medit->editor_font_size, data->medit->editor_font_size - 2);
-    sdl_render_unload_font(data->renderer, data->medit);
-    sdl_render_load_font(data->renderer, data->medit);
+    set_font_size_clamped(&medit->editor_font_size, medit->editor_font_size - 2);
+    medit_unload_font(medit);
+    medit_load_font(medit);
 }
 
-void action_font_zoom_in(void* user_data)
+void action_font_zoom_in(Meditor* medit)
 {
-    BundledMeditorData* data = (BundledMeditorData*)user_data;
-
-    set_font_size_clamped(&data->medit->editor_font_size, data->medit->editor_font_size + 2);
-    sdl_render_unload_font(data->renderer, data->medit);
-    sdl_render_load_font(data->renderer, data->medit);
+    set_font_size_clamped(&medit->editor_font_size, medit->editor_font_size + 2);
+    medit_unload_font(medit);
+    medit_load_font(medit);
 }
 
-void action_cursor_up(void* user_data)
+void action_cursor_up(Meditor* medit)
 {
-    BundledMeditorData* data = (BundledMeditorData*)user_data;
-    meditor_cursor_up(data->medit, 1);
+    meditor_cursor_up(medit, 1);
 }
 
-void action_cursor_down(void* user_data)
+void action_cursor_down(Meditor* medit)
 {
-    BundledMeditorData* data = (BundledMeditorData*)user_data;
-    meditor_cursor_down(data->medit, 1);
+    meditor_cursor_down(medit, 1);
 }
 
-void action_cursor_left(void* user_data)
+void action_cursor_left(Meditor* medit)
 {
-    BundledMeditorData* data = (BundledMeditorData*)user_data;
-    meditor_cursor_left(data->medit, 1);
+    meditor_cursor_left(medit, 1);
 }
 
-void action_cursor_right(void* user_data)
+void action_cursor_right(Meditor* medit)
 {
-    BundledMeditorData* data = (BundledMeditorData*)user_data;
-    meditor_cursor_right(data->medit, 1);
+    meditor_cursor_right(medit, 1);
 }
 
-void load_default_keymap(Keybind* keybind, BundledMeditorData* data)
+void load_default_keymap(Keybind* keybind, Meditor* medit)
 {
-    keybind_bind(keybind, KEY_A, MOD_CTRL, action_toggle_debug_grid, data);
+    keybind_bind(keybind, KEY_A, MOD_CTRL, action_toggle_debug_grid, medit);
 
-    keybind_bind(keybind, KEY_NPAD_PLUS, MOD_CTRL, action_font_zoom_in, data);
-    keybind_bind(keybind, KEY_EQUALS, MOD_SHIFT_CTRL, action_font_zoom_in, data);
+    keybind_bind(keybind, KEY_NPAD_PLUS, MOD_CTRL, action_font_zoom_in, medit);
+    keybind_bind(keybind, KEY_EQUALS, MOD_SHIFT_CTRL, action_font_zoom_in, medit);
 
-    keybind_bind(keybind, KEY_NPAD_MINUS, MOD_CTRL, action_font_zoom_out, data);
-    keybind_bind(keybind, KEY_6, MOD_CTRL, action_font_zoom_out, data);
+    keybind_bind(keybind, KEY_NPAD_MINUS, MOD_CTRL, action_font_zoom_out, medit);
+    keybind_bind(keybind, KEY_6, MOD_CTRL, action_font_zoom_out, medit);
 
-    keybind_bind(keybind, KEY_UP, MOD_NONE, action_cursor_up, data);
-    keybind_bind(keybind, KEY_DOWN, MOD_NONE, action_cursor_down, data);
-    keybind_bind(keybind, KEY_LEFT, MOD_NONE, action_cursor_left, data);
-    keybind_bind(keybind, KEY_RIGHT, MOD_NONE, action_cursor_right, data);
+    keybind_bind(keybind, KEY_UP, MOD_NONE, action_cursor_up, medit);
+    keybind_bind(keybind, KEY_DOWN, MOD_NONE, action_cursor_down, medit);
+    keybind_bind(keybind, KEY_LEFT, MOD_NONE, action_cursor_left, medit);
+    keybind_bind(keybind, KEY_RIGHT, MOD_NONE, action_cursor_right, medit);
 }
 
 bool keycode_ctrl(SDL_Event event, SDL_Keycode keycode)
 {
     return event.key.key == keycode && (event.key.mod & SDL_KMOD_CTRL);
 }
+
+static const Color color_editor_fg = { .r = 0xD4, .g = 0xD4, .b = 0xD4, .a = 0xFF };
+static const Color color_editor_bg = { .r = 0x1F, .g = 0x1F, .b = 0x1F, .a = 0xFF };
+static const Color color_sidebar_bg = { .r = 0x18, .g = 0x18, .b = 0x18, .a = 0xFF };
 
 int main(int argc, char** argv)
 {
@@ -103,48 +93,48 @@ int main(int argc, char** argv)
     SDL_Init(SDL_INIT_VIDEO);
     TTF_Init();
 
-    Meditor medit = { 0 };
-    RendererSDL renderer = { 0 };
-    {
-        SDL_Window* sdl_window = SDL_CreateWindow("Medit", 1280, 720, SDL_WINDOW_HIDDEN);
+    RendererSDL3 renderer_sdl3 = { 0 };
 
-        SDL_Renderer* sdl_renderer = SDL_CreateRenderer(sdl_window, NULL);
-        SDL_SetRenderVSync(sdl_renderer, 1);
+    SDL_Window* sdl_window = SDL_CreateWindow("Medit", 1280, 720, SDL_WINDOW_HIDDEN);
 
-        renderer.window = sdl_window;
-        renderer.renderer = sdl_renderer;
-    }
+    SDL_Renderer* sdl_renderer = SDL_CreateRenderer(sdl_window, NULL);
+    SDL_SetRenderVSync(sdl_renderer, 1);
+
+    renderer_sdl3.window = sdl_window;
+    renderer_sdl3.renderer = sdl_renderer;
+
+    Meditor medit = {
+        .renderer = create_sdl3_renderer(&renderer_sdl3),
+    };
 
     medit.editor_font_size = FONT_SIZE_DEFAULT;
     medit.editor_font_path = FONT_PATH_DEFAULT;
-    sdl_render_load_font(&renderer, &medit);
+    medit_load_font(&medit);
 
-    bool running = true;
-    SDL_ShowWindow(renderer.window);
+    SDL_ShowWindow(renderer_sdl3.window);
 
-    SDL_StartTextInput(renderer.window);
+    SDL_StartTextInput(renderer_sdl3.window);
 
-    SDL_GetWindowSize(renderer.window, &renderer.window_width, &renderer.window_height);
-    medit.grid_cols = renderer.window_width / renderer.cell_width;
-    medit.grid_rows = renderer.window_height / renderer.cell_height;
+    SDL_GetWindowSize(
+        renderer_sdl3.window,
+        &renderer_sdl3.window_width,
+        &renderer_sdl3.window_height);
+    medit.grid_cols = renderer_sdl3.window_width / renderer_sdl3.cell_width;
+    medit.grid_rows = renderer_sdl3.window_height / renderer_sdl3.cell_height;
 
     Keybind keybind = { 0 };
 
-    BundledMeditorData medit_bundle = {
-        .medit = &medit,
-        .renderer = &renderer,
-    };
-
     printf("Loading keymapping\n");
-    load_default_keymap(&keybind, &medit_bundle);
+    load_default_keymap(&keybind, &medit);
 
     // const char welcome_message[] = "😀 Hello, world! 😀";
     const char welcome_message[] = "Hello, world! 😀";
     {
-        const int text_cells = sdl_get_text_cells(&renderer, welcome_message);
+        const int text_cells = medit_get_text_cells(&medit, welcome_message);
         meditor_append_text(&medit, welcome_message, text_cells);
     }
 
+    bool running = true;
     bool input_in_frame = true;
     while (running) {
         SDL_Event event = { 0 };
@@ -153,10 +143,10 @@ int main(int argc, char** argv)
             switch (event.type) {
                 case SDL_EVENT_QUIT: running = false; break;
                 case SDL_EVENT_WINDOW_RESIZED:
-                    renderer.window_width = (int)event.window.data1;
-                    renderer.window_height = (int)event.window.data2;
-                    medit.grid_cols = renderer.window_width / renderer.cell_width;
-                    medit.grid_rows = renderer.window_height / renderer.cell_height;
+                    renderer_sdl3.window_width = (int)event.window.data1;
+                    renderer_sdl3.window_height = (int)event.window.data2;
+                    medit.grid_cols = renderer_sdl3.window_width / renderer_sdl3.cell_width;
+                    medit.grid_rows = renderer_sdl3.window_height / renderer_sdl3.cell_height;
                     break;
                 case SDL_EVENT_KEY_DOWN: {
                     if (event.key.key == SDLK_ESCAPE) {
@@ -167,14 +157,14 @@ int main(int argc, char** argv)
                     break;
                 }
                 case SDL_EVENT_TEXT_INPUT: {
-                    const int text_cells = sdl_get_text_cells(&renderer, event.text.text);
+                    const int text_cells = medit_get_text_cells(&medit, event.text.text);
                     meditor_append_text(&medit, event.text.text, text_cells);
                     meditor_cursor_right(&medit, text_cells);
                 } break;
                 case SDL_EVENT_KEYMAP_CHANGED: {
                     printf("Reloading keymapping\n");
                     keybind_reinit(&keybind);
-                    load_default_keymap(&keybind, &medit_bundle);
+                    load_default_keymap(&keybind, &medit);
                 } break;
             }
         }
@@ -184,33 +174,27 @@ int main(int argc, char** argv)
         }
         input_in_frame = false;
 
-        SDL_SetRenderDrawColor(renderer.renderer, 30, 30, 30, 255);
-        SDL_RenderClear(renderer.renderer);
+        medit_clear_screen(&medit, color_editor_bg);
 
         // Render text examples
         Color white = { 255, 255, 255, 255 };
         Color cyan = { 0, 255, 255, 255 };
         Color lime = { 0, 255, 0, 255 };
 
-        sdl_render_debug_grid(&renderer, &medit);
+        medit_render_debug_grid(&medit);
 
-        sdl_render_text0(&renderer, &medit, "TrueType Font Rendering", 10, 4, white);
-        sdl_render_text0(&renderer, &medit, "With SDL_ttf", 10, 6, cyan);
-        sdl_render_text0(&renderer, &medit, "Press ESC to exit", 10, 10, lime);
+        medit_render_text0(&medit, "TrueType Font Rendering", 10, 4, white);
+        medit_render_text0(&medit, "With SDL_ttf", 10, 6, cyan);
+        medit_render_text0(&medit, "Press ESC to exit", 10, 10, lime);
 
         if (medit.text_size != 0) {
-            sdl_render_text0(&renderer, &medit, medit.text, 0, 0, white);
+            medit_render_text0(&medit, medit.text, 0, 0, color_editor_fg);
         }
-        sdl_render_cursor(&renderer, &medit, white);
+        medit_render_cursor(&medit, color_editor_fg);
 
-        SDL_RenderPresent(renderer.renderer);
+        medit_renderer_present(&medit);
     }
 
-    SDL_StopTextInput(renderer.window);
-
-    TTF_CloseFont(renderer.font_editor);
-    SDL_DestroyRenderer(renderer.renderer);
-    SDL_DestroyWindow(renderer.window);
-    TTF_Quit();
-    SDL_Quit();
+    medit_unload_font(&medit);
+    medit_renderer_destroy(&medit);
 }

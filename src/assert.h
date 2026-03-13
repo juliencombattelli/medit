@@ -8,7 +8,7 @@
     do {                                                                                           \
         if (!(EXPR)) {                                                                             \
             (void)fprintf(stderr, "%s:%u: %s\n", __FILE__, __LINE__, #EXPR);                       \
-            exit(1);                                                                               \
+            abort();                                                                               \
         }                                                                                          \
     } while (0)
 

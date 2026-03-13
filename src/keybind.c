@@ -14,7 +14,7 @@ bool keybind_bind(
     Key key,
     uint32_t modifiers,
     KeyActionFn* callback,
-    void* user_data)
+    Meditor* medit)
 {
     if (key >= KEY_COUNT) {
         return false;
@@ -23,7 +23,7 @@ bool keybind_bind(
     uint32_t mod_index = modifiers & MOD_MASK;
     keybind->bindings[key][mod_index] = (KeybindEntry) {
         .callback = callback,
-        .user_data = user_data,
+        .medit = medit,
     };
     return true;
 }
@@ -37,7 +37,7 @@ void keybind_unbind(Keybind* keybind, Key key, uint32_t modifiers)
     uint32_t mod_index = modifiers & MOD_MASK;
     keybind->bindings[key][mod_index] = (KeybindEntry) {
         .callback = NULL,
-        .user_data = NULL,
+        .medit = NULL,
     };
 }
 
@@ -55,10 +55,7 @@ const KeybindEntry* keybind_get(const Keybind* keybind, Key key, uint32_t modifi
 
 void keybind_handle_event(Keybind* keybind, const KeybindEvent* event)
 {
-    // Only trigger on press, not release or repeat
-    if (event->type != EVENT_KEY_PRESS) {
-        return;
-    }
+    printf("[DEBUG] Key: %s\n", keybind_key_to_string(event->key));
 
     // Invoke the action callback if any
     if (event->key < KEY_COUNT) {
@@ -66,7 +63,7 @@ void keybind_handle_event(Keybind* keybind, const KeybindEvent* event)
         KeybindEntry* entry = &keybind->bindings[event->key][mod_index];
 
         if (entry->callback != NULL) {
-            entry->callback(entry->user_data);
+            entry->callback(entry->medit);
         }
     }
 }
