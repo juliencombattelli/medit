@@ -69,6 +69,17 @@ void action_restore_cursor(Meditor* medit)
     // TODO memset other cursors
 }
 
+void action_cursor_begin_of_line(Meditor* medit)
+{
+    medit->cursor_pos[0].col = 0;
+}
+
+void action_cursor_end_of_line(Meditor* medit)
+{
+    Line* line = meditor_get_current_line(medit);
+    medit->cursor_pos[0].col = line->count;
+}
+
 void action_add_cursor_down(Meditor* medit)
 {
     Vec2* prev_cursor = &medit->cursor_pos[medit->cursor_index];
@@ -119,6 +130,8 @@ void meditor_load_default_gui_keybind(Meditor* medit)
     keybind_bind(keybind, KEY_DOWN, MOD_NONE, action_cursor_down, medit);
     keybind_bind(keybind, KEY_LEFT, MOD_NONE, action_cursor_left, medit);
     keybind_bind(keybind, KEY_RIGHT, MOD_NONE, action_cursor_right, medit);
+    keybind_bind(keybind, KEY_HOME, MOD_NONE, action_cursor_begin_of_line, medit);
+    keybind_bind(keybind, KEY_END, MOD_NONE, action_cursor_end_of_line, medit);
 
     keybind_bind(keybind, KEY_ESCAPE, MOD_NONE, action_restore_cursor, medit);
     keybind_bind(keybind, KEY_DOWN, MOD_CTRL_ALT, action_add_cursor_down, medit);
