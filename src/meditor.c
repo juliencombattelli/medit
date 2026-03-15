@@ -96,6 +96,11 @@ void action_dump_state(Meditor* medit)
     }
 }
 
+void action_erase_line(Meditor* medit)
+{
+    meditor_erase_line(medit);
+}
+
 void meditor_load_default_gui_keybind(Meditor* medit)
 {
     Keybind* keybind = &medit->keybind;
@@ -119,6 +124,8 @@ void meditor_load_default_gui_keybind(Meditor* medit)
     keybind_bind(keybind, KEY_DOWN, MOD_CTRL_ALT, action_add_cursor_down, medit);
 
     keybind_bind(keybind, KEY_D, MOD_CTRL, action_dump_state, medit);
+
+    keybind_bind(keybind, KEY_K, MOD_SHIFT_CTRL, action_erase_line, medit);
 }
 
 void meditor_load_default_tui_keybind(Meditor* medit)
@@ -253,6 +260,8 @@ void meditor_new_file(Meditor* medit)
 
 void meditor_insert_new_line(Meditor* medit)
 {
+    // TODO verify if next line is empty with a non-null capacity for reuse
+
     Lines* lines = &medit->focused_view.file->lines;
 
     Line empty_line = { 0 };
@@ -267,4 +276,52 @@ Line* meditor_get_current_line(Meditor* medit)
 {
     int cursor_row = medit->cursor_pos[0].row;
     return &medit->focused_view.file->lines.items[cursor_row];
+}
+
+void meditor_erase_line(Meditor* medit)
+{
+    const int cursor_row = medit->cursor_pos[0].row;
+    Lines* lines = &medit->focused_view.file->lines;
+
+    if (lines->count > 1) {
+        if (cursor_row + 1 == lines->count) {
+            meditor_cursor_up(medit, 1);
+        }
+        // Empty the erased line
+        Line* erased = &lines->items[cursor_row];
+        dynarray_free(*erased);
+        // Shift up all lines under cursor by one
+        for (int i = cursor_row; i < lines->count - cursor_row; ++i) {
+            lines->items[i] = lines->items[i + 1];
+        }
+        // Empty the last line
+        Line* last = &dynarray_last(lines);
+        *last = (Line) { 0 };
+
+        lines->count--;
+    } else {
+        // Empty the only line
+        Line* lonely_line = &dynarray_last(lines);
+        memset(lonely_line->items, '\0', lonely_line->count);
+        lonely_line->count = 0;
+        fixup_cursor_col(medit);
+    }
+}
+
+void meditor_erase_char(Meditor* medit)
+{
+    const int cursor_col = medit->cursor_pos[0].col;
+    const int cursor_row = medit->cursor_pos[0].row;
+    Line* current_line = meditor_get_current_line(medit);
+
+    if (cursor_col == 0) {
+
+    } else {
+        memmove(
+            current_line->items + cursor_col - 1,
+            current_line->items + cursor_col,
+            current_line->count - cursor_col);
+        dynarray_resize(current_line, current_line->count - 1);
+        meditor_cursor_left(medit, 0);
+    }
 }

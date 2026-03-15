@@ -93,4 +93,7 @@ void meditor_insert_new_line(Meditor* medit);
 
 Line* meditor_get_current_line(Meditor* medit);
 
+void meditor_erase_char(Meditor* medit);
+void meditor_erase_line(Meditor* medit);
+
 #endif // MEDIT_MEDITOR_H_
