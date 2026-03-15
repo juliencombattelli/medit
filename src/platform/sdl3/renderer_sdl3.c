@@ -1,12 +1,15 @@
 #include "assert.h"
-#include "dynarray.h"
 #include "meditor.h"
 #include "sdl3.h"
 
 #include <SDL3/SDL.h>
 #include <SDL3_ttf/SDL_ttf.h>
 
+#include <limits.h>
 #include <stdio.h>
+
+#define DEFAULT_WINDOW_WIDTH 1280
+#define DEFAULT_WINDOW_HEIGHT 720
 
 typedef struct {
     SDL_Window* window;
@@ -84,14 +87,15 @@ static TTF_Font* load_emoji_font_aligned_to_main_font(
 #ifdef FORCE_MONOSPACE_FONTS
     const int main_font_w = glyph_width(main_font, editor_font_test_string);
     float factor = 1.0f;
-    int iter = 1024;
+#define FORCE_MONOSPACE_FONTS_MAX_ITER 1024
+    int iter = FORCE_MONOSPACE_FONTS_MAX_ITER;
     while (--iter) {
         TTF_Font* emoji_font = TTF_OpenFont(path, (float)size * factor);
         int emoji_font_w = glyph_width(emoji_font, emoji_font_test_string);
         if (emoji_font_w > main_font_w) {
-            factor -= factor * 0.5f;
+            factor -= factor / 2.0f;
         } else if (emoji_font_w < main_font_w) {
-            factor += factor * 0.5f;
+            factor += factor / 2.0f;
         } else if (emoji_font_w == main_font_w) {
             return emoji_font;
         }
@@ -110,7 +114,11 @@ static void sdl3_renderer_create(Meditor* medit)
     SDL_Init(SDL_INIT_VIDEO);
     TTF_Init();
 
-    SDL_Window* sdl_window = SDL_CreateWindow("Medit", 1280, 720, SDL_WINDOW_HIDDEN);
+    SDL_Window* sdl_window = SDL_CreateWindow(
+        "Medit",
+        DEFAULT_WINDOW_WIDTH,
+        DEFAULT_WINDOW_HEIGHT,
+        SDL_WINDOW_HIDDEN);
 
     SDL_Renderer* sdl_renderer = SDL_CreateRenderer(sdl_window, NULL);
     SDL_SetRenderVSync(sdl_renderer, 1);
@@ -139,7 +147,7 @@ static void sdl3_render_load_font(Meditor* medit)
             "Error: failed to load font %s with size %d\n",
             medit->editor_font_path,
             medit->editor_font_size);
-        exit(1);
+        abort();
     }
 
     TTF_GetStringSize(
@@ -167,7 +175,7 @@ static void sdl3_render_load_font(Meditor* medit)
     } else {
         if (!TTF_AddFallbackFont(renderer->font_editor, renderer->font_emoji)) {
             printf("Warning: failed to load fallback emoji font: %s\n", SDL_GetError());
-            exit(1);
+            abort();
         }
     }
 }
@@ -224,7 +232,9 @@ static void sdl3_handle_events(Meditor* medit)
             } break;
             case SDL_EVENT_TEXT_INPUT: {
                 const int text_cells = medit_get_text_cells(medit, event.text.text);
-                meditor_insert_text(medit, event.text.text, strlen(event.text.text), text_cells);
+                size_t text_len = strlen(event.text.text);
+                assert(text_len <= INT_MAX);
+                meditor_insert_text(medit, event.text.text, (int)text_len, text_cells);
                 meditor_cursor_right(medit, text_cells);
             } break;
             case SDL_EVENT_KEYMAP_CHANGED: {
@@ -245,13 +255,13 @@ static void sdl3_render_text(Meditor* medit, const char* text, int n, Vec2 cell,
     TTF_MeasureString(
         renderer->font_editor,
         text,
-        n,
+        (size_t)n,
         // take one extra cell to allow display partial chars
         renderer->window_size.width + renderer->cell_size.width,
         &text_width,
         &text_bytes_max);
 
-    size_t printed_bytes = SDL_min(n, text_bytes_max);
+    size_t printed_bytes = SDL_min((size_t)n, text_bytes_max);
 
     if (text_width == 0) {
         return;
@@ -282,11 +292,9 @@ static void sdl3_render_text(Meditor* medit, const char* text, int n, Vec2 cell,
 
 static void sdl3_render_text0(Meditor* medit, const char* text, Vec2 cell, Color color)
 {
-    RendererSDL3* renderer = (RendererSDL3*)medit->renderer.data;
-
     size_t text_bytes = strlen(text);
-
-    sdl3_render_text(medit, text, text_bytes, cell, color);
+    assert(text_bytes <= INT_MAX);
+    sdl3_render_text(medit, text, (int)text_bytes, cell, color);
 }
 
 static void sdl3_render_cursor(Meditor* medit, Color color)
@@ -300,8 +308,8 @@ static void sdl3_render_cursor(Meditor* medit, Color color)
         .a = 255 - color.a,
     };
 
-    for (size_t c = 0; c <= medit->cursor_index; ++c) {
-        Vec2* cursor = &medit->cursor_pos[c];
+    for (size_t i = 0; i <= medit->cursor_index; ++i) {
+        Vec2* cursor = &medit->cursor_pos[i];
 
         const SDL_FRect cursor_rect = {
             .x = (float)(cursor->col * renderer->cell_size.width),
@@ -333,7 +341,7 @@ static void sdl3_render_debug_grid(Meditor* medit)
     int win_height = 0;
     SDL_GetWindowSize(renderer->window, &win_width, &win_height);
 
-    SDL_SetRenderDrawColor(renderer->renderer, 255, 0, 255, 100);
+    SDL_SetRenderDrawColor(renderer->renderer, 255, 0, 255, 255);
 
     for (int i = 0; i < medit->grid_size.col + 1; i++) {
         const SDL_FRect vertical_line = {

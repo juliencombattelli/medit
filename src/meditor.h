@@ -6,7 +6,6 @@
 #include "renderer.h"
 
 #include <stdbool.h>
-#include <stdlib.h>
 
 enum {
     FONT_SIZE_MIN = 2,
@@ -18,14 +17,14 @@ enum {
 
 typedef struct {
     char* items;
-    size_t count;
-    size_t capacity;
+    int count;
+    int capacity;
 } Line;
 
 typedef struct {
     Line* items;
-    size_t count;
-    size_t capacity;
+    int count;
+    int capacity;
 } Lines;
 
 typedef struct {
@@ -35,8 +34,8 @@ typedef struct {
 
 typedef struct {
     File* items;
-    size_t count;
-    size_t capacity;
+    int count;
+    int capacity;
 } Files;
 
 typedef struct {
@@ -46,11 +45,9 @@ typedef struct {
 
 typedef struct {
     FileView* items;
-    size_t count;
-    size_t capacity;
+    int count;
+    int capacity;
 } FileViews;
-
-#define TEXT_CAPACITY (size_t)(1024 * 1024)
 
 typedef struct {
     int window_width;

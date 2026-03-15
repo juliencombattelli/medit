@@ -36,8 +36,6 @@ int main(int argc, char** argv)
 
         // Render text examples
         Color white = { 255, 255, 255, 255 };
-        Color cyan = { 0, 255, 255, 255 };
-        Color lime = { 0, 255, 0, 255 };
 
         medit_render_debug_grid(&medit);
 

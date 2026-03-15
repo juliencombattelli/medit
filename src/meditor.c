@@ -8,7 +8,7 @@
 
 #define MEDIT_LINE_DEFAULT_CAPACITY 1024
 
-void set_font_size_clamped(int* font, int value)
+static void set_font_size_clamped(int* font, int value)
 {
     if (value > FONT_SIZE_MAX) {
         value = FONT_SIZE_MAX;
@@ -19,75 +19,75 @@ void set_font_size_clamped(int* font, int value)
     *font = value;
 }
 
-void action_quit(Meditor* medit)
+static void action_quit(Meditor* medit)
 {
     medit->running = false;
 }
 
-void action_toggle_debug_grid(Meditor* medit)
+static void action_toggle_debug_grid(Meditor* medit)
 {
     medit->draw_debug_grid = !medit->draw_debug_grid;
 }
 
-void action_font_zoom_out(Meditor* medit)
+static void action_font_zoom_out(Meditor* medit)
 {
     set_font_size_clamped(&medit->editor_font_size, medit->editor_font_size - 2);
     medit_unload_font(medit);
     medit_load_font(medit);
 }
 
-void action_font_zoom_in(Meditor* medit)
+static void action_font_zoom_in(Meditor* medit)
 {
     set_font_size_clamped(&medit->editor_font_size, medit->editor_font_size + 2);
     medit_unload_font(medit);
     medit_load_font(medit);
 }
 
-void action_cursor_up(Meditor* medit)
+static void action_cursor_up(Meditor* medit)
 {
     meditor_cursor_up(medit, 1);
 }
 
-void action_cursor_down(Meditor* medit)
+static void action_cursor_down(Meditor* medit)
 {
     meditor_cursor_down(medit, 1);
 }
 
-void action_cursor_left(Meditor* medit)
+static void action_cursor_left(Meditor* medit)
 {
     meditor_cursor_left(medit, 1);
 }
 
-void action_cursor_right(Meditor* medit)
+static void action_cursor_right(Meditor* medit)
 {
     meditor_cursor_right(medit, 1);
 }
 
-void action_restore_cursor(Meditor* medit)
+static void action_restore_cursor(Meditor* medit)
 {
     medit->cursor_index = 0;
     // TODO memset other cursors
 }
 
-void action_cursor_begin_of_line(Meditor* medit)
+static void action_cursor_begin_of_line(Meditor* medit)
 {
     medit->cursor_pos[0].col = 0;
 }
 
-void action_cursor_end_of_line(Meditor* medit)
+static void action_cursor_end_of_line(Meditor* medit)
 {
     Line* line = meditor_get_current_line(medit);
     medit->cursor_pos[0].col = line->count;
 }
 
-void action_add_cursor_down(Meditor* medit)
+static void action_add_cursor_down(Meditor* medit)
 {
     Vec2* prev_cursor = &medit->cursor_pos[medit->cursor_index];
     Vec2* new_cursor = &medit->cursor_pos[++medit->cursor_index];
     *new_cursor = vec2(prev_cursor->x, prev_cursor->y + 1);
 }
 
-void action_dump_state(Meditor* medit)
+static void action_dump_state(Meditor* medit)
 {
     printf("Dump state:\n");
     printf(
@@ -107,7 +107,7 @@ void action_dump_state(Meditor* medit)
     }
 }
 
-void action_erase_line(Meditor* medit)
+static void action_erase_line(Meditor* medit)
 {
     meditor_erase_line(medit);
 }
