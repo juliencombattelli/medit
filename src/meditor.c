@@ -179,12 +179,13 @@ void meditor_cursor_down(Meditor* medit, int cells)
 
 void meditor_cursor_left(Meditor* medit, int cells)
 {
-    Line* line = meditor_get_current_line(medit);
     Vec2* cursor = &medit->cursor_pos[0];
     if (cursor->col > 0) {
         --cursor->col;
     } else if (cursor->row > 0) {
-        // TODO handle going to upper row
+        --cursor->row;
+        Line* upper_line = meditor_get_current_line(medit);
+        cursor->col = upper_line->count;
     }
     // TODO handle multi cursor
     // for (size_t c = 0; c <= medit->cursor_index; ++c) {
@@ -202,8 +203,9 @@ void meditor_cursor_right(Meditor* medit, int cells)
     Vec2* cursor = &medit->cursor_pos[0];
     if (cursor->col < line->count) {
         ++cursor->col;
-    } else if (cursor->row < 0) {
-        // TODO handle going to lower row
+    } else if (cursor->row < medit->focused_view.file->lines.count - 1) {
+        ++cursor->row;
+        cursor->col = 0;
     }
     // TODO handle multi cursor
     // for (size_t c = 0; c <= medit->cursor_index; ++c) {
