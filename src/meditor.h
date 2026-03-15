@@ -63,15 +63,12 @@ typedef struct Meditor {
     Renderer renderer;
     Config startup_config;
     Keybind keybind;
-    // Files opened_files;
-    // FileViews file_views;
-    // FileView focused_view;
+    Files opened_files;
+    FileViews file_views;
+    FileView focused_view;
     size_t cursor_index;
     Vec2 cursor_pos[16]; // TODO create it dynamically
     Vec2 grid_size;
-    int text_cells; // TODO switch to size_t
-    size_t text_size;
-    char text[TEXT_CAPACITY];
     const char* editor_font_path;
     int editor_font_size; // TODO switch to size_t
     bool running;
@@ -87,6 +84,12 @@ void meditor_cursor_down(Meditor* medit, int cells);
 void meditor_cursor_left(Meditor* medit, int cells);
 void meditor_cursor_right(Meditor* medit, int cells);
 
-void meditor_append_text(Meditor* medit, const char* text, int cells);
+void meditor_insert_text(Meditor* medit, const char* text, int n, int cells);
+
+void meditor_new_file(Meditor* medit);
+
+void meditor_insert_new_line(Meditor* medit);
+
+Line* meditor_get_current_line(Meditor* medit);
 
 #endif // MEDIT_MEDITOR_H_

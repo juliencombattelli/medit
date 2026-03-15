@@ -1,3 +1,4 @@
+#include "dynarray.h"
 #include "meditor.h"
 #include "platform/sdl3/sdl3.h"
 
@@ -19,12 +20,7 @@ int main(int argc, char** argv)
     medit.editor_font_path = FONT_PATH_DEFAULT;
     medit_load_font(&medit);
 
-    // const char welcome_message[] = "😀 Hello, world! 😀";
-    const char welcome_message[] = "Hello, world! 😀";
-    {
-        const int text_cells = medit_get_text_cells(&medit, welcome_message);
-        meditor_append_text(&medit, welcome_message, text_cells);
-    }
+    meditor_new_file(&medit);
 
     medit.running = true;
     medit.input_in_frame = true;
@@ -45,14 +41,16 @@ int main(int argc, char** argv)
 
         medit_render_debug_grid(&medit);
 
-        medit_render_text0(&medit, "TrueType Font Rendering", vec2(10, 4), white);
-        medit_render_text0(&medit, "Using renderer ", vec2(10, 6), cyan);
-        medit_render_text0(&medit, medit.renderer.name, vec2(25, 6), cyan);
-        medit_render_text0(&medit, "Press ESC to exit", vec2(10, 10), lime);
-
-        if (medit.text_size != 0) {
-            medit_render_text0(&medit, medit.text, vec2(0, 0), color_editor_fg);
+        Lines* lines = &medit.focused_view.file->lines;
+        int row = 0;
+        dynarray_foreach(Line, line, lines)
+        {
+            if (line->count != 0) {
+                medit_render_text(&medit, line->items, line->count, vec2(0, row), white);
+            }
+            row++;
         }
+
         medit_render_cursor(&medit, color_editor_fg);
 
         medit_renderer_present(&medit);

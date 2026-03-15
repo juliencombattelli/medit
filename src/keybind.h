@@ -111,7 +111,7 @@ void keybind_unbind(Keybind* keybind, Key key, uint32_t modifiers);
 
 const KeybindEntry* keybind_get(const Keybind* keybind, Key key, uint32_t modifiers);
 
-void keybind_handle_event(Keybind* keybind, const KeybindEvent* event);
+bool keybind_handle_event(Keybind* keybind, const KeybindEvent* event);
 
 const char* keybind_key_to_string(Key key);
 

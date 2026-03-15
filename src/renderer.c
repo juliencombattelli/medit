@@ -70,6 +70,17 @@ void medit_handle_events(Meditor* medit)
     handle_events(medit);
 }
 
+void medit_render_text(Meditor* medit, const char* text, int n, Vec2 cell, Color color)
+{
+    Renderer* renderer = &medit->renderer;
+    RendererRenderTextFn* render_text = renderer->fns.render_text;
+    if (!render_text) {
+        printf("WARNING: Unimplemented: %s for renderer %s\n", __func__, renderer->name);
+        return;
+    }
+    render_text(medit, text, n, cell, color);
+}
+
 void medit_render_text0(Meditor* medit, const char* text, Vec2 cell, Color color)
 {
     Renderer* renderer = &medit->renderer;

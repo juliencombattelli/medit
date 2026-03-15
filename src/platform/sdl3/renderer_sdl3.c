@@ -1,4 +1,5 @@
 #include "assert.h"
+#include "dynarray.h"
 #include "meditor.h"
 #include "sdl3.h"
 
@@ -161,9 +162,8 @@ static void sdl3_render_load_font(Meditor* medit)
         "asset/font/OpenMoji-color-colr0_svg.ttf",
         medit->editor_font_size);
     if (!renderer->font_emoji) {
-        printf(
-            "Warning: failed to find a size aligned to the grid for emoji "
-            "font\n");
+        printf("Warning: failed to find a size aligned to the grid for emoji "
+               "font\n");
     } else {
         if (!TTF_AddFallbackFont(renderer->font_editor, renderer->font_emoji)) {
             printf("Warning: failed to load fallback emoji font: %s\n", SDL_GetError());
@@ -214,12 +214,17 @@ static void sdl3_handle_events(Meditor* medit)
                 break;
             case SDL_EVENT_KEY_DOWN: {
                 KeybindEvent keybind_event = keybind_sdl3_translate_event(&event);
-                keybind_handle_event(&medit->keybind, &keybind_event);
-                break;
-            }
+                if (keybind_handle_event(&medit->keybind, &keybind_event)) {
+                    break;
+                }
+                if (event.key.key == SDLK_RETURN) {
+                    meditor_insert_new_line(medit);
+                    meditor_cursor_down(medit, 0);
+                }
+            } break;
             case SDL_EVENT_TEXT_INPUT: {
                 const int text_cells = medit_get_text_cells(medit, event.text.text);
-                meditor_append_text(medit, event.text.text, text_cells);
+                meditor_insert_text(medit, event.text.text, strlen(event.text.text), text_cells);
                 meditor_cursor_right(medit, text_cells);
             } break;
             case SDL_EVENT_KEYMAP_CHANGED: {
@@ -231,24 +236,22 @@ static void sdl3_handle_events(Meditor* medit)
     }
 }
 
-static void sdl3_render_text0(Meditor* medit, const char* text, Vec2 cell, Color color)
+static void sdl3_render_text(Meditor* medit, const char* text, int n, Vec2 cell, Color color)
 {
     RendererSDL3* renderer = (RendererSDL3*)medit->renderer.data;
-
-    size_t text_bytes = strlen(text);
 
     int text_width = 0;
     size_t text_bytes_max = 0;
     TTF_MeasureString(
         renderer->font_editor,
         text,
-        0,
+        n,
         // take one extra cell to allow display partial chars
         renderer->window_size.width + renderer->cell_size.width,
         &text_width,
         &text_bytes_max);
 
-    size_t printed_bytes = SDL_min(text_bytes, text_bytes_max);
+    size_t printed_bytes = SDL_min(n, text_bytes_max);
 
     if (text_width == 0) {
         return;
@@ -275,6 +278,15 @@ static void sdl3_render_text0(Meditor* medit, const char* text, Vec2 cell, Color
 
     SDL_DestroySurface(surface);
     SDL_DestroyTexture(texture);
+}
+
+static void sdl3_render_text0(Meditor* medit, const char* text, Vec2 cell, Color color)
+{
+    RendererSDL3* renderer = (RendererSDL3*)medit->renderer.data;
+
+    size_t text_bytes = strlen(text);
+
+    sdl3_render_text(medit, text, text_bytes, cell, color);
 }
 
 static void sdl3_render_cursor(Meditor* medit, Color color)
@@ -330,14 +342,14 @@ static void sdl3_render_debug_grid(Meditor* medit)
     }
 }
 
-void sdl3_present(Meditor* medit)
+static void sdl3_present(Meditor* medit)
 {
     SDL_Renderer* renderer = ((RendererSDL3*)medit->renderer.data)->renderer;
 
     SDL_RenderPresent(renderer);
 }
 
-void sdl3_destroy(Meditor* medit)
+static void sdl3_destroy(Meditor* medit)
 {
     RendererSDL3* renderer = (RendererSDL3*)medit->renderer.data;
 
@@ -363,6 +375,7 @@ Renderer renderer_sdl3(void)
             .get_text_cells = sdl3_get_text_cells,
             .handle_events = sdl3_handle_events,
             .clear_screen = sdl3_clear_screen,
+            .render_text = sdl3_render_text,
             .render_text0 = sdl3_render_text0,
             .render_cursor = sdl3_render_cursor,
             .render_debug_grid = sdl3_render_debug_grid,

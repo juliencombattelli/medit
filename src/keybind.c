@@ -56,7 +56,7 @@ const KeybindEntry* keybind_get(const Keybind* keybind, Key key, uint32_t modifi
     return entry;
 }
 
-void keybind_handle_event(Keybind* keybind, const KeybindEvent* event)
+bool keybind_handle_event(Keybind* keybind, const KeybindEvent* event)
 {
     printf("[DEBUG] Key: %s\n", keybind_key_to_string(event->key));
 
@@ -67,8 +67,11 @@ void keybind_handle_event(Keybind* keybind, const KeybindEvent* event)
 
         if (entry->callback != NULL) {
             entry->callback(entry->medit);
+            return true;
         }
     }
+
+    return false;
 }
 
 const char* keybind_key_to_string(Key key)

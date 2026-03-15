@@ -1,7 +1,7 @@
 #ifndef MEDIT_DYNARRAY_H_
 #define MEDIT_DYNARRAY_H_
 
-#include <assert.h>
+#include "assert.h"
 
 #ifdef __cplusplus
 #define MEDIT_DECLTYPE_CAST(T) (decltype(T))
@@ -9,11 +9,13 @@
 #define MEDIT_DECLTYPE_CAST(T)
 #endif // __cplusplus
 
-#define dynarray_reserve(da, expected_capacity, initial_capacity)                                  \
+#define DYNARRAY_INITIAL_CAPACITY 256
+
+#define dynarray_reserve(da, expected_capacity)                                                    \
     do {                                                                                           \
         if ((expected_capacity) > (da)->capacity) {                                                \
             if ((da)->capacity == 0) {                                                             \
-                (da)->capacity = initial_capacity;                                                 \
+                (da)->capacity = DYNARRAY_INITIAL_CAPACITY;                                        \
             }                                                                                      \
             while ((expected_capacity) > (da)->capacity) {                                         \
                 (da)->capacity *= 2;                                                               \
@@ -25,6 +27,12 @@
     } while (0)
 
 #define dynarray_free(da) free((da).items)
+
+#define dynarray_resize(da, new_size)                                                              \
+    do {                                                                                           \
+        dynarray_reserve((da), (new_size));                                                        \
+        (da)->count = (new_size);                                                                  \
+    } while (0)
 
 #define dynarray_append(da, item)                                                                  \
     do {                                                                                           \
@@ -39,10 +47,22 @@
         (da)->count += (new_items_count);                                                          \
     } while (0)
 
-#define dynarray_resize(da, new_size)                                                              \
+#define dynarray_insert(da, item, index)                                                           \
     do {                                                                                           \
-        dynarray_reserve((da), new_size);                                                          \
-        (da)->count = (new_size);                                                                  \
+        dynarray_resize((da), (da)->count + 1);                                                    \
+        for (int i = (da)->count; i >= (index); --i) {                                             \
+            (da)->items[i + 1] = (da)->items[i];                                                   \
+        }                                                                                          \
+        (da)->items[(index)] = (item);                                                             \
+    } while (0)
+
+#define dynarray_insert_many(da, new_items, new_items_count, index)                                \
+    do {                                                                                           \
+        dynarray_resize((da), (da)->count + (new_items_count));                                    \
+        for (int i = (da)->count; i >= (index); --i) {                                             \
+            (da)->items[i + (new_items_count)] = (da)->items[i];                                   \
+        }                                                                                          \
+        memcpy((da)->items + (index), (new_items), (new_items_count) * sizeof(*(da)->items));      \
     } while (0)
 
 #define dynarray_last(da) (da)->items[(assert((da)->count > 0), (da)->count - 1)]
