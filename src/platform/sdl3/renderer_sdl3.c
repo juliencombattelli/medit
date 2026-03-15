@@ -217,8 +217,9 @@ static void sdl3_handle_events(Meditor* medit)
                 if (keybind_handle_event(&medit->keybind, &keybind_event)) {
                     break;
                 }
-                if (event.key.key == SDLK_RETURN) {
-                    meditor_split_line(medit);
+                switch (event.key.key) {
+                    case SDLK_RETURN: meditor_split_line(medit); break;
+                    case SDLK_BACKSPACE: meditor_erase_char(medit); break;
                 }
             } break;
             case SDL_EVENT_TEXT_INPUT: {

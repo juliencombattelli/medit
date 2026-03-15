@@ -316,8 +316,15 @@ void meditor_erase_char(Meditor* medit)
     const int cursor_row = medit->cursor_pos[0].row;
     Line* current_line = meditor_get_current_line(medit);
 
-    if (cursor_col == 0) {
-
+    if (cursor_col == 0 && cursor_row == 0) {
+        return;
+    }
+    if (cursor_col == 0 && cursor_row > 0) {
+        int leftover = current_line->count;
+        Line* upper_line = &medit->focused_view.file->lines.items[cursor_row - 1];
+        dynarray_append_many(upper_line, current_line->items, leftover);
+        meditor_erase_line(medit);
+        medit->cursor_pos[0].col = upper_line->count - leftover;
     } else {
         memmove(
             current_line->items + cursor_col - 1,
