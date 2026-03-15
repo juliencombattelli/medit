@@ -66,8 +66,6 @@ typedef struct Meditor {
     size_t cursor_index;
     Vec2 cursor_pos[16]; // TODO create it dynamically
     Vec2 grid_size;
-    const char* editor_font_path;
-    int editor_font_size; // TODO switch to size_t
     bool running;
     bool input_in_frame;
     bool draw_debug_grid;

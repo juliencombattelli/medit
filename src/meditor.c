@@ -31,14 +31,18 @@ static void action_toggle_debug_grid(Meditor* medit)
 
 static void action_font_zoom_out(Meditor* medit)
 {
-    set_font_size_clamped(&medit->editor_font_size, medit->editor_font_size - 2);
+    set_font_size_clamped(
+        &medit->startup_config.editor_font_size,
+        medit->startup_config.editor_font_size - 2);
     medit_unload_font(medit);
     medit_load_font(medit);
 }
 
 static void action_font_zoom_in(Meditor* medit)
 {
-    set_font_size_clamped(&medit->editor_font_size, medit->editor_font_size + 2);
+    set_font_size_clamped(
+        &medit->startup_config.editor_font_size,
+        medit->startup_config.editor_font_size + 2);
     medit_unload_font(medit);
     medit_load_font(medit);
 }

@@ -18,8 +18,8 @@ int main(int argc, char** argv)
 
     medit_renderer_create(&medit);
 
-    medit.editor_font_size = FONT_SIZE_DEFAULT;
-    medit.editor_font_path = FONT_PATH_DEFAULT;
+    medit.startup_config.editor_font_size = FONT_SIZE_DEFAULT;
+    medit.startup_config.editor_font_path = FONT_PATH_DEFAULT;
     medit_load_font(&medit);
 
     meditor_new_file(&medit);
