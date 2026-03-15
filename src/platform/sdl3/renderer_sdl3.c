@@ -292,6 +292,13 @@ static void sdl3_render_cursor(Meditor* medit, Color color)
 {
     RendererSDL3* renderer = (RendererSDL3*)medit->renderer.data;
 
+    Color inverse_color = {
+        .r = 255 - color.r,
+        .g = 255 - color.g,
+        .b = 255 - color.b,
+        .a = 255 - color.a,
+    };
+
     for (size_t c = 0; c <= medit->cursor_index; ++c) {
         Vec2* cursor = &medit->cursor_pos[c];
 
@@ -304,6 +311,12 @@ static void sdl3_render_cursor(Meditor* medit, Color color)
 
         SDL_SetRenderDrawColor(renderer->renderer, color.r, color.g, color.b, color.a);
         SDL_RenderFillRect(renderer->renderer, &cursor_rect);
+
+        Line* current_line = &medit->focused_view.file->lines.items[cursor->row];
+        if (cursor->col < current_line->count) {
+            const char* c = &current_line->items[cursor->col];
+            sdl3_render_text(medit, c, 1, vec2(cursor->col, cursor->row), inverse_color);
+        }
     }
 }
 
