@@ -218,8 +218,7 @@ static void sdl3_handle_events(Meditor* medit)
                     break;
                 }
                 if (event.key.key == SDLK_RETURN) {
-                    meditor_insert_new_line(medit);
-                    meditor_cursor_down(medit, 0);
+                    meditor_split_line(medit);
                 }
             } break;
             case SDL_EVENT_TEXT_INPUT: {

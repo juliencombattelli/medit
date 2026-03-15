@@ -88,6 +88,7 @@ void meditor_insert_text(Meditor* medit, const char* text, int n, int cells);
 
 void meditor_new_file(Meditor* medit);
 
+void meditor_split_line(Meditor* medit);
 void meditor_insert_new_line(Meditor* medit);
 
 Line* meditor_get_current_line(Meditor* medit);

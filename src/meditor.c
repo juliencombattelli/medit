@@ -211,12 +211,27 @@ void meditor_cursor_right(Meditor* medit, int cells)
     // }
 }
 
+void meditor_split_line(Meditor* medit)
+{
+    const int cursor_col = medit->cursor_pos[0].col;
+    Line* current_line = meditor_get_current_line(medit);
+    meditor_insert_new_line(medit);
+    meditor_cursor_down(medit, 0);
+    if (current_line->count != 0) {
+        meditor_insert_text(
+            medit,
+            &current_line->items[cursor_col],
+            current_line->count - cursor_col,
+            0);
+        memset(&current_line->items[cursor_col], 0, current_line->count - cursor_col);
+        current_line->count = cursor_col;
+    }
+}
+
 void meditor_insert_text(Meditor* medit, const char* text, int n, int cells)
 {
-    FileView focused_view = medit->focused_view;
     const int cursor_col = medit->cursor_pos[0].col;
 
-    assert(focused_view.file && "file");
     Line* current_line = meditor_get_current_line(medit);
 
     dynarray_insert_many(current_line, text, n, cursor_col);
