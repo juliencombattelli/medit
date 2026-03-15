@@ -1,5 +1,6 @@
 #include "dynarray.h"
 #include "meditor.h"
+#include "platform/ansi-terminal/ansi_term.h"
 #include "platform/sdl3/sdl3.h"
 
 static const Color color_editor_fg = { .r = 0xD4, .g = 0xD4, .b = 0xD4, .a = 0xFF };
@@ -12,6 +13,7 @@ int main(int argc, char** argv)
 
     Meditor medit = {
         .renderer = renderer_sdl3(),
+        // .renderer = renderer_ansi_term(),
     };
 
     medit_renderer_create(&medit);

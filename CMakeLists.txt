@@ -11,6 +11,7 @@ include(cmake/FindPackageOrFetchSDL3_ttf.cmake)
 add_executable(medit
     src/main.c src/meditor.c src/keybind.c src/renderer.c
     src/platform/sdl3/renderer_sdl3.c src/platform/sdl3/keybind_sdl3.c
+    # src/platform/ansi-terminal/renderer_ansi_term.c
 )
 
 target_include_directories(medit PRIVATE src)
