@@ -310,8 +310,8 @@ static void sdl3_render_cursor(Meditor* medit, Color color)
         .a = 255 - color.a,
     };
 
-    for (size_t i = 0; i <= medit->cursor_index; ++i) {
-        Vec2* cursor = &medit->cursor_pos[i];
+    for (size_t i = 0; i < medit->focused_view.cursors.count; ++i) {
+        Vec2* cursor = &medit->focused_view.cursors.items[i];
 
         const SDL_FRect cursor_rect = {
             .x = (float)(cursor->col * renderer->cell_size.width),

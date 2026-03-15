@@ -39,8 +39,14 @@ typedef struct {
 } Files;
 
 typedef struct {
+    Vec2* items;
+    int count;
+    int capacity;
+} Cursors;
+
+typedef struct {
     File* file;
-    Vec2 cursor;
+    Cursors cursors;
 } FileView;
 
 typedef struct {
@@ -63,8 +69,6 @@ typedef struct Meditor {
     Files opened_files;
     FileViews file_views;
     FileView focused_view;
-    size_t cursor_index;
-    Vec2 cursor_pos[16]; // TODO create it dynamically
     Vec2 grid_size;
     bool running;
     bool input_in_frame;
