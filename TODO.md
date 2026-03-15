@@ -1,0 +1,6 @@
+- [x] support splitting line on enter
+- [x] render char cell under cursor on top of it
+- [x] add backspace
+- [ ] add cursor column memorization
+- [ ] reenable multi cursor
+- [ ] add selection
