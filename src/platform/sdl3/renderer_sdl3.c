@@ -12,13 +12,8 @@
 #define DEFAULT_WINDOW_HEIGHT 720
 
 typedef struct {
-    union {
-        size_t v[2];
-        struct {
-            size_t width;
-            size_t height;
-        };
-    };
+    size_t width;
+    size_t height;
 } PixelSize;
 
 typedef struct {
