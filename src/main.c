@@ -42,11 +42,17 @@ int main(int argc, char** argv)
         medit_render_debug_grid(&medit);
 
         Lines* lines = &medit.focused_view.file->lines;
-        int row = 0;
+        size_t row = 0;
         dynarray_foreach(Line, line, lines)
         {
+            printf("printing line %zu; ptr=%p\n", line->count, line->items);
             if (line->count != 0) {
-                medit_render_text(&medit, line->items, line->count, vec2(0, row), white);
+                medit_render_text(
+                    &medit,
+                    line->items,
+                    line->count,
+                    (Cell) { .col = 0, .row = row },
+                    white);
             }
             row++;
         }

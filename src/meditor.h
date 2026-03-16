@@ -2,8 +2,8 @@
 #define MEDIT_MEDITOR_H_
 
 #include "keybind.h"
-#include "linalg.h"
 #include "renderer.h"
+#include "types.h"
 
 #include <stdbool.h>
 
@@ -17,14 +17,14 @@ enum {
 
 typedef struct {
     char* items;
-    int count;
-    int capacity;
+    size_t count;
+    size_t capacity;
 } Line;
 
 typedef struct {
     Line* items;
-    int count;
-    int capacity;
+    size_t count;
+    size_t capacity;
 } Lines;
 
 typedef struct {
@@ -34,14 +34,14 @@ typedef struct {
 
 typedef struct {
     File* items;
-    int count;
-    int capacity;
+    size_t count;
+    size_t capacity;
 } Files;
 
 typedef struct {
-    Vec2* items;
-    int count;
-    int capacity;
+    Cell* items;
+    size_t count;
+    size_t capacity;
 } Cursors;
 
 typedef struct {
@@ -51,8 +51,8 @@ typedef struct {
 
 typedef struct {
     FileView* items;
-    int count;
-    int capacity;
+    size_t count;
+    size_t capacity;
 } FileViews;
 
 typedef struct {
@@ -69,7 +69,7 @@ typedef struct Meditor {
     Files opened_files;
     FileViews file_views;
     FileView focused_view;
-    Vec2 grid_size;
+    Cell grid_size;
     bool running;
     bool input_in_frame;
     bool draw_debug_grid;
@@ -78,12 +78,12 @@ typedef struct Meditor {
 void meditor_load_default_gui_keybind(Meditor* medit);
 void meditor_load_default_tui_keybind(Meditor* medit);
 
-void meditor_cursor_up(Meditor* medit, int cells);
-void meditor_cursor_down(Meditor* medit, int cells);
-void meditor_cursor_left(Meditor* medit, int cells);
-void meditor_cursor_right(Meditor* medit, int cells);
+void meditor_cursor_up(Meditor* medit, size_t cells);
+void meditor_cursor_down(Meditor* medit, size_t cells);
+void meditor_cursor_left(Meditor* medit, size_t cells);
+void meditor_cursor_right(Meditor* medit, size_t cells);
 
-void meditor_insert_text(Meditor* medit, const char* text, int n, int cells);
+void meditor_insert_text(Meditor* medit, const char* text, size_t n, size_t cells);
 
 void meditor_new_file(Meditor* medit);
 

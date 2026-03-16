@@ -1,6 +1,6 @@
 #include "renderer.h"
-#include "color.h"
 #include "meditor.h"
+#include "types.h"
 
 #include <stdio.h>
 
@@ -37,7 +37,7 @@ void medit_unload_font(Meditor* medit)
     unload_font(medit);
 }
 
-int medit_get_text_cells(Meditor* medit, const char* text)
+size_t medit_get_text_cells(Meditor* medit, const char* text)
 {
     Renderer* renderer = &medit->renderer;
     RendererGetTextCellsFn* get_text_cells = renderer->fns.get_text_cells;
@@ -70,7 +70,7 @@ void medit_handle_events(Meditor* medit)
     handle_events(medit);
 }
 
-void medit_render_text(Meditor* medit, const char* text, int n, Vec2 cell, Color color)
+void medit_render_text(Meditor* medit, const char* text, size_t n, Cell cell, Color color)
 {
     Renderer* renderer = &medit->renderer;
     RendererRenderTextFn* render_text = renderer->fns.render_text;
@@ -81,7 +81,7 @@ void medit_render_text(Meditor* medit, const char* text, int n, Vec2 cell, Color
     render_text(medit, text, n, cell, color);
 }
 
-void medit_render_text0(Meditor* medit, const char* text, Vec2 cell, Color color)
+void medit_render_text0(Meditor* medit, const char* text, Cell cell, Color color)
 {
     Renderer* renderer = &medit->renderer;
     RendererRenderText0Fn* render_text0 = renderer->fns.render_text0;

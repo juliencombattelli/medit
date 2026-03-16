@@ -261,7 +261,7 @@ static void ansi_handle_events(Meditor* medit)
     medit->input_in_frame = true;
 }
 
-static void ansi_render_text0(Meditor* medit, const char* text, Vec2 cell, Color color)
+static void ansi_render_text0(Meditor* medit, const char* text, Cell cell, Color color)
 {
     const char s[1024] = { 0 };
     int n = sprintf(s, CSI "%d;%df", cell.row, cell.col);

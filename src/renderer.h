@@ -1,19 +1,26 @@
 #ifndef MEDIT_RENDERER_H_
 #define MEDIT_RENDERER_H_
 
-#include "color.h"
 #include "linalg.h"
+#include "types.h"
+
+#include <stddef.h>
 
 typedef struct Meditor Meditor;
 
 typedef void RendererCreateFn(Meditor* medit);
 typedef void RendererLoadFontFn(Meditor* medit);
 typedef void RendererUnloadFontFn(Meditor* medit);
-typedef int RendererGetTextCellsFn(Meditor* medit, const char* text);
+typedef size_t RendererGetTextCellsFn(Meditor* medit, const char* text);
 typedef void RendererHandleEventsFn(Meditor* medit);
 typedef void RendererClearScreenFn(Meditor* medit, Color color);
-typedef void RendererRenderTextFn(Meditor* medit, const char* text, int n, Vec2 cell, Color color);
-typedef void RendererRenderText0Fn(Meditor* medit, const char* text, Vec2 cell, Color color);
+typedef void RendererRenderTextFn(
+    Meditor* medit,
+    const char* text,
+    size_t n,
+    Cell cell,
+    Color color);
+typedef void RendererRenderText0Fn(Meditor* medit, const char* text, Cell cell, Color color);
 typedef void RendererRenderCursorFn(Meditor* medit, Color color);
 typedef void RendererRenderDebugGridFn(Meditor* medit);
 typedef void RendererPresentFn(Meditor* medit);
@@ -43,11 +50,11 @@ typedef struct {
 void medit_renderer_create(Meditor* meditor);
 void medit_load_font(Meditor* medit);
 void medit_unload_font(Meditor* medit);
-int medit_get_text_cells(Meditor* medit, const char* text);
+size_t medit_get_text_cells(Meditor* medit, const char* text);
 void medit_handle_events(Meditor* medit);
 void medit_clear_screen(Meditor* medit, Color color);
-void medit_render_text(Meditor* medit, const char* text, int n, Vec2 cell, Color color);
-void medit_render_text0(Meditor* medit, const char* text, Vec2 cell, Color color);
+void medit_render_text(Meditor* medit, const char* text, size_t n, Cell cell, Color color);
+void medit_render_text0(Meditor* medit, const char* text, Cell cell, Color color);
 void medit_render_cursor(Meditor* medit, Color color);
 void medit_render_debug_grid(Meditor* medit);
 void medit_renderer_present(Meditor* medit);

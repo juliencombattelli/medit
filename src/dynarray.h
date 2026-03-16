@@ -22,9 +22,9 @@
             while ((expected_capacity) > (da)->capacity) {                                         \
                 (da)->capacity *= 2;                                                               \
             }                                                                                      \
-            (da)->items = MEDIT_DECLTYPE_CAST((da)->items)                                         \
-                realloc((da)->items, (da)->capacity * sizeof(*(da)->items));                       \
-            assert((da)->items != NULL && "Buy more RAM lol");                                     \
+            void* ptr = realloc((da)->items, (da)->capacity * sizeof(*(da)->items));               \
+            assert(ptr != NULL && "Buy more RAM lol");                                             \
+            (da)->items = MEDIT_DECLTYPE_CAST((da)->items)(ptr);                                   \
         }                                                                                          \
     } while (0)
 
@@ -52,18 +52,20 @@
 #define dynarray_insert(da, item, index)                                                           \
     do {                                                                                           \
         dynarray_resize((da), (da)->count + 1);                                                    \
-        for (int i = (da)->count; i >= (index); --i) {                                             \
-            (da)->items[i + 1] = (da)->items[i];                                                   \
-        }                                                                                          \
+        memmove(                                                                                   \
+            (da)->items + (index) + 1,                                                             \
+            (da)->items + (index),                                                                 \
+            ((da)->count - 1 - (index)) * sizeof(*(da)->items));                                   \
         (da)->items[(index)] = (item);                                                             \
     } while (0)
 
 #define dynarray_insert_many(da, new_items, new_items_count, index)                                \
     do {                                                                                           \
         dynarray_resize((da), (da)->count + (new_items_count));                                    \
-        for (int i = (da)->count; i >= (index); --i) {                                             \
-            (da)->items[i + (new_items_count)] = (da)->items[i];                                   \
-        }                                                                                          \
+        memmove(                                                                                   \
+            (da)->items + (index) + (new_items_count),                                             \
+            (da)->items + (index),                                                                 \
+            ((da)->count - (new_items_count) - (index)) * sizeof(*(da)->items));                   \
         memcpy((da)->items + (index), (new_items), (new_items_count) * sizeof(*(da)->items));      \
     } while (0)
 
@@ -73,7 +75,8 @@
     do {                                                                                           \
         size_t j = (i);                                                                            \
         assert(j < (da)->count);                                                                   \
-        (da)->items[j] = (da)->items[--(da)->count];                                               \
+        (da)->count -= 1;                                                                          \
+        (da)->items[j] = (da)->items[(da)->count];                                                 \
     } while (0)
 
 #define dynarray_remove(da, pos)                                                                   \
@@ -82,8 +85,8 @@
         memmove(                                                                                   \
             (da)->items + (pos),                                                                   \
             (da)->items + (pos) + 1,                                                               \
-            (da)->count * sizeof(*(da)->items) - (pos));                                           \
-        (da)->count--;                                                                             \
+            ((da)->count - 1 - (pos)) * sizeof(*(da)->items));                                     \
+        (da)->count -= 1;                                                                          \
     } while (0)
 
 #define dynarray_foreach(Type, it, da)                                                             \
