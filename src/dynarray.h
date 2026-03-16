@@ -3,6 +3,8 @@
 
 #include "assert.h"
 
+#include <string.h>
+
 #ifdef __cplusplus
 #define MEDIT_DECLTYPE_CAST(T) (decltype(T))
 #else
@@ -72,6 +74,16 @@
         size_t j = (i);                                                                            \
         assert(j < (da)->count);                                                                   \
         (da)->items[j] = (da)->items[--(da)->count];                                               \
+    } while (0)
+
+#define dynarray_remove(da, pos)                                                                   \
+    do {                                                                                           \
+        assert(pos < (da)->count);                                                                 \
+        memmove(                                                                                   \
+            (da)->items + (pos),                                                                   \
+            (da)->items + (pos) + 1,                                                               \
+            (da)->count * sizeof(*(da)->items) - (pos));                                           \
+        (da)->count--;                                                                             \
     } while (0)
 
 #define dynarray_foreach(Type, it, da)                                                             \

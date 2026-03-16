@@ -307,18 +307,9 @@ void meditor_erase_line(Meditor* medit)
         if (cursor_row + 1 == lines->count) {
             meditor_cursor_up(medit, 1);
         }
-        // Empty the erased line
-        Line* erased = &lines->items[cursor_row];
-        dynarray_free(*erased);
-        // Shift up all lines under cursor by one
-        for (int i = cursor_row; i < lines->count - cursor_row; ++i) {
-            lines->items[i] = lines->items[i + 1];
-        }
-        // Empty the last line
-        Line* last = &dynarray_last(lines);
-        *last = (Line) { 0 };
-
-        lines->count--;
+        Line erased = lines->items[cursor_row];
+        dynarray_free(erased);
+        dynarray_remove(lines, cursor_row);
     } else {
         // Empty the only line
         Line* lonely_line = &dynarray_last(lines);
@@ -344,11 +335,7 @@ void meditor_erase_char(Meditor* medit)
         meditor_erase_line(medit);
         medit->focused_view.cursors.items[0].col = upper_line->count - leftover;
     } else {
-        memmove(
-            current_line->items + cursor_col - 1,
-            current_line->items + cursor_col,
-            current_line->count - cursor_col);
-        dynarray_resize(current_line, current_line->count - 1);
+        dynarray_remove(current_line, cursor_col - 1);
         meditor_cursor_left(medit, 0);
     }
 }
