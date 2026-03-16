@@ -10,11 +10,17 @@
 
 #define DEFAULT_WINDOW_WIDTH 1280
 #define DEFAULT_WINDOW_HEIGHT 720
+#define DEFAULT_CURSOR_BLINK_PERIOD_MS 1000
 
 typedef struct {
     size_t width;
     size_t height;
 } PixelSize;
+
+typedef struct {
+    Uint64 last_ticks;
+    bool show_cursor;
+} CursorBlink;
 
 typedef struct {
     SDL_Window* window;
@@ -23,6 +29,7 @@ typedef struct {
     TTF_Font* font_emoji;
     PixelSize cell_size;
     PixelSize window_size;
+    CursorBlink cursor_blink;
 } RendererSDL3;
 
 #define FORCE_MONOSPACE_FONTS
@@ -250,13 +257,33 @@ static void sdl3_clear_screen(Meditor* medit, Color color)
     SDL_RenderClear(renderer);
 }
 
-static void sdl3_handle_events(Meditor* medit)
+static void update_cursor_blinking_timer(Meditor* medit)
 {
     RendererSDL3* renderer = (RendererSDL3*)medit->renderer.data;
+
+    Uint64 ticks = SDL_GetTicks();
+    if (ticks - renderer->cursor_blink.last_ticks > DEFAULT_CURSOR_BLINK_PERIOD_MS / 2) {
+        renderer->cursor_blink.show_cursor = !renderer->cursor_blink.show_cursor;
+        medit->input_in_frame = true; // force to redraw screen
+        renderer->cursor_blink.last_ticks = ticks;
+    }
+}
+
+static void reset_cursor_blinking_time(Meditor* medit)
+{
+    RendererSDL3* renderer = (RendererSDL3*)medit->renderer.data;
+    renderer->cursor_blink.last_ticks = SDL_GetTicks();
+    renderer->cursor_blink.show_cursor = true;
+}
+
+static void sdl3_handle_events(Meditor* medit)
+{
+    update_cursor_blinking_timer(medit);
 
     SDL_Event event = { 0 };
     while (SDL_PollEvent(&event) != 0) {
         medit->input_in_frame = true;
+        reset_cursor_blinking_time(medit);
         switch (event.type) {
             case SDL_EVENT_QUIT: medit->running = false; break;
             case SDL_EVENT_WINDOW_RESIZED:
@@ -345,6 +372,10 @@ static void sdl3_render_text0(Meditor* medit, const char* text, Cell cell, Color
 static void sdl3_render_cursor(Meditor* medit, Color color)
 {
     RendererSDL3* renderer = (RendererSDL3*)medit->renderer.data;
+
+    if (!renderer->cursor_blink.show_cursor) {
+        return;
+    }
 
     Color inverse_color = {
         .r = 255 - color.r,
