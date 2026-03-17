@@ -45,8 +45,7 @@ int main(int argc, char** argv)
         size_t row = 0;
         dynarray_foreach(Line, line, lines)
         {
-            printf("printing line %zu; ptr=%p\n", line->count, line->items);
-            if (line->count != 0) {
+            if (line->items != NULL) {
                 medit_render_text(
                     &medit,
                     line->items,

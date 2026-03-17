@@ -30,6 +30,7 @@ typedef struct {
     PixelSize cell_size;
     PixelSize window_size;
     CursorBlink cursor_blink;
+    size_t line_nr_padding;
 } RendererSDL3;
 
 #define FORCE_MONOSPACE_FONTS
@@ -317,8 +318,95 @@ static void sdl3_handle_events(Meditor* medit)
     }
 }
 
+static int count_digits(int n)
+{
+    if (n < 0) {
+        n = (n == INT_MIN) ? INT_MAX : -n;
+    }
+    if (n < 10) {
+        return 1;
+    }
+    if (n < 100) {
+        return 2;
+    }
+    if (n < 1000) {
+        return 3;
+    }
+    if (n < 10000) {
+        return 4;
+    }
+    if (n < 100000) {
+        return 5;
+    }
+    if (n < 1000000) {
+        return 6;
+    }
+    if (n < 10000000) {
+        return 7;
+    }
+    if (n < 100000000) {
+        return 8;
+    }
+    if (n < 1000000000) {
+        return 9;
+    }
+    /*      2147483647 is 2^31-1 - add more ifs as needed
+    and adjust this final return as well. */
+    return 10;
+}
+
+static void render_line_nr(Meditor* medit, Cell cell, Color color)
+{
+    RendererSDL3* renderer = (RendererSDL3*)medit->renderer.data;
+
+    // Compute the maximum number of digits (minimum 4)
+    const size_t line_count = SDL_max(medit->focused_view.file->lines.count, 1000);
+    const int max_digits = count_digits((int)line_count);
+
+    // Compute the padding size to render this max line number
+    renderer->line_nr_padding = 10;
+    char line_count_str[1024] = { 0 };
+    (void)sprintf(line_count_str, "%zu", line_count);
+    int line_number_width = 0;
+    TTF_MeasureString(renderer->font_editor, line_count_str, 0, 0, &line_number_width, NULL);
+    assert(line_number_width >= 0);
+    renderer->line_nr_padding += (size_t)line_number_width;
+
+    // Render the number of the current line
+    char current_line_nr_str[1024] = { 0 };
+    (void)sprintf(current_line_nr_str, "%*zu", max_digits, cell.row + 1);
+
+    SDL_Surface* surface = TTF_RenderText_Blended(
+        renderer->font_editor,
+        current_line_nr_str,
+        0,
+        to_sdl_color(color));
+    assert(surface);
+
+    SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer->renderer, surface);
+    assert(texture != NULL);
+
+    const SDL_FRect glyph_rect = {
+        .x = 0,
+        .y = (float)(cell.row * renderer->cell_size.height),
+        .w = (float)(surface->w),
+        .h = (float)(surface->h),
+    };
+
+    SDL_RenderTexture(renderer->renderer, texture, NULL, &glyph_rect);
+
+    SDL_DestroySurface(surface);
+    SDL_DestroyTexture(texture);
+}
+
 static void sdl3_render_text(Meditor* medit, const char* text, size_t n, Cell cell, Color color)
 {
+    render_line_nr(medit, cell, color);
+
+    if (text == NULL || n == 0) {
+        return;
+    }
+
     RendererSDL3* renderer = (RendererSDL3*)medit->renderer.data;
 
     // take one extra cell to allow display partial chars
@@ -352,7 +440,7 @@ static void sdl3_render_text(Meditor* medit, const char* text, size_t n, Cell ce
     assert(texture != NULL);
 
     const SDL_FRect glyph_rect = {
-        .x = (float)(cell.col * renderer->cell_size.width),
+        .x = (float)(renderer->line_nr_padding + (cell.col * renderer->cell_size.width)),
         .y = (float)(cell.row * renderer->cell_size.height),
         .w = (float)(surface->w),
         .h = (float)(surface->h),
@@ -388,7 +476,7 @@ static void sdl3_render_cursor(Meditor* medit, Color color)
         Cell* cursor = &medit->focused_view.cursors.items[i];
 
         const SDL_FRect cursor_rect = {
-            .x = (float)(cursor->col * renderer->cell_size.width),
+            .x = (float)(renderer->line_nr_padding + (cursor->col * renderer->cell_size.width)),
             .y = (float)(cursor->row * renderer->cell_size.height),
             .w = (float)(renderer->cell_size.width),
             .h = (float)(renderer->cell_size.height),
