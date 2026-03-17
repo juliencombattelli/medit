@@ -69,7 +69,7 @@ static void action_cursor_right(Meditor* medit)
 
 static void action_restore_cursor(Meditor* medit)
 {
-    medit->focused_view.cursors.count = 0;
+    medit->focused_view.cursors.count = 1;
     // TODO memset other cursors
 }
 
