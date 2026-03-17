@@ -344,19 +344,26 @@ void meditor_erase_char(Meditor* medit)
 {
     const size_t cursor_col = medit->focused_view.cursors.items[0].col;
     const size_t cursor_row = medit->focused_view.cursors.items[0].row;
-    Line* current_line = meditor_get_current_line(medit);
 
     if (cursor_col == 0 && cursor_row == 0) {
         return;
     }
-    if (cursor_col == 0 && cursor_row > 0) {
-        size_t leftover = current_line->count;
+
+    Lines* lines = &medit->focused_view.file->lines;
+    Line* current_line = &lines->items[cursor_row];
+
+    meditor_cursor_left(medit, 0);
+
+    if (cursor_col == 0) {
+        // Merge the current line with the upper one
         Line* upper_line = &medit->focused_view.file->lines.items[cursor_row - 1];
-        dynarray_append_many(upper_line, current_line->items, leftover);
-        meditor_erase_line(medit);
-        medit->focused_view.cursors.items[0].col = upper_line->count - leftover;
+        dynarray_append_many(upper_line, current_line->items, current_line->count);
+        // Remove the current line
+        Line erased = lines->items[cursor_row];
+        dynarray_free(erased);
+        dynarray_remove(lines, cursor_row);
     } else {
+        // Remove a single char before the cursor
         dynarray_remove(current_line, cursor_col - 1);
-        meditor_cursor_left(medit, 0);
     }
 }
