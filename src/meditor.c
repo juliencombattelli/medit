@@ -264,7 +264,7 @@ void meditor_insert_text(Meditor* medit, const char* text, size_t n, size_t cell
     dynarray_insert_many(current_line, text, n, cursor_col);
 }
 
-void meditor_new_file(Meditor* medit)
+void meditor_new_empty_file(Meditor* medit)
 {
     File new_file = { 0 };
     dynarray_append(&medit->opened_files, new_file);
@@ -277,6 +277,26 @@ void meditor_new_file(Meditor* medit)
     medit->focused_view = dynarray_last(&medit->file_views);
 
     meditor_insert_new_line(medit);
+}
+
+void meditor_close_files(Meditor* medit)
+{
+    dynarray_foreach(FileView, fv, &medit->file_views)
+    {
+        dynarray_free(fv->cursors);
+    }
+    dynarray_free(medit->file_views);
+
+    dynarray_foreach(File, file, &medit->opened_files)
+    {
+        dynarray_foreach(Line, line, &file->lines)
+        {
+            dynarray_free(*line);
+        }
+
+        dynarray_free(file->lines);
+    }
+    dynarray_free(medit->opened_files);
 }
 
 void meditor_insert_new_line(Meditor* medit)

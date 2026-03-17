@@ -22,7 +22,7 @@ int main(int argc, char** argv)
     medit.startup_config.editor_font_path = FONT_PATH_DEFAULT;
     medit_load_font(&medit);
 
-    meditor_new_file(&medit);
+    meditor_new_empty_file(&medit);
 
     medit.running = true;
     medit.input_in_frame = true;
@@ -61,6 +61,8 @@ int main(int argc, char** argv)
 
         medit_renderer_present(&medit);
     }
+
+    meditor_close_files(&medit);
 
     medit_unload_font(&medit);
     medit_renderer_destroy(&medit);
