@@ -457,6 +457,41 @@ static size_t format_line_number(SDL3Ui* ui, size_t line_number, char* buffer, s
     return (size_t)written;
 }
 
+static void ui_sdl3_draw_line_number(SDL3Ui* ui, size_t row)
+{
+    Meditor* medit = ui->medit;
+
+    const Color line_number_color = row == medit->focused_view.cursors.items[0].row
+        ? medit->config.color_theme.line_number_current
+        : medit->config.color_theme.line_number;
+
+    char line_number[64];
+    size_t line_numnber_len = format_line_number(ui, row, line_number, sizeof(line_number));
+    ui_sdl3_draw_text(
+        ui,
+        line_number,
+        line_numnber_len,
+        &ui->font_editor,
+        cell_to_pixel_pos(ui, (Cell) { .col = 0, .row = row }),
+        line_number_color);
+}
+
+static void ui_sdl3_draw_line(SDL3Ui* ui, size_t row, Line* line)
+{
+    Meditor* medit = ui->medit;
+
+    PixelPos line_pos = cell_to_pixel_pos(ui, (Cell) { .col = 0, .row = row });
+    line_pos.x += ui->line_nr_padding;
+
+    ui_sdl3_draw_text(
+        ui,
+        line->items,
+        line->count,
+        &ui->font_editor,
+        line_pos,
+        medit->config.color_theme.editor_fg);
+}
+
 void medit_ui_sdl3_run(Meditor* medit)
 {
     SDL3Ui ui = { 0 };
@@ -469,7 +504,6 @@ void medit_ui_sdl3_run(Meditor* medit)
     while (medit->running) {
         ui_sdl3_handle_event(&ui);
 
-        // Reload font if the size changed
         if (ui.editor_font_size != medit->config.editor_font_size) {
             ui_sdl3_unload_editor_font(&ui);
             ui_sdl3_load_editor_font(&ui);
@@ -481,33 +515,8 @@ void medit_ui_sdl3_run(Meditor* medit)
         size_t row = 0;
         dynarray_foreach(Line, line, lines)
         {
-            const Color line_number_color = row == medit->focused_view.cursors.items[0].row
-                ? medit->config.color_theme.line_number_current
-                : medit->config.color_theme.line_number;
-
-            char line_number[64];
-            size_t line_numnber_len = format_line_number(
-                &ui,
-                row,
-                line_number,
-                sizeof(line_number));
-            ui_sdl3_draw_text(
-                &ui,
-                line_number,
-                line_numnber_len,
-                &ui.font_editor,
-                cell_to_pixel_pos(&ui, (Cell) { .col = 0, .row = row }),
-                line_number_color);
-
-            PixelPos line_pos = cell_to_pixel_pos(&ui, (Cell) { .col = 0, .row = row });
-            line_pos.x += ui.line_nr_padding;
-            ui_sdl3_draw_text(
-                &ui,
-                line->items,
-                line->count,
-                &ui.font_editor,
-                line_pos,
-                medit->config.color_theme.editor_fg);
+            ui_sdl3_draw_line_number(&ui, row);
+            ui_sdl3_draw_line(&ui, row, line);
             row++;
         }
 
