@@ -39,6 +39,11 @@ static void action_font_zoom_in(Meditor* medit)
     set_font_size_clamped(&medit->config.editor_font_size, medit->config.editor_font_size + 2);
 }
 
+static void action_font_zoom_default(Meditor* medit)
+{
+    set_font_size_clamped(&medit->config.editor_font_size, FONT_SIZE_DEFAULT);
+}
+
 static void action_cursor_up(Meditor* medit)
 {
     meditor_cursor_up(medit, 1);
@@ -118,6 +123,7 @@ void meditor_load_default_gui_keybind(Meditor* medit)
 
     keybind_bind(keybind, KEY_NPAD_PLUS, MOD_CTRL, action_font_zoom_in, medit);
     keybind_bind(keybind, KEY_EQUALS, MOD_SHIFT_CTRL, action_font_zoom_in, medit);
+    keybind_bind(keybind, KEY_EQUALS, MOD_CTRL, action_font_zoom_default, medit);
 
     keybind_bind(keybind, KEY_NPAD_MINUS, MOD_CTRL, action_font_zoom_out, medit);
     keybind_bind(keybind, KEY_6, MOD_CTRL, action_font_zoom_out, medit);
