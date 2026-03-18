@@ -1,0 +1,495 @@
+#include "assert.h"
+#include "dynarray.h"
+#include "font.h"
+#include "keybind.h"
+#include "meditor.h"
+#include "utils.h"
+
+#include <SDL3/SDL.h>
+#include <SDL3_ttf/SDL_ttf.h>
+
+#include <limits.h>
+
+typedef struct {
+    int width;
+    int height;
+} PixelSize;
+
+typedef struct {
+    int x;
+    int y;
+} PixelPos;
+
+typedef struct {
+    Uint64 last_ticks;
+    bool show_cursor;
+} CursorBlink;
+
+typedef struct {
+    TTF_Font* main;
+    TTF_Font* emoji;
+} Font;
+
+typedef struct {
+    Meditor* medit;
+    SDL_Window* window;
+    SDL_Renderer* renderer;
+    Font font_ui;
+    Font font_editor;
+    PixelSize cell_size;
+    PixelSize window_size;
+    CursorBlink cursor_blink;
+    int line_nr_padding;
+} SDL3Ui;
+
+KeybindEvent keybind_sdl3_translate_event(void* native_event);
+
+static bool ui_sdl3_create(SDL3Ui* ui, Meditor* medit);
+static void ui_sdl3_destroy(SDL3Ui* ui);
+
+static void ui_sdl3_resize_window_with_data(SDL3Ui* ui, PixelSize window_size);
+static void ui_sdl3_resize_window(SDL3Ui* ui);
+static void ui_sdl3_resize_cell(SDL3Ui* ui);
+static void ui_sdl3_resize_grid(SDL3Ui* ui);
+
+static void ui_sdl3_load_ui_font(SDL3Ui* ui);
+static void ui_sdl3_unload_ui_font(SDL3Ui* ui);
+static void ui_sdl3_load_editor_font(SDL3Ui* ui);
+static void ui_sdl3_unload_editor_font(SDL3Ui* ui);
+
+static void ui_sdl3_handle_event(SDL3Ui* ui);
+
+static void ui_sdl3_clear(SDL3Ui* ui);
+static void ui_sdl3_draw_debug_grid(SDL3Ui* ui);
+static void ui_sdl3_draw_text(
+    SDL3Ui* ui,
+    const char* text,
+    size_t len,
+    Font* font,
+    PixelPos pos,
+    Color color);
+static void ui_sdl3_draw_cursor(SDL3Ui* ui);
+static void ui_sdl3_draw_line_number(SDL3Ui* ui);
+static void ui_sdl3_render(SDL3Ui* ui);
+
+static PixelPos cell_to_pixel_pos(SDL3Ui* ui, Cell cell)
+{
+    assert(cell.col <= INT_MAX);
+    assert(cell.row <= INT_MAX);
+    return (PixelPos) {
+        .x = (int)cell.col * ui->cell_size.width,
+        .y = (int)cell.row * ui->cell_size.height,
+    };
+}
+
+enum {
+    DEFAULT_WINDOW_WIDTH = 1280,
+    DEFAULT_WINDOW_HEIGHT = 720,
+    DEFAULT_CURSOR_BLINK_PERIOD_MS = 1000,
+};
+
+static bool ui_sdl3_create(SDL3Ui* ui, Meditor* medit)
+{
+    try(SDL_Init(SDL_INIT_VIDEO));
+    try(TTF_Init());
+
+    SDL_Window* window = SDL_CreateWindow(
+        "Medit",
+        DEFAULT_WINDOW_WIDTH,
+        DEFAULT_WINDOW_HEIGHT,
+        SDL_WINDOW_HIDDEN);
+    try(window);
+
+    SDL_Renderer* renderer = SDL_CreateRenderer(window, NULL);
+    try(renderer);
+
+    try(SDL_SetRenderVSync(renderer, 1));
+
+    ui->window = window;
+    ui->renderer = renderer;
+
+    try(SDL_ShowWindow(ui->window));
+
+    try(SDL_StartTextInput(ui->window));
+
+    meditor_load_default_gui_keybind(medit);
+
+    ui->medit = medit;
+
+    return true;
+}
+
+static void ui_sdl3_destroy(SDL3Ui* ui)
+{
+    SDL_StopTextInput(ui->window);
+
+    SDL_DestroyRenderer(ui->renderer);
+    SDL_DestroyWindow(ui->window);
+
+    TTF_Quit();
+    SDL_Quit();
+
+    *ui = (SDL3Ui) { 0 };
+}
+
+static void ui_sdl3_resize_window_with_data(SDL3Ui* ui, PixelSize window_size)
+{
+    assert(window_size.width >= 0);
+    assert(window_size.height >= 0);
+
+    ui->window_size = window_size;
+}
+
+static void ui_sdl3_resize_window(SDL3Ui* ui)
+{
+    int w = 0;
+    int h = 0;
+    SDL_GetWindowSizeInPixels(ui->window, &w, &h);
+
+    ui_sdl3_resize_window_with_data(ui, (PixelSize) { .width = w, .height = h });
+}
+
+static void ui_sdl3_resize_cell(SDL3Ui* ui)
+{
+    int w = 0;
+    int h = 0;
+    TTF_GetStringSize(ui->font_editor.main, "M", 0, &w, &h);
+    assert(w >= 0);
+    assert(h >= 0);
+
+    ui->cell_size = (PixelSize) { .width = w, .height = h };
+}
+
+static void ui_sdl3_resize_grid(SDL3Ui* ui)
+{
+    ui->medit->grid_size = (Cell) {
+        .col = (size_t)ui->window_size.width / (size_t)ui->cell_size.width,
+        .row = (size_t)ui->window_size.height / (size_t)ui->cell_size.height,
+    };
+}
+
+// static void ui_sdl3_load_ui_font(SDL3Ui* ui);
+// static void ui_sdl3_unload_ui_font(SDL3Ui* ui);
+
+static void ui_sdl3_load_editor_font(SDL3Ui* ui)
+{
+    Meditor* medit = ui->medit;
+
+    ui->font_editor.main = TTF_OpenFont(
+        medit->config.editor_font_path,
+        (float)medit->config.editor_font_size);
+    if (!ui->font_editor.main) {
+        printf(
+            "Error: failed to load font %s with size %d\n",
+            medit->config.editor_font_path,
+            medit->config.editor_font_size);
+        abort();
+    }
+
+    ui_sdl3_resize_cell(ui);
+    ui_sdl3_resize_window(ui);
+    ui_sdl3_resize_grid(ui);
+
+    ui->font_editor.emoji = load_emoji_font_aligned_to(
+        ui->font_editor.main,
+        // "asset/font/NotoColorEmoji-Regular.ttf",
+        "asset/font/OpenMoji-color-colr0_svg.ttf",
+        medit->config.editor_font_size);
+    if (!ui->font_editor.emoji) {
+        printf(
+            "Warning: failed to find a size aligned to the grid for emoji "
+            "font\n");
+    } else {
+        if (!TTF_AddFallbackFont(ui->font_editor.main, ui->font_editor.emoji)) {
+            printf("Warning: failed to load fallback emoji font: %s\n", SDL_GetError());
+            abort();
+        }
+    }
+}
+
+static void ui_sdl3_unload_editor_font(SDL3Ui* ui)
+{
+    TTF_ClearFallbackFonts(ui->font_editor.main);
+    TTF_CloseFont(ui->font_editor.main);
+    TTF_CloseFont(ui->font_editor.emoji);
+    ui->font_editor = (Font) { 0 };
+}
+
+static void ui_sdl3_on_window_resized(SDL3Ui* ui, int w, int h)
+{
+    ui_sdl3_resize_window_with_data(
+        ui,
+        (PixelSize) {
+            .width = w,
+            .height = h,
+        });
+    ui_sdl3_resize_grid(ui);
+}
+
+static void ui_sdl3_update_cursor_blinking_timer(SDL3Ui* ui)
+{
+    Uint64 ticks = SDL_GetTicks();
+    if (ticks - ui->cursor_blink.last_ticks > DEFAULT_CURSOR_BLINK_PERIOD_MS / 2) {
+        ui->cursor_blink.show_cursor = !ui->cursor_blink.show_cursor;
+        ui->medit->input_in_frame = true; // force to redraw screen
+        ui->cursor_blink.last_ticks = ticks;
+    }
+}
+
+static void ui_sdl3_reset_cursor_blinking_timer(SDL3Ui* ui)
+{
+    ui->cursor_blink.last_ticks = SDL_GetTicks();
+    ui->cursor_blink.show_cursor = true;
+}
+
+static void ui_sdl3_handle_event(SDL3Ui* ui)
+{
+    Meditor* medit = ui->medit;
+
+    ui_sdl3_update_cursor_blinking_timer(ui);
+
+    SDL_Event event = { 0 };
+    while (SDL_PollEvent(&event) != 0) {
+        medit->input_in_frame = true;
+        // Force cursor to reappear at each keystroke (for any event actually) by reseting its timer
+        ui_sdl3_reset_cursor_blinking_timer(ui);
+        switch (event.type) {
+            case SDL_EVENT_QUIT: medit->running = false; break;
+            case SDL_EVENT_WINDOW_RESIZED:
+                ui_sdl3_on_window_resized(ui, (int)event.window.data1, (int)event.window.data2);
+                break;
+            case SDL_EVENT_KEY_DOWN: {
+                KeybindEvent keybind_event = keybind_sdl3_translate_event(&event);
+                if (keybind_handle_event(&medit->keybind, &keybind_event)) {
+                    break;
+                }
+                switch (event.key.key) {
+                    case SDLK_RETURN: meditor_split_line(medit); break;
+                    case SDLK_BACKSPACE: meditor_erase_char(medit); break;
+                    default: break;
+                }
+            } break;
+            case SDL_EVENT_TEXT_INPUT: {
+                const size_t text_cells = 1; // medit_get_text_cells(medit, event.text.text);
+                size_t text_len = strlen(event.text.text);
+                meditor_insert_text(medit, event.text.text, text_len, text_cells);
+                meditor_cursor_right(medit, text_cells);
+            } break;
+            case SDL_EVENT_KEYMAP_CHANGED: {
+                printf("Reloading keymapping\n");
+                keybind_reinit(&medit->keybind);
+                meditor_load_default_gui_keybind(medit);
+            } break;
+            default: break;
+        }
+    }
+}
+
+static void ui_sdl3_clear(SDL3Ui* ui)
+{
+    Color color = ui->medit->config.color_theme.editor_bg;
+
+    SDL_SetRenderDrawColor(ui->renderer, color_to_RGBA_args(color));
+    SDL_RenderClear(ui->renderer);
+}
+
+static void ui_sdl3_draw_debug_grid(SDL3Ui* ui)
+{
+    Meditor* medit = ui->medit;
+
+    if (!medit->draw_debug_grid) {
+        return;
+    }
+
+    SDL_SetRenderDrawColor(ui->renderer, 255, 0, 255, 255);
+
+    assert(medit->grid_size.col <= INT_MAX);
+    for (int i = 0; i < (int)medit->grid_size.col + 1; ++i) {
+        const SDL_FRect vertical_line = {
+            .x = (float)(i * ui->cell_size.width),
+            .y = (float)0,
+            .w = (float)1,
+            .h = (float)ui->window_size.height,
+        };
+        SDL_RenderRect(ui->renderer, &vertical_line);
+    }
+
+    assert(medit->grid_size.row <= INT_MAX);
+    for (int i = 0; i < (int)medit->grid_size.row + 1; ++i) {
+        const SDL_FRect horizontal_line = {
+            .x = (float)0,
+            .y = (float)(i * ui->cell_size.height),
+            .w = (float)ui->window_size.width,
+            .h = (float)1,
+        };
+        SDL_RenderRect(ui->renderer, &horizontal_line);
+    }
+}
+
+static void ui_sdl3_draw_text(
+    SDL3Ui* ui,
+    const char* text,
+    size_t len,
+    Font* font,
+    PixelPos pos,
+    Color color)
+{
+    if (text == NULL || len == 0) {
+        return;
+    }
+
+    // take one extra cell to allow display partial chars
+    int max_string_width = ui->window_size.width + ui->cell_size.width;
+
+    int text_width = 0;
+    size_t text_bytes_max = 0;
+    bool res = TTF_MeasureString(
+        font->main,
+        text,
+        len,
+        max_string_width,
+        &text_width,
+        &text_bytes_max);
+    assert(res == true);
+
+    size_t printed_bytes = SDL_min((size_t)len, text_bytes_max);
+
+    if (text_width == 0) {
+        return;
+    }
+
+    SDL_Surface* surface = TTF_RenderText_Blended(
+        font->main,
+        text,
+        printed_bytes,
+        color_to_sdl3(color));
+    assert(surface != NULL);
+
+    SDL_Texture* texture = SDL_CreateTextureFromSurface(ui->renderer, surface);
+    assert(texture != NULL);
+
+    const SDL_FRect glyph_rect = {
+        .x = (float)pos.x,
+        .y = (float)pos.y,
+        .w = (float)surface->w,
+        .h = (float)surface->h,
+    };
+
+    SDL_RenderTexture(ui->renderer, texture, NULL, &glyph_rect);
+
+    SDL_DestroySurface(surface);
+    SDL_DestroyTexture(texture);
+}
+
+static void ui_sdl3_draw_cursor(SDL3Ui* ui)
+{
+    if (!ui->cursor_blink.show_cursor) {
+        return;
+    }
+
+    Meditor* medit = ui->medit;
+
+    Color cursor_color = ui->medit->config.color_theme.cursor;
+
+    for (size_t i = 0; i < medit->focused_view.cursors.count; ++i) {
+        Cell* cursor = &medit->focused_view.cursors.items[i];
+
+        assert(cursor->col <= INT_MAX);
+        assert(cursor->row <= INT_MAX);
+        const SDL_FRect cursor_rect = {
+            .x = (float)(ui->line_nr_padding + ((int)cursor->col * ui->cell_size.width)),
+            .y = (float)((int)cursor->row * ui->cell_size.height),
+            .w = (float)(ui->cell_size.width),
+            .h = (float)(ui->cell_size.height),
+        };
+
+        SDL_SetRenderDrawColor(ui->renderer, color_to_RGBA_args(cursor_color));
+        SDL_RenderFillRect(ui->renderer, &cursor_rect);
+
+        // Redraw char at cursor on top of it
+        Line* current_line = &medit->focused_view.file->lines.items[cursor->row];
+        if (cursor->col < current_line->count) {
+            const char* c = &current_line->items[cursor->col];
+            PixelPos char_pos = cell_to_pixel_pos(ui, *cursor);
+            char_pos.x += ui->line_nr_padding;
+            ui_sdl3_draw_text(ui, c, 1, &ui->font_editor, char_pos, color_inverse(cursor_color));
+        }
+    }
+}
+
+static void ui_sdl3_render(SDL3Ui* ui)
+{
+    SDL_RenderPresent(ui->renderer);
+}
+
+static void format_line_nr(SDL3Ui* ui, size_t line_number, char* buffer)
+{
+    Meditor* medit = ui->medit;
+
+    // Compute the maximum number of digits (minimum 4)
+    const size_t line_count = SDL_max(medit->focused_view.file->lines.count, 1000);
+    const int max_digits = digits_count((int)line_count);
+
+    // Compute the padding size to render this max line number
+    ui->line_nr_padding = 10;
+    char line_count_str[1024] = { 0 };
+    (void)sprintf(line_count_str, "%zu", line_count);
+    int line_number_width = 0;
+    TTF_MeasureString(ui->font_editor.main, line_count_str, 0, 0, &line_number_width, NULL);
+    assert(line_number_width >= 0);
+    ui->line_nr_padding += (size_t)line_number_width;
+
+    // Render the number of the current line
+    (void)sprintf(buffer, "%*zu", max_digits, line_number + 1);
+}
+
+void medit_ui_sdl3_run(Meditor* medit)
+{
+    SDL3Ui ui = { 0 };
+    assert(ui_sdl3_create(&ui, medit));
+
+    ui_sdl3_load_editor_font(&ui);
+
+    medit->running = true;
+    medit->input_in_frame = true;
+    while (medit->running) {
+        ui_sdl3_handle_event(&ui);
+
+        ui_sdl3_clear(&ui);
+
+        Lines* lines = &medit->focused_view.file->lines;
+        size_t row = 0;
+        dynarray_foreach(Line, line, lines)
+        {
+            char line_nr_str[1024] = { 0 };
+            format_line_nr(&ui, row, line_nr_str);
+            ui_sdl3_draw_text(
+                &ui,
+                line_nr_str,
+                strlen(line_nr_str),
+                &ui.font_editor,
+                cell_to_pixel_pos(&ui, (Cell) { .col = 0, .row = row }),
+                medit->config.color_theme.editor_fg);
+
+            PixelPos line_pos = cell_to_pixel_pos(&ui, (Cell) { .col = 0, .row = row });
+            line_pos.x += ui.line_nr_padding;
+            ui_sdl3_draw_text(
+                &ui,
+                line->items,
+                line->count,
+                &ui.font_editor,
+                line_pos,
+                medit->config.color_theme.editor_fg);
+            row++;
+        }
+
+        ui_sdl3_draw_cursor(&ui);
+
+        ui_sdl3_draw_debug_grid(&ui);
+
+        ui_sdl3_render(&ui);
+    }
+
+    ui_sdl3_unload_editor_font(&ui);
+    ui_sdl3_destroy(&ui);
+}

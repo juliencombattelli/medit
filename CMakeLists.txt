@@ -21,8 +21,11 @@ elseif(CMAKE_C_COMPILER_ID MATCHES ".*Clang" OR CMAKE_C_COMPILER_ID STREQUAL "GN
 endif()
 
 add_executable(medit
-    src/main.c src/meditor.c src/keybind.c src/renderer.c
-    src/platform/sdl3/renderer_sdl3.c src/platform/sdl3/keybind_sdl3.c
+    src/main.c src/meditor.c src/keybind.c 
+    # src/renderer.c
+    # src/platform/sdl3/renderer_sdl3.c
+    src/platform/sdl3/keybind_sdl3.c
+    src/ui/sdl3/sdl3.c src/ui/sdl3/font.c
     # src/platform/ansi-terminal/renderer_ansi_term.c
     )
 target_compile_options(medit PRIVATE ${COMPILE_OPTIONS})

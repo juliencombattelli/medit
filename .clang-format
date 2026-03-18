@@ -7,6 +7,9 @@ ColumnLimit: 100
 # Switch/case settings
 IndentCaseLabels: true
 
+# Alignment settings
+AlignConsecutiveMacros: true
+
 # Comment reflow settings
 CommentPragmas: '^\s*NOLINT'
 

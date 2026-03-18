@@ -56,15 +56,23 @@ typedef struct {
 } FileViews;
 
 typedef struct {
+    Color editor_fg;
+    Color editor_bg;
+    Color sidebar_bg;
+    Color cursor;
+} ColorTheme;
+
+typedef struct {
     int window_width;
     int window_height;
     int editor_font_size;
     const char* editor_font_path;
+    ColorTheme color_theme;
 } Config;
 
 typedef struct Meditor {
-    Renderer renderer;
-    Config startup_config;
+    // Renderer renderer;
+    Config config;
     Keybind keybind;
     Files opened_files;
     FileViews file_views;

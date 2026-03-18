@@ -8,8 +8,8 @@
 #include <limits.h>
 #include <stdio.h>
 
-#define DEFAULT_WINDOW_WIDTH 1280
-#define DEFAULT_WINDOW_HEIGHT 720
+#define DEFAULT_WINDOW_WIDTH           1280
+#define DEFAULT_WINDOW_HEIGHT          720
 #define DEFAULT_CURSOR_BLINK_PERIOD_MS 1000
 
 typedef struct {
@@ -197,16 +197,16 @@ static void sdl3_render_load_font(Meditor* medit)
 
     printf(
         "Info: loading font %s with size %d\n",
-        medit->startup_config.editor_font_path,
-        medit->startup_config.editor_font_size);
+        medit->config.editor_font_path,
+        medit->config.editor_font_size);
     renderer->font_editor = TTF_OpenFont(
-        medit->startup_config.editor_font_path,
-        (float)medit->startup_config.editor_font_size);
+        medit->config.editor_font_path,
+        (float)medit->config.editor_font_size);
     if (!renderer->font_editor) {
         printf(
             "Error: failed to load font %s with size %d\n",
-            medit->startup_config.editor_font_path,
-            medit->startup_config.editor_font_size);
+            medit->config.editor_font_path,
+            medit->config.editor_font_size);
         abort();
     }
 
@@ -218,7 +218,7 @@ static void sdl3_render_load_font(Meditor* medit)
         renderer->font_editor,
         // "asset/font/NotoColorEmoji-Regular.ttf",
         "asset/font/OpenMoji-color-colr0_svg.ttf",
-        medit->startup_config.editor_font_size);
+        medit->config.editor_font_size);
     if (!renderer->font_emoji) {
         printf(
             "Warning: failed to find a size aligned to the grid for emoji "
