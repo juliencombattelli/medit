@@ -481,6 +481,10 @@ void medit_ui_sdl3_run(Meditor* medit)
         size_t row = 0;
         dynarray_foreach(Line, line, lines)
         {
+            const Color line_number_color = row == medit->focused_view.cursors.items[0].row
+                ? medit->config.color_theme.line_number_current
+                : medit->config.color_theme.line_number;
+
             char line_number[64];
             size_t line_numnber_len = format_line_number(
                 &ui,
@@ -493,7 +497,7 @@ void medit_ui_sdl3_run(Meditor* medit)
                 line_numnber_len,
                 &ui.font_editor,
                 cell_to_pixel_pos(&ui, (Cell) { .col = 0, .row = row }),
-                medit->config.color_theme.editor_fg);
+                line_number_color);
 
             PixelPos line_pos = cell_to_pixel_pos(&ui, (Cell) { .col = 0, .row = row });
             line_pos.x += ui.line_nr_padding;

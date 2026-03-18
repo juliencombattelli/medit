@@ -57,6 +57,8 @@ typedef struct {
 typedef struct {
     Color editor_fg;
     Color editor_bg;
+    Color line_number;
+    Color line_number_current;
     Color sidebar_bg;
     Color cursor;
 } ColorTheme;
