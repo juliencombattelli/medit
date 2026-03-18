@@ -21,6 +21,16 @@ static inline Color color_from_u32(uint32_t code)
     };
 }
 
+static inline Color color_inverse(Color color)
+{
+    return (Color) {
+        .r = 255 - color.r,
+        .g = 255 - color.g,
+        .b = 255 - color.b,
+        .a = 255 - color.a,
+    };
+}
+
 typedef struct {
     union {
         size_t v[2];
