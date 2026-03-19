@@ -111,7 +111,7 @@ static bool ui_sdl3_create(SDL3Ui* ui, Meditor* medit)
 
     try(SDL_StartTextInput(ui->window));
 
-    meditor_load_default_gui_keybind(medit);
+    medit_load_default_gui_keybind(medit);
 
     ui->medit = medit;
 
@@ -266,21 +266,21 @@ static void ui_sdl3_handle_event(SDL3Ui* ui)
                     break;
                 }
                 switch (event.key.key) {
-                    case SDLK_RETURN: meditor_split_line(medit); break;
-                    case SDLK_BACKSPACE: meditor_erase_char(medit); break;
+                    case SDLK_RETURN: medit_split_line(medit); break;
+                    case SDLK_BACKSPACE: medit_erase_char(medit); break;
                     default: break;
                 }
             } break;
             case SDL_EVENT_TEXT_INPUT: {
                 const size_t text_cells = 1; // medit_get_text_cells(medit, event.text.text);
                 size_t text_len = strlen(event.text.text);
-                meditor_insert_text(medit, event.text.text, text_len, text_cells);
-                meditor_cursor_right(medit, text_cells);
+                medit_insert_text(medit, event.text.text, text_len, text_cells);
+                medit_cursor_right(medit, text_cells);
             } break;
             case SDL_EVENT_KEYMAP_CHANGED: {
                 printf("Reloading keymapping\n");
                 keybind_reinit(&medit->keybind);
-                meditor_load_default_gui_keybind(medit);
+                medit_load_default_gui_keybind(medit);
             } break;
             default: break;
         }
@@ -393,7 +393,7 @@ static void ui_sdl3_draw_cursor(SDL3Ui* ui)
 
     Color cursor_color = ui->medit->config.color_theme.cursor;
 
-    FileView* file_view = meditor_get_focused_file_view(medit);
+    FileView* file_view = medit_get_focused_file_view(medit);
     for (size_t i = 0; i < file_view->cursors.count; ++i) {
         Cell* cursor = &file_view->cursors.items[i];
 
@@ -429,7 +429,7 @@ static size_t format_line_number(SDL3Ui* ui, size_t line_number, char* buffer, s
 {
     Meditor* medit = ui->medit;
 
-    FileView* file_view = meditor_get_focused_file_view(medit);
+    FileView* file_view = medit_get_focused_file_view(medit);
 
     // Compute the maximum number of digits (minimum 4)
     const size_t line_count = SDL_max(file_view->file->lines.count, 1000);
@@ -462,7 +462,7 @@ static void ui_sdl3_draw_line_number(SDL3Ui* ui, size_t row)
 {
     Meditor* medit = ui->medit;
 
-    FileView* file_view = meditor_get_focused_file_view(medit);
+    FileView* file_view = medit_get_focused_file_view(medit);
 
     const Color line_number_color = row == file_view->cursors.items[0].row
         ? medit->config.color_theme.line_number_current
@@ -514,7 +514,7 @@ void medit_ui_sdl3_run(Meditor* medit)
 
         ui_sdl3_clear(&ui);
 
-        FileView* file_view = meditor_get_focused_file_view(medit);
+        FileView* file_view = medit_get_focused_file_view(medit);
         Lines* lines = &file_view->file->lines;
         size_t row = 0;
         dynarray_foreach(Line, line, lines)

@@ -84,28 +84,28 @@ typedef struct Meditor {
 } Meditor;
 
 // TODO move into UI modules
-void meditor_load_default_gui_keybind(Meditor* medit);
-void meditor_load_default_tui_keybind(Meditor* medit);
+void medit_load_default_gui_keybind(Meditor* medit);
+void medit_load_default_tui_keybind(Meditor* medit);
 
-void meditor_cursor_up(Meditor* medit, size_t cells);
-void meditor_cursor_down(Meditor* medit, size_t cells);
-void meditor_cursor_left(Meditor* medit, size_t cells);
-void meditor_cursor_right(Meditor* medit, size_t cells);
+void medit_cursor_up(Meditor* medit, size_t cells);
+void medit_cursor_down(Meditor* medit, size_t cells);
+void medit_cursor_left(Meditor* medit, size_t cells);
+void medit_cursor_right(Meditor* medit, size_t cells);
 
-void meditor_insert_text(Meditor* medit, const char* text, size_t n, size_t cells);
+void medit_insert_text(Meditor* medit, const char* text, size_t n, size_t cells);
 
-void meditor_new_empty_file(Meditor* medit);
-void meditor_close_files(Meditor* medit);
+void medit_new_empty_file(Meditor* medit);
+void medit_close_files(Meditor* medit);
 
-void meditor_split_line(Meditor* medit);
-void meditor_insert_new_line(Meditor* medit);
+void medit_split_line(Meditor* medit);
+void medit_insert_new_line(Meditor* medit);
 
-FileView* meditor_get_focused_file_view(Meditor* medit);
+FileView* medit_get_focused_file_view(Meditor* medit);
 
 // Get the line at main cursor in the focused file view
-Line* meditor_get_current_line(Meditor* medit);
+Line* medit_get_current_line(Meditor* medit);
 
-void meditor_erase_char(Meditor* medit);
-void meditor_erase_line(Meditor* medit);
+void medit_erase_char(Meditor* medit);
+void medit_erase_line(Meditor* medit);
 
 #endif // MEDIT_MEDITOR_H_

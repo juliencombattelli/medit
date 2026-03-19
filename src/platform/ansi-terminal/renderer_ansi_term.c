@@ -228,7 +228,7 @@ static void ansi_renderer_create(Meditor* medit)
     RendererANSITerm* renderer = (RendererANSITerm*)medit->renderer.data;
 
     init(renderer);
-    meditor_load_default_tui_keybind(medit);
+    medit_load_default_tui_keybind(medit);
 }
 
 static void ansi_render_load_font(Meditor* medit)
