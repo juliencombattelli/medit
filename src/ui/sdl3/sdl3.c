@@ -61,7 +61,7 @@ static void ui_sdl3_unload_editor_font(SDL3Ui* ui);
 static void ui_sdl3_handle_event(SDL3Ui* ui);
 
 static void ui_sdl3_clear(SDL3Ui* ui);
-static void ui_sdl3_draw_debug_grid(SDL3Ui* ui);
+static void ui_sdl3_draw_debug_grid(SDL3Ui* ui, FileViewGroup* group);
 static void ui_sdl3_draw_text(
     SDL3Ui* ui,
     const char* text,
@@ -316,7 +316,7 @@ static void ui_sdl3_clear(SDL3Ui* ui)
     SDL_RenderClear(ui->renderer);
 }
 
-static void ui_sdl3_draw_debug_grid(SDL3Ui* ui)
+static void ui_sdl3_draw_debug_grid(SDL3Ui* ui, FileViewGroup* group)
 {
     Meditor* medit = ui->medit;
 
@@ -329,7 +329,7 @@ static void ui_sdl3_draw_debug_grid(SDL3Ui* ui)
     assert(medit->grid_size.col <= INT_MAX);
     for (int i = 0; i < (int)medit->grid_size.col + 1; ++i) {
         const SDL_FRect vertical_line = {
-            .x = (float)(i * ui->cell_size.width),
+            .x = (float)(i * ui->cell_size.width) + group->offset + ui->line_nr_padding,
             .y = (float)0,
             .w = (float)1,
             .h = (float)ui->window_size.height,
@@ -516,12 +516,49 @@ static void ui_sdl3_draw_line(SDL3Ui* ui, size_t row, Line* line)
         medit->config.color_theme.editor_fg);
 }
 
+static void ui_sdl3_update_file_view_groups_size(SDL3Ui* ui)
+{
+    size_t offset = 0;
+    FileViewGroups* groups = &ui->medit->file_views;
+    dynarray_foreach(FileViewGroup, group, groups)
+    {
+        group->offset = offset;
+        group->width = (size_t)ui->window_size.width / groups->count;
+        offset += group->width;
+    }
+}
+
+static void ui_sdl3_draw_file_view_group(SDL3Ui* ui, FileViewGroup* group)
+{
+    Meditor* medit = ui->medit;
+    FileView* file_view = medit_get_displayed_file_view_in_group(medit, group);
+    Lines* lines = &file_view->file->lines;
+    size_t row = 0;
+    dynarray_foreach(Line, line, lines)
+    {
+        ui_sdl3_draw_line_number(ui, row);
+        ui_sdl3_draw_line(ui, row, line);
+        row++;
+    }
+}
+
 void medit_ui_sdl3_run(Meditor* medit)
 {
     SDL3Ui ui = { 0 };
     assert(ui_sdl3_create(&ui, medit));
 
     ui_sdl3_load_editor_font(&ui);
+
+    ui_sdl3_update_file_view_groups_size(&ui);
+    for (size_t i = 0; i < medit->file_views.count; ++i) {
+        FileViewGroup* group = &medit->file_views.items[i];
+        printf(
+            "group %i/%i: x_offset=%d, width=%d\n",
+            i,
+            (medit->file_views.count - 1),
+            group->offset,
+            group->width);
+    }
 
     medit->running = true;
     medit->input_in_frame = true;
@@ -533,21 +570,23 @@ void medit_ui_sdl3_run(Meditor* medit)
             ui_sdl3_load_editor_font(&ui);
         }
 
+        ui_sdl3_update_file_view_groups_size(&ui);
+
+        if (!medit->input_in_frame) {
+            continue;
+        }
+        medit->input_in_frame = false;
+
         ui_sdl3_clear(&ui);
 
-        FileView* file_view = medit_get_focused_file_view(medit);
-        Lines* lines = &file_view->file->lines;
-        size_t row = 0;
-        dynarray_foreach(Line, line, lines)
-        {
-            ui_sdl3_draw_line_number(&ui, row);
-            ui_sdl3_draw_line(&ui, row, line);
-            row++;
+        for (size_t i = 0; i < medit->file_views.count; ++i) {
+            FileViewGroup* group = &medit->file_views.items[i];
+            ui_sdl3_draw_file_view_group(&ui, group);
+            ui_sdl3_draw_debug_grid(&ui, group);
+            if (medit->file_views.focused == i) {
+                ui_sdl3_draw_cursor(&ui);
+            }
         }
-
-        ui_sdl3_draw_cursor(&ui);
-
-        ui_sdl3_draw_debug_grid(&ui);
 
         ui_sdl3_render(&ui);
     }

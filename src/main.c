@@ -17,6 +17,7 @@ int main(int argc, char** argv)
     medit.config.color_theme.cursor = color_from_u32(0xD4D4D4FF);
 
     medit_new_empty_file(&medit);
+    medit_new_empty_file(&medit);
     medit_ui_sdl3_run(&medit);
     medit_close_files(&medit);
 }

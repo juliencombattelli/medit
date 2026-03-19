@@ -286,17 +286,24 @@ void medit_new_empty_file(Meditor* medit)
     };
     dynarray_append(&new_file_view.cursors, (Cell) { 0 });
 
+    FileViewGroup new_file_view_group = { 0 };
+    dynarray_append(&new_file_view_group, new_file_view);
+
     medit->file_views.focused = medit->file_views.count;
-    dynarray_append(&medit->file_views, new_file_view);
+    dynarray_append(&medit->file_views, new_file_view_group);
 
     medit_insert_new_line(medit);
 }
 
 void medit_close_files(Meditor* medit)
 {
-    dynarray_foreach(FileView, fv, &medit->file_views)
+    dynarray_foreach(FileViewGroup, fvgroup, &medit->file_views)
     {
-        dynarray_free(fv->cursors);
+        dynarray_foreach(FileView, fv, fvgroup)
+        {
+            dynarray_free(fv->cursors);
+        }
+        dynarray_free(*fvgroup);
     }
     dynarray_free(medit->file_views);
 
@@ -306,7 +313,6 @@ void medit_close_files(Meditor* medit)
         {
             dynarray_free(*line);
         }
-
         dynarray_free(file->lines);
     }
     dynarray_free(medit->opened_files);
@@ -327,11 +333,24 @@ void medit_insert_new_line(Meditor* medit)
     dynarray_insert(lines, empty_line, line_pos);
 }
 
-FileView* medit_get_focused_file_view(Meditor* medit)
+FileViewGroup* medit_get_focused_file_view_group(Meditor* medit)
 {
     assert(medit->file_views.items != NULL);
     assert(medit->file_views.focused < medit->file_views.count);
     return &medit->file_views.items[medit->file_views.focused];
+}
+
+FileView* medit_get_displayed_file_view_in_group(Meditor* medit, FileViewGroup* group)
+{
+    (void)medit;
+    assert(group->displayed < group->count);
+    return &group->items[group->displayed];
+}
+
+FileView* medit_get_focused_file_view(Meditor* medit)
+{
+    FileViewGroup* group = medit_get_focused_file_view_group(medit);
+    return medit_get_displayed_file_view_in_group(medit, group);
 }
 
 Line* medit_get_current_line(Meditor* medit)

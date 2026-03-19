@@ -53,8 +53,17 @@ typedef struct {
     FileView* items;
     size_t count;
     size_t capacity;
+    size_t displayed;
+    size_t offset;
+    size_t width;
+} FileViewGroup;
+
+typedef struct {
+    FileViewGroup* items;
+    size_t count;
+    size_t capacity;
     size_t focused;
-} FileViews;
+} FileViewGroups;
 
 typedef struct {
     Color editor_fg;
@@ -77,7 +86,7 @@ typedef struct Meditor {
     Config config;
     Keybind keybind;
     Files opened_files;
-    FileViews file_views;
+    FileViewGroups file_views;
     Cell grid_size;
     bool running;
     bool input_in_frame;
@@ -101,6 +110,8 @@ void medit_close_files(Meditor* medit);
 void medit_split_line(Meditor* medit);
 void medit_insert_new_line(Meditor* medit);
 
+FileViewGroup* medit_get_focused_file_view_group(Meditor* medit);
+FileView* medit_get_displayed_file_view_in_group(Meditor* medit, FileViewGroup* group);
 FileView* medit_get_focused_file_view(Meditor* medit);
 
 // Get the line at main cursor in the focused file view
