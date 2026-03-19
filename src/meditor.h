@@ -52,6 +52,7 @@ typedef struct {
     FileView* items;
     size_t count;
     size_t capacity;
+    size_t focused;
 } FileViews;
 
 typedef struct {
@@ -76,13 +77,13 @@ typedef struct Meditor {
     Keybind keybind;
     Files opened_files;
     FileViews file_views;
-    FileView focused_view;
     Cell grid_size;
     bool running;
     bool input_in_frame;
     bool draw_debug_grid;
 } Meditor;
 
+// TODO move into UI modules
 void meditor_load_default_gui_keybind(Meditor* medit);
 void meditor_load_default_tui_keybind(Meditor* medit);
 
@@ -99,6 +100,9 @@ void meditor_close_files(Meditor* medit);
 void meditor_split_line(Meditor* medit);
 void meditor_insert_new_line(Meditor* medit);
 
+FileView* meditor_get_focused_file_view(Meditor* medit);
+
+// Get the line at main cursor in the focused file view
 Line* meditor_get_current_line(Meditor* medit);
 
 void meditor_erase_char(Meditor* medit);

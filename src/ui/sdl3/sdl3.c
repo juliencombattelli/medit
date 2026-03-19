@@ -393,8 +393,9 @@ static void ui_sdl3_draw_cursor(SDL3Ui* ui)
 
     Color cursor_color = ui->medit->config.color_theme.cursor;
 
-    for (size_t i = 0; i < medit->focused_view.cursors.count; ++i) {
-        Cell* cursor = &medit->focused_view.cursors.items[i];
+    FileView* file_view = meditor_get_focused_file_view(medit);
+    for (size_t i = 0; i < file_view->cursors.count; ++i) {
+        Cell* cursor = &file_view->cursors.items[i];
 
         assert(cursor->col <= INT_MAX);
         assert(cursor->row <= INT_MAX);
@@ -409,7 +410,7 @@ static void ui_sdl3_draw_cursor(SDL3Ui* ui)
         SDL_RenderFillRect(ui->renderer, &cursor_rect);
 
         // Redraw char at cursor on top of it
-        Line* current_line = &medit->focused_view.file->lines.items[cursor->row];
+        Line* current_line = &file_view->file->lines.items[cursor->row];
         if (cursor->col < current_line->count) {
             const char* c = &current_line->items[cursor->col];
             PixelPos char_pos = cell_to_pixel_pos(ui, *cursor);
@@ -428,14 +429,14 @@ static size_t format_line_number(SDL3Ui* ui, size_t line_number, char* buffer, s
 {
     Meditor* medit = ui->medit;
 
+    FileView* file_view = meditor_get_focused_file_view(medit);
+
     // Compute the maximum number of digits (minimum 4)
-    const size_t line_count = SDL_max(medit->focused_view.file->lines.count, 1000);
+    const size_t line_count = SDL_max(file_view->file->lines.count, 1000);
     const int max_digits = digits_count((int)line_count);
 
     { // Compute the padding size to render this max line number
-        ui->line_nr_padding = 10;
-
-        int written = snprintf(buffer, bufsize, "%zu", line_count);
+        int written = snprintf(buffer, bufsize, "%zu ", line_count);
         assert(written > 0);
 
         int line_number_width = 0;
@@ -448,7 +449,7 @@ static size_t format_line_number(SDL3Ui* ui, size_t line_number, char* buffer, s
             NULL);
         assert(line_number_width >= 0);
 
-        ui->line_nr_padding += line_number_width;
+        ui->line_nr_padding = line_number_width;
     }
 
     // Render the number of the current line
@@ -461,7 +462,9 @@ static void ui_sdl3_draw_line_number(SDL3Ui* ui, size_t row)
 {
     Meditor* medit = ui->medit;
 
-    const Color line_number_color = row == medit->focused_view.cursors.items[0].row
+    FileView* file_view = meditor_get_focused_file_view(medit);
+
+    const Color line_number_color = row == file_view->cursors.items[0].row
         ? medit->config.color_theme.line_number_current
         : medit->config.color_theme.line_number;
 
@@ -511,7 +514,8 @@ void medit_ui_sdl3_run(Meditor* medit)
 
         ui_sdl3_clear(&ui);
 
-        Lines* lines = &medit->focused_view.file->lines;
+        FileView* file_view = meditor_get_focused_file_view(medit);
+        Lines* lines = &file_view->file->lines;
         size_t row = 0;
         dynarray_foreach(Line, line, lines)
         {
