@@ -118,6 +118,22 @@ static void action_erase_line(Meditor* medit)
     medit_erase_line(medit);
 }
 
+static void action_focus_file_view_group_left(Meditor* medit)
+{
+    size_t* focused = &medit->file_views.focused;
+    if (*focused > 0) {
+        *focused -= 1;
+    }
+}
+
+static void action_focus_file_view_group_right(Meditor* medit)
+{
+    size_t* focused = &medit->file_views.focused;
+    if (*focused < medit->file_views.count - 1) {
+        *focused += 1;
+    }
+}
+
 void medit_load_default_gui_keybind(Meditor* medit)
 {
     Keybind* keybind = &medit->keybind;
@@ -146,6 +162,9 @@ void medit_load_default_gui_keybind(Meditor* medit)
     keybind_bind(keybind, KEY_D, MOD_CTRL, action_dump_state, medit);
 
     keybind_bind(keybind, KEY_K, MOD_SHIFT_CTRL, action_erase_line, medit);
+
+    keybind_bind(keybind, KEY_LEFT, MOD_ALT, action_focus_file_view_group_left, medit);
+    keybind_bind(keybind, KEY_RIGHT, MOD_ALT, action_focus_file_view_group_right, medit);
 }
 
 void medit_load_default_tui_keybind(Meditor* medit)

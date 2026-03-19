@@ -69,7 +69,7 @@ static void ui_sdl3_draw_text(
     Font* font,
     PixelPos pos,
     Color color);
-static void ui_sdl3_draw_cursor(SDL3Ui* ui);
+static void ui_sdl3_draw_cursor(SDL3Ui* ui, FileViewGroup* group);
 static void ui_sdl3_render(SDL3Ui* ui);
 
 static PixelPos cell_to_pixel_pos(SDL3Ui* ui, Cell cell)
@@ -327,9 +327,10 @@ static void ui_sdl3_draw_debug_grid(SDL3Ui* ui, FileViewGroup* group)
     SDL_SetRenderDrawColor(ui->renderer, 255, 0, 255, 255);
 
     assert(medit->grid_size.col <= INT_MAX);
+    assert(group->offset <= INT_MAX);
     for (int i = 0; i < (int)medit->grid_size.col + 1; ++i) {
         const SDL_FRect vertical_line = {
-            .x = (float)(i * ui->cell_size.width) + group->offset + ui->line_nr_padding,
+            .x = (float)(i * ui->cell_size.width + (int)group->offset + ui->line_nr_padding),
             .y = (float)0,
             .w = (float)1,
             .h = (float)ui->window_size.height,
@@ -404,7 +405,7 @@ static void ui_sdl3_draw_text(
     SDL_DestroyTexture(texture);
 }
 
-static void ui_sdl3_draw_cursor(SDL3Ui* ui)
+static void ui_sdl3_draw_cursor(SDL3Ui* ui, FileViewGroup* group)
 {
     if (!ui->cursor_blink.show_cursor) {
         return;
@@ -420,8 +421,11 @@ static void ui_sdl3_draw_cursor(SDL3Ui* ui)
 
         assert(cursor->col <= INT_MAX);
         assert(cursor->row <= INT_MAX);
+        assert(group->offset <= INT_MAX);
+
         const SDL_FRect cursor_rect = {
-            .x = (float)(ui->line_nr_padding + ((int)cursor->col * ui->cell_size.width)),
+            .x = (float)((int)group->offset + ui->line_nr_padding
+                         + ((int)cursor->col * ui->cell_size.width)),
             .y = (float)((int)cursor->row * ui->cell_size.height),
             .w = (float)(ui->cell_size.width),
             .h = (float)(ui->cell_size.height),
@@ -435,7 +439,7 @@ static void ui_sdl3_draw_cursor(SDL3Ui* ui)
         if (cursor->col < current_line->count) {
             const char* c = &current_line->items[cursor->col];
             PixelPos char_pos = cell_to_pixel_pos(ui, *cursor);
-            char_pos.x += ui->line_nr_padding;
+            char_pos.x += (int)group->offset + ui->line_nr_padding;
             ui_sdl3_draw_text(ui, c, 1, &ui->font_editor, char_pos, color_inverse(cursor_color));
         }
     }
@@ -479,33 +483,36 @@ static size_t format_line_number(SDL3Ui* ui, size_t line_number, char* buffer, s
     return (size_t)written;
 }
 
-static void ui_sdl3_draw_line_number(SDL3Ui* ui, size_t row)
+static void ui_sdl3_draw_line_number(SDL3Ui* ui, size_t row, FileViewGroup* group)
 {
     Meditor* medit = ui->medit;
 
     FileView* file_view = medit_get_focused_file_view(medit);
 
-    const Color line_number_color = row == file_view->cursors.items[0].row
+    bool focused = medit_get_focused_file_view_group(medit) == group;
+
+    const Color line_number_color = focused && row == file_view->cursors.items[0].row
         ? medit->config.color_theme.line_number_current
         : medit->config.color_theme.line_number;
 
-    char line_number[64];
+    assert(group->offset <= INT_MAX);
+
+    PixelPos pos = cell_to_pixel_pos(ui, (Cell) { .col = 0, .row = row });
+    pos.x += (int)group->offset;
+
+    char line_number[64]; // size big enough to hold the number of digits in a 64 bits integer
     size_t line_numnber_len = format_line_number(ui, row, line_number, sizeof(line_number));
-    ui_sdl3_draw_text(
-        ui,
-        line_number,
-        line_numnber_len,
-        &ui->font_editor,
-        cell_to_pixel_pos(ui, (Cell) { .col = 0, .row = row }),
-        line_number_color);
+    ui_sdl3_draw_text(ui, line_number, line_numnber_len, &ui->font_editor, pos, line_number_color);
 }
 
-static void ui_sdl3_draw_line(SDL3Ui* ui, size_t row, Line* line)
+static void ui_sdl3_draw_line(SDL3Ui* ui, size_t row, Line* line, FileViewGroup* group)
 {
     Meditor* medit = ui->medit;
 
+    assert(group->offset <= INT_MAX);
+
     PixelPos line_pos = cell_to_pixel_pos(ui, (Cell) { .col = 0, .row = row });
-    line_pos.x += ui->line_nr_padding;
+    line_pos.x += (int)group->offset + ui->line_nr_padding;
 
     ui_sdl3_draw_text(
         ui,
@@ -536,10 +543,24 @@ static void ui_sdl3_draw_file_view_group(SDL3Ui* ui, FileViewGroup* group)
     size_t row = 0;
     dynarray_foreach(Line, line, lines)
     {
-        ui_sdl3_draw_line_number(ui, row);
-        ui_sdl3_draw_line(ui, row, line);
+        ui_sdl3_draw_line_number(ui, row, group);
+        ui_sdl3_draw_line(ui, row, line, group);
         row++;
     }
+}
+
+static void ui_sdl3_draw_file_view_group_separator(SDL3Ui* ui, FileViewGroup* group, size_t i)
+{
+    const SDL_FRect vertical_line = {
+        .x = (float)(i * (size_t)ui->cell_size.width + group->offset),
+        .y = (float)0,
+        .w = (float)1,
+        .h = (float)ui->window_size.height,
+    };
+    SDL_SetRenderDrawColor(
+        ui->renderer,
+        color_to_RGBA_args(ui->medit->config.color_theme.line_number));
+    SDL_RenderRect(ui->renderer, &vertical_line);
 }
 
 void medit_ui_sdl3_run(Meditor* medit)
@@ -548,17 +569,6 @@ void medit_ui_sdl3_run(Meditor* medit)
     assert(ui_sdl3_create(&ui, medit));
 
     ui_sdl3_load_editor_font(&ui);
-
-    ui_sdl3_update_file_view_groups_size(&ui);
-    for (size_t i = 0; i < medit->file_views.count; ++i) {
-        FileViewGroup* group = &medit->file_views.items[i];
-        printf(
-            "group %i/%i: x_offset=%d, width=%d\n",
-            i,
-            (medit->file_views.count - 1),
-            group->offset,
-            group->width);
-    }
 
     medit->running = true;
     medit->input_in_frame = true;
@@ -581,10 +591,13 @@ void medit_ui_sdl3_run(Meditor* medit)
 
         for (size_t i = 0; i < medit->file_views.count; ++i) {
             FileViewGroup* group = &medit->file_views.items[i];
+            if (i != 0) {
+                ui_sdl3_draw_file_view_group_separator(&ui, group, i);
+            }
             ui_sdl3_draw_file_view_group(&ui, group);
             ui_sdl3_draw_debug_grid(&ui, group);
             if (medit->file_views.focused == i) {
-                ui_sdl3_draw_cursor(&ui);
+                ui_sdl3_draw_cursor(&ui, group);
             }
         }
 
