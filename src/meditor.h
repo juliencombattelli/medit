@@ -9,7 +9,8 @@
 enum {
     FONT_SIZE_MIN = 2,
     FONT_SIZE_MAX = 128,
-    FONT_SIZE_DEFAULT = 20,
+    FONT_SIZE_DEFAULT = 14,
+    FONT_DPI_DEFAULT = 96,
 };
 
 #define FONT_PATH_DEFAULT "asset/font/consola.ttf"

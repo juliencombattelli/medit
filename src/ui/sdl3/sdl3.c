@@ -27,6 +27,7 @@ typedef struct {
 } CursorBlink;
 
 typedef struct {
+    SDL_PropertiesID props;
     TTF_Font* main;
     TTF_Font* emoji;
 } Font;
@@ -174,9 +175,29 @@ static void ui_sdl3_load_editor_font(SDL3Ui* ui)
 {
     Meditor* medit = ui->medit;
 
-    ui->font_editor.main = TTF_OpenFont(
-        medit->config.editor_font_path,
+    if (ui->font_editor.props == 0) {
+        ui->font_editor.props = SDL_CreateProperties();
+        assert(ui->font_editor.props != 0);
+    }
+
+    SDL_SetStringProperty(
+        ui->font_editor.props,
+        TTF_PROP_FONT_CREATE_FILENAME_STRING,
+        medit->config.editor_font_path);
+    SDL_SetFloatProperty(
+        ui->font_editor.props,
+        TTF_PROP_FONT_CREATE_SIZE_FLOAT,
         (float)medit->config.editor_font_size);
+    SDL_SetNumberProperty(
+        ui->font_editor.props,
+        TTF_PROP_FONT_CREATE_HORIZONTAL_DPI_NUMBER,
+        FONT_DPI_DEFAULT);
+    SDL_SetNumberProperty(
+        ui->font_editor.props,
+        TTF_PROP_FONT_CREATE_VERTICAL_DPI_NUMBER,
+        FONT_DPI_DEFAULT);
+
+    ui->font_editor.main = TTF_OpenFontWithProperties(ui->font_editor.props);
     if (!ui->font_editor.main) {
         printf(
             "Error: failed to load font %s with size %d\n",
