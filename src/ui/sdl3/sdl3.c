@@ -262,6 +262,23 @@ static void ui_sdl3_reset_cursor_blinking_timer(SDL3Ui* ui)
     ui->cursor_blink.show_cursor = true;
 }
 
+static void ui_sdl3_on_text_input(SDL3Ui* ui, const char* text)
+{
+    const size_t text_cells = 1; // medit_get_text_cells(medit, event.text.text);
+    size_t text_len = strlen(text);
+    medit_insert_text(ui->medit, text, text_len, text_cells);
+    medit_cursor_right(ui->medit, text_cells);
+}
+
+static void ui_sdl3_on_key_down(SDL3Ui* ui, SDL_Event* event)
+{
+    switch (event->key.key) {
+        case SDLK_RETURN: medit_split_line(ui->medit); break;
+        case SDLK_BACKSPACE: medit_erase_char(ui->medit); break;
+        default: break;
+    }
+}
+
 static void ui_sdl3_handle_event(SDL3Ui* ui)
 {
     Meditor* medit = ui->medit;
@@ -286,17 +303,10 @@ static void ui_sdl3_handle_event(SDL3Ui* ui)
                 if (keybind_handle_event(&medit->keybind, &keybind_event)) {
                     break;
                 }
-                switch (event.key.key) {
-                    case SDLK_RETURN: medit_split_line(medit); break;
-                    case SDLK_BACKSPACE: medit_erase_char(medit); break;
-                    default: break;
-                }
+                ui_sdl3_on_key_down(ui, &event);
             } break;
             case SDL_EVENT_TEXT_INPUT: {
-                const size_t text_cells = 1; // medit_get_text_cells(medit, event.text.text);
-                size_t text_len = strlen(event.text.text);
-                medit_insert_text(medit, event.text.text, text_len, text_cells);
-                medit_cursor_right(medit, text_cells);
+                ui_sdl3_on_text_input(ui, event.text.text);
             } break;
             case SDL_EVENT_KEYMAP_CHANGED: {
                 printf("Reloading keymapping\n");
