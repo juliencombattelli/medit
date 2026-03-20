@@ -34,3 +34,8 @@ add_executable(test_dynarray test/dynarray.c)
 target_compile_options(test_dynarray PRIVATE ${COMPILE_OPTIONS})
 target_link_options(test_dynarray PRIVATE ${LINK_OPTIONS})
 target_include_directories(test_dynarray PRIVATE src)
+
+add_executable(test_layout test/layout.c)
+target_compile_options(test_layout PRIVATE ${COMPILE_OPTIONS})
+target_link_options(test_layout PRIVATE ${LINK_OPTIONS})
+target_include_directories(test_layout PRIVATE src)
