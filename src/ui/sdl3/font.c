@@ -1,8 +1,7 @@
 #include "font.h"
 
 #include <stdio.h>
-
-#define FORCE_MONOSPACE_FONTS
+#include <stdlib.h>
 
 // **Note about emoji**
 // A fallback font is used to render emoji. As we want emoji to fit in a grid
@@ -51,27 +50,27 @@ static int glyph_width(TTF_Font* font, const char* s)
     return w / FONT_TEST_CHAR_COUNT;
 }
 
-TTF_Font* load_emoji_font_aligned_to(TTF_Font* font, const char* path, int size)
+TTF_Font* load_emoji_font_aligned_to(TTF_Font* font, const char* path, int size, int width_factor)
 {
-#ifdef FORCE_MONOSPACE_FONTS
+    if (width_factor == 0) {
+        return TTF_OpenFont(path, (float)size);
+    }
+
     const int main_font_w = glyph_width(font, editor_font_test_string);
     float factor = 1.0f;
-#define FORCE_MONOSPACE_FONTS_MAX_ITER 1024
+#define FORCE_MONOSPACE_FONTS_MAX_ITER 128
     int iter = FORCE_MONOSPACE_FONTS_MAX_ITER;
     while (--iter) {
         TTF_Font* emoji_font = TTF_OpenFont(path, (float)size * factor);
         int emoji_font_w = glyph_width(emoji_font, emoji_font_test_string);
-        if (emoji_font_w > main_font_w) {
+        if (emoji_font_w > width_factor * main_font_w) {
             factor -= factor / 2.0f;
-        } else if (emoji_font_w < main_font_w) {
+        } else if (emoji_font_w < width_factor * main_font_w) {
             factor += factor / 2.0f;
-        } else if (emoji_font_w == main_font_w) {
+        } else if (emoji_font_w == width_factor * main_font_w) {
             return emoji_font;
         }
         TTF_CloseFont(emoji_font);
     }
     return NULL;
-#else
-    return TTF_OpenFont(path, (float)size);
-#endif
 }

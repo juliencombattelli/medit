@@ -212,9 +212,11 @@ static void ui_sdl3_load_editor_font(SDL3Ui* ui)
 
     ui->font_editor.emoji = load_emoji_font_aligned_to(
         ui->font_editor.main,
-        // "asset/font/NotoColorEmoji-Regular.ttf",
-        "asset/font/OpenMoji-color-colr0_svg.ttf",
-        medit->config.editor_font_size);
+        "asset/font/NotoColorEmoji-Regular.ttf",
+        // "asset/font/OpenMoji-color-colr0_svg.ttf",
+        // "asset/font/seguiemj.ttf",
+        medit->config.editor_font_size,
+        0); // Do not align the emoji font width to the main font width
     if (!ui->font_editor.emoji) {
         printf(
             "Warning: failed to find a size aligned to the grid for emoji "
