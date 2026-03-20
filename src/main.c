@@ -18,6 +18,8 @@ int main(int argc, char** argv)
 
     medit_new_empty_file(&medit);
     medit_new_empty_file(&medit);
+    const char text[] = "😊😊😊😊😊😊ùùùù😊";
+    medit_insert_text(&medit, text, sizeof(text), 0);
     medit_ui_sdl3_run(&medit);
     medit_close_files(&medit);
 }
