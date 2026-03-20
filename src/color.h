@@ -1,5 +1,5 @@
-#ifndef MEDIT_TYPES_H_
-#define MEDIT_TYPES_H_
+#ifndef MEDIT_COLOR_H_
+#define MEDIT_COLOR_H_
 
 #include <stddef.h>
 #include <stdint.h>
@@ -31,13 +31,4 @@ static inline Color color_inverse(Color color)
     };
 }
 
-typedef struct {
-    union {
-        size_t v[2];
-        struct {
-            size_t col, row;
-        };
-    };
-} Cell;
-
-#endif // MEDIT_TYPES_H_
+#endif // MEDIT_COLOR_H_

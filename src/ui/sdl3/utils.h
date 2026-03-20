@@ -1,8 +1,8 @@
 #ifndef MEDIT_UI_SDL3_UTILS_H_
 #define MEDIT_UI_SDL3_UTILS_H_
 
+#include "color.h"
 #include "limits.h"
-#include "types.h"
 
 #include <SDL3/SDL.h>
 

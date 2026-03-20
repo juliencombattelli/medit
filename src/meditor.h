@@ -1,8 +1,8 @@
 #ifndef MEDIT_MEDITOR_H_
 #define MEDIT_MEDITOR_H_
 
+#include "color.h"
 #include "keybind.h"
-#include "types.h"
 
 #include <stdbool.h>
 
@@ -39,7 +39,22 @@ typedef struct {
 } Files;
 
 typedef struct {
-    Cell* items;
+    size_t col;
+    size_t row;
+} Cell;
+
+typedef struct {
+    size_t line;
+    size_t byte;
+} FileCoord;
+
+typedef struct {
+    Cell in_view;
+    FileCoord in_file;
+} Cursor;
+
+typedef struct {
+    Cursor* items;
     size_t count;
     size_t capacity;
 } Cursors;

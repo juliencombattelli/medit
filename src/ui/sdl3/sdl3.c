@@ -417,7 +417,7 @@ static void ui_sdl3_draw_cursor(SDL3Ui* ui, FileViewGroup* group)
 
     FileView* file_view = medit_get_focused_file_view(medit);
     for (size_t i = 0; i < file_view->cursors.count; ++i) {
-        Cell* cursor = &file_view->cursors.items[i];
+        Cell* cursor = &file_view->cursors.items[i].in_view;
 
         assert(cursor->col <= INT_MAX);
         assert(cursor->row <= INT_MAX);
@@ -491,7 +491,7 @@ static void ui_sdl3_draw_line_number(SDL3Ui* ui, size_t row, FileViewGroup* grou
 
     bool focused = medit_get_focused_file_view_group(medit) == group;
 
-    const Color line_number_color = focused && row == file_view->cursors.items[0].row
+    const Color line_number_color = focused && row == file_view->cursors.items[0].in_view.row
         ? medit->config.color_theme.line_number_current
         : medit->config.color_theme.line_number;
 
