@@ -39,18 +39,8 @@ typedef struct {
 } Files;
 
 typedef struct {
-    size_t col;
-    size_t row;
-} Cell;
-
-typedef struct {
     size_t line;
     size_t byte;
-} FileCoord;
-
-typedef struct {
-    Cell in_view;
-    FileCoord in_file;
 } Cursor;
 
 typedef struct {
@@ -102,22 +92,20 @@ typedef struct Meditor {
     Keybind keybind;
     Files opened_files;
     FileViewGroups file_views;
-    Cell grid_size;
     bool running;
     bool input_in_frame;
-    bool draw_debug_grid;
 } Meditor;
 
 // TODO move into UI modules
 void medit_load_default_gui_keybind(Meditor* medit);
 void medit_load_default_tui_keybind(Meditor* medit);
 
-void medit_cursor_up(Meditor* medit, size_t cells);
-void medit_cursor_down(Meditor* medit, size_t cells);
-void medit_cursor_left(Meditor* medit, size_t cells);
-void medit_cursor_right(Meditor* medit, size_t cells);
+void medit_cursor_up(Meditor* medit);
+void medit_cursor_down(Meditor* medit);
+void medit_cursor_left(Meditor* medit);
+void medit_cursor_right(Meditor* medit);
 
-void medit_insert_text(Meditor* medit, const char* text, size_t n, size_t cells);
+void medit_insert_text(Meditor* medit, const char* text, size_t n);
 
 void medit_new_empty_file(Meditor* medit);
 void medit_close_files(Meditor* medit);

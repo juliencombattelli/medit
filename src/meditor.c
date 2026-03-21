@@ -22,11 +22,6 @@ static void action_quit(Meditor* medit)
     medit->running = false;
 }
 
-static void action_toggle_debug_grid(Meditor* medit)
-{
-    medit->draw_debug_grid = !medit->draw_debug_grid;
-}
-
 static void action_font_zoom_out(Meditor* medit)
 {
     set_font_size_clamped(&medit->config.editor_font_size, medit->config.editor_font_size - 2);
@@ -44,22 +39,22 @@ static void action_font_zoom_default(Meditor* medit)
 
 static void action_cursor_up(Meditor* medit)
 {
-    medit_cursor_up(medit, 1);
+    medit_cursor_up(medit);
 }
 
 static void action_cursor_down(Meditor* medit)
 {
-    medit_cursor_down(medit, 1);
+    medit_cursor_down(medit);
 }
 
 static void action_cursor_left(Meditor* medit)
 {
-    medit_cursor_left(medit, 1);
+    medit_cursor_left(medit);
 }
 
 static void action_cursor_right(Meditor* medit)
 {
-    medit_cursor_right(medit, 1);
+    medit_cursor_right(medit);
 }
 
 static void action_restore_cursor(Meditor* medit)
@@ -72,18 +67,19 @@ static void action_restore_cursor(Meditor* medit)
 static void action_cursor_begin_of_line(Meditor* medit)
 {
     FileView* file_view = medit_get_focused_file_view(medit);
-    file_view->cursors.items[0].in_view.col = 0;
+    file_view->cursors.items[0].byte = 0;
 }
 
 static void action_cursor_end_of_line(Meditor* medit)
 {
     FileView* file_view = medit_get_focused_file_view(medit);
     Line* line = medit_get_current_line(medit);
-    file_view->cursors.items[0].in_view.col = line->count;
+    file_view->cursors.items[0].byte = line->count;
 }
 
 static void action_add_cursor_down(Meditor* medit)
 {
+    MEDIT_UNUSED(medit);
     // Vec2* prev_cursor = &medit->cursor_pos[medit->cursor_index];
     // Vec2* new_cursor = &medit->cursor_pos[++medit->cursor_index];
     // *new_cursor = vec2(prev_cursor->x, prev_cursor->y + 1);
@@ -95,9 +91,9 @@ static void action_dump_state(Meditor* medit)
 
     printf("Dump state:\n");
     printf(
-        "  cursor: c=%zu, r=%zu; lines:%zu\n  lines:\n",
-        file_view->cursors.items[0].in_view.col,
-        file_view->cursors.items[0].in_view.row,
+        "  cursor: byte=%zu, line=%zu; lines:%zu\n  lines:\n",
+        file_view->cursors.items[0].byte,
+        file_view->cursors.items[0].line,
         file_view->file->lines.count);
     Lines* lines = &file_view->file->lines;
     int row = 0;
@@ -138,8 +134,6 @@ void medit_load_default_gui_keybind(Meditor* medit)
 
     keybind_bind(keybind, KEY_Q, MOD_CTRL, action_quit, medit);
 
-    keybind_bind(keybind, KEY_A, MOD_CTRL, action_toggle_debug_grid, medit);
-
     keybind_bind(keybind, KEY_NPAD_PLUS, MOD_CTRL, action_font_zoom_in, medit);
     keybind_bind(keybind, KEY_EQUALS, MOD_SHIFT_CTRL, action_font_zoom_in, medit);
     keybind_bind(keybind, KEY_EQUALS, MOD_CTRL, action_font_zoom_default, medit);
@@ -175,17 +169,16 @@ static void fixup_cursor_col(Meditor* medit)
     // Adjust cursor column position when switching line
     FileView* file_view = medit_get_focused_file_view(medit);
     Line* line = medit_get_current_line(medit);
-    size_t row_length = line->count;
-    Cell* cursor = &file_view->cursors.items[0].in_view;
-    cursor->col = MEDIT_MIN(cursor->col, row_length);
+    Cursor* cursor = &file_view->cursors.items[0];
+    cursor->byte = MEDIT_MIN(cursor->byte, line->count);
 }
 
-void medit_cursor_up(Meditor* medit, size_t cells)
+void medit_cursor_up(Meditor* medit)
 {
     FileView* file_view = medit_get_focused_file_view(medit);
-    Cell* cursor = &file_view->cursors.items[0].in_view;
-    if (cursor->row > 0) {
-        --cursor->row;
+    Cursor* cursor = &file_view->cursors.items[0];
+    if (cursor->line > 0) {
+        --cursor->line;
     }
     fixup_cursor_col(medit);
     // TODO handle multi cursor
@@ -198,13 +191,13 @@ void medit_cursor_up(Meditor* medit, size_t cells)
     // }
 }
 
-void medit_cursor_down(Meditor* medit, size_t cells)
+void medit_cursor_down(Meditor* medit)
 {
     FileView* file_view = medit_get_focused_file_view(medit);
     size_t line_count = file_view->file->lines.count;
-    Cell* cursor = &file_view->cursors.items[0].in_view;
-    if (cursor->row < line_count - 1) {
-        ++cursor->row;
+    Cursor* cursor = &file_view->cursors.items[0];
+    if (cursor->line < line_count - 1) {
+        ++cursor->line;
     }
     fixup_cursor_col(medit);
     // TODO handle multi cursor
@@ -217,16 +210,16 @@ void medit_cursor_down(Meditor* medit, size_t cells)
     // }
 }
 
-void medit_cursor_left(Meditor* medit, size_t cells)
+void medit_cursor_left(Meditor* medit)
 {
     FileView* file_view = medit_get_focused_file_view(medit);
-    Cell* cursor = &file_view->cursors.items[0].in_view;
-    if (cursor->col > 0) {
-        --cursor->col;
-    } else if (cursor->row > 0) {
-        --cursor->row;
+    Cursor* cursor = &file_view->cursors.items[0];
+    if (cursor->byte > 0) {
+        --cursor->byte;
+    } else if (cursor->line > 0) {
+        --cursor->line;
         Line* upper_line = medit_get_current_line(medit);
-        cursor->col = upper_line->count;
+        cursor->byte = upper_line->count;
     }
     // TODO handle multi cursor
     // for (size_t c = 0; c <= medit->cursor_index; ++c) {
@@ -238,16 +231,16 @@ void medit_cursor_left(Meditor* medit, size_t cells)
     // }
 }
 
-void medit_cursor_right(Meditor* medit, size_t cells)
+void medit_cursor_right(Meditor* medit)
 {
     FileView* file_view = medit_get_focused_file_view(medit);
     Line* line = medit_get_current_line(medit);
-    Cell* cursor = &file_view->cursors.items[0].in_view;
-    if (cursor->col < line->count) {
-        ++cursor->col;
-    } else if (cursor->row < file_view->file->lines.count - 1) {
-        ++cursor->row;
-        cursor->col = 0;
+    Cursor* cursor = &file_view->cursors.items[0];
+    if (cursor->byte < line->count) {
+        ++cursor->byte;
+    } else if (cursor->line < file_view->file->lines.count - 1) {
+        ++cursor->line;
+        cursor->byte = 0;
     }
     // TODO handle multi cursor
     // for (size_t c = 0; c <= medit->cursor_index; ++c) {
@@ -266,27 +259,26 @@ void medit_split_line(Meditor* medit)
 {
     FileView* file_view = medit_get_focused_file_view(medit);
 
-    const size_t cursor_col = file_view->cursors.items[0].in_view.col;
-    const size_t cursor_row = file_view->cursors.items[0].in_view.row;
+    const size_t cursor_byte = file_view->cursors.items[0].byte;
+    const size_t cursor_line = file_view->cursors.items[0].line;
     medit_insert_new_line(medit);
-    medit_cursor_down(medit, 0);
-    Line* current_line = &file_view->file->lines.items[cursor_row];
+    medit_cursor_down(medit);
+    Line* current_line = &file_view->file->lines.items[cursor_line];
     if (current_line->count != 0) {
         medit_insert_text(
             medit,
-            &current_line->items[cursor_col],
-            current_line->count - cursor_col,
-            0);
-        memset(&current_line->items[cursor_col], 0, current_line->count - cursor_col);
-        current_line->count = cursor_col;
+            &current_line->items[cursor_byte],
+            current_line->count - cursor_byte);
+        memset(&current_line->items[cursor_byte], 0, current_line->count - cursor_byte);
+        current_line->count = cursor_byte;
     }
 }
 
-void medit_insert_text(Meditor* medit, const char* text, size_t n, size_t cells)
+void medit_insert_text(Meditor* medit, const char* text, size_t n)
 {
     FileView* file_view = medit_get_focused_file_view(medit);
 
-    const size_t cursor_col = file_view->cursors.items[0].in_view.col;
+    const size_t cursor_col = file_view->cursors.items[0].byte;
 
     Line* current_line = medit_get_current_line(medit);
 
@@ -314,13 +306,13 @@ void medit_new_empty_file(Meditor* medit)
 
 void medit_close_files(Meditor* medit)
 {
-    dynarray_foreach(FileViewGroup, fvgroup, &medit->file_views)
+    dynarray_foreach(FileViewGroup, group, &medit->file_views)
     {
-        dynarray_foreach(FileView, fv, fvgroup)
+        dynarray_foreach(FileView, fv, group)
         {
             dynarray_free(fv->cursors);
         }
-        dynarray_free(*fvgroup);
+        dynarray_free(*group);
     }
     dynarray_free(medit->file_views);
 
@@ -345,7 +337,7 @@ void medit_insert_new_line(Meditor* medit)
     Line empty_line = { 0 };
     dynarray_reserve(&empty_line, MEDIT_LINE_DEFAULT_CAPACITY);
 
-    const size_t line_pos = lines->count > 0 ? file_view->cursors.items[0].in_view.row + 1 : 0;
+    const size_t line_pos = lines->count > 0 ? file_view->cursors.items[0].line + 1 : 0;
 
     dynarray_insert(lines, empty_line, line_pos);
 }
@@ -373,7 +365,7 @@ FileView* medit_get_focused_file_view(Meditor* medit)
 Line* medit_get_current_line(Meditor* medit)
 {
     FileView* file_view = medit_get_focused_file_view(medit);
-    const size_t cursor_row = file_view->cursors.items[0].in_view.row;
+    const size_t cursor_row = file_view->cursors.items[0].line;
     return &file_view->file->lines.items[cursor_row];
 }
 
@@ -381,12 +373,12 @@ void medit_erase_line(Meditor* medit)
 {
     FileView* file_view = medit_get_focused_file_view(medit);
 
-    const size_t cursor_row = file_view->cursors.items[0].in_view.row;
+    const size_t cursor_row = file_view->cursors.items[0].line;
     Lines* lines = &file_view->file->lines;
 
     if (lines->count > 1) {
         if (cursor_row + 1 == lines->count) {
-            medit_cursor_up(medit, 1);
+            medit_cursor_up(medit);
         }
         Line erased = lines->items[cursor_row];
         dynarray_free(erased);
@@ -404,28 +396,28 @@ void medit_erase_char(Meditor* medit)
 {
     FileView* file_view = medit_get_focused_file_view(medit);
 
-    const size_t cursor_col = file_view->cursors.items[0].in_view.col;
-    const size_t cursor_row = file_view->cursors.items[0].in_view.row;
+    const size_t cursor_byte = file_view->cursors.items[0].byte;
+    const size_t cursor_line = file_view->cursors.items[0].line;
 
-    if (cursor_col == 0 && cursor_row == 0) {
+    if (cursor_byte == 0 && cursor_line == 0) {
         return;
     }
 
     Lines* lines = &file_view->file->lines;
-    Line* current_line = &lines->items[cursor_row];
+    Line* current_line = &lines->items[cursor_line];
 
-    medit_cursor_left(medit, 0);
+    medit_cursor_left(medit);
 
-    if (cursor_col == 0) {
+    if (cursor_byte == 0) {
         // Merge the current line with the upper one
-        Line* upper_line = &lines->items[cursor_row - 1];
+        Line* upper_line = &lines->items[cursor_line - 1];
         dynarray_append_many(upper_line, current_line->items, current_line->count);
         // Remove the current line
-        Line erased = lines->items[cursor_row];
+        Line erased = lines->items[cursor_line];
         dynarray_free(erased);
-        dynarray_remove(lines, cursor_row);
+        dynarray_remove(lines, cursor_line);
     } else {
         // Remove a single char before the cursor
-        dynarray_remove(current_line, cursor_col - 1);
+        dynarray_remove(current_line, cursor_byte - 1);
     }
 }

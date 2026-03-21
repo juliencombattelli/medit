@@ -4,6 +4,7 @@
 #include "font.h"
 #include "keybind.h"
 #include "meditor.h"
+#include "safeint.h"
 #include "utils.h"
 
 #include <SDL3/SDL.h>
@@ -51,7 +52,6 @@ static void ui_sdl3_destroy(SDL3Ui* ui);
 static void ui_sdl3_resize_window_with_data(SDL3Ui* ui, PixelSize window_size);
 static void ui_sdl3_resize_window(SDL3Ui* ui);
 static void ui_sdl3_resize_cell(SDL3Ui* ui);
-static void ui_sdl3_resize_grid(SDL3Ui* ui);
 
 static void ui_sdl3_load_ui_font(SDL3Ui* ui);
 static void ui_sdl3_unload_ui_font(SDL3Ui* ui);
@@ -61,7 +61,6 @@ static void ui_sdl3_unload_editor_font(SDL3Ui* ui);
 static void ui_sdl3_handle_event(SDL3Ui* ui);
 
 static void ui_sdl3_clear(SDL3Ui* ui);
-static void ui_sdl3_draw_debug_grid(SDL3Ui* ui, FileViewGroup* group);
 static void ui_sdl3_draw_text(
     SDL3Ui* ui,
     const char* text,
@@ -72,13 +71,12 @@ static void ui_sdl3_draw_text(
 static void ui_sdl3_draw_cursor(SDL3Ui* ui, FileViewGroup* group);
 static void ui_sdl3_render(SDL3Ui* ui);
 
-static PixelPos cell_to_pixel_pos(SDL3Ui* ui, Cell cell)
+// TODO remove
+static PixelPos cell_to_pixel_pos(SDL3Ui* ui, Cursor cell)
 {
-    assert(cell.col <= INT_MAX);
-    assert(cell.row <= INT_MAX);
     return (PixelPos) {
-        .x = (int)cell.col * ui->cell_size.width,
-        .y = (int)cell.row * ui->cell_size.height,
+        .x = size_to_int(cell.byte) * ui->cell_size.width,
+        .y = size_to_int(cell.line) * ui->cell_size.height,
     };
 }
 
@@ -160,14 +158,6 @@ static void ui_sdl3_resize_cell(SDL3Ui* ui)
     ui->cell_size = (PixelSize) { .width = w, .height = h };
 }
 
-static void ui_sdl3_resize_grid(SDL3Ui* ui)
-{
-    ui->medit->grid_size = (Cell) {
-        .col = (size_t)ui->window_size.width / (size_t)ui->cell_size.width,
-        .row = (size_t)ui->window_size.height / (size_t)ui->cell_size.height,
-    };
-}
-
 // static void ui_sdl3_load_ui_font(SDL3Ui* ui);
 // static void ui_sdl3_unload_ui_font(SDL3Ui* ui);
 
@@ -208,7 +198,6 @@ static void ui_sdl3_load_editor_font(SDL3Ui* ui)
 
     ui_sdl3_resize_cell(ui);
     ui_sdl3_resize_window(ui);
-    ui_sdl3_resize_grid(ui);
 
     ui->font_editor.emoji = load_emoji_font_aligned_to(
         ui->font_editor.main,
@@ -218,9 +207,8 @@ static void ui_sdl3_load_editor_font(SDL3Ui* ui)
         medit->config.editor_font_size,
         0); // Do not align the emoji font width to the main font width
     if (!ui->font_editor.emoji) {
-        printf(
-            "Warning: failed to find a size aligned to the grid for emoji "
-            "font\n");
+        printf("Warning: failed to find a size aligned to the grid for emoji "
+               "font\n");
     } else {
         if (!TTF_AddFallbackFont(ui->font_editor.main, ui->font_editor.emoji)) {
             printf("Warning: failed to load fallback emoji font: %s\n", SDL_GetError());
@@ -245,7 +233,6 @@ static void ui_sdl3_on_window_resized(SDL3Ui* ui, int w, int h)
             .width = w,
             .height = h,
         });
-    ui_sdl3_resize_grid(ui);
 }
 
 static void ui_sdl3_update_cursor_blinking_timer(SDL3Ui* ui)
@@ -266,10 +253,9 @@ static void ui_sdl3_reset_cursor_blinking_timer(SDL3Ui* ui)
 
 static void ui_sdl3_on_text_input(SDL3Ui* ui, const char* text)
 {
-    const size_t text_cells = 1; // medit_get_text_cells(medit, event.text.text);
     size_t text_len = strlen(text);
-    medit_insert_text(ui->medit, text, text_len, text_cells);
-    medit_cursor_right(ui->medit, text_cells);
+    medit_insert_text(ui->medit, text, text_len);
+    medit_cursor_right(ui->medit);
 }
 
 static void ui_sdl3_on_key_down(SDL3Ui* ui, SDL_Event* event)
@@ -298,7 +284,7 @@ static void ui_sdl3_handle_event(SDL3Ui* ui)
         switch (event.type) {
             case SDL_EVENT_QUIT: medit->running = false; break;
             case SDL_EVENT_WINDOW_RESIZED:
-                ui_sdl3_on_window_resized(ui, (int)event.window.data1, (int)event.window.data2);
+                ui_sdl3_on_window_resized(ui, event.window.data1, event.window.data2);
                 break;
             case SDL_EVENT_KEY_DOWN: {
                 KeybindEvent keybind_event = keybind_sdl3_translate_event(&event);
@@ -328,40 +314,6 @@ static void ui_sdl3_clear(SDL3Ui* ui)
     SDL_RenderClear(ui->renderer);
 }
 
-static void ui_sdl3_draw_debug_grid(SDL3Ui* ui, FileViewGroup* group)
-{
-    Meditor* medit = ui->medit;
-
-    if (!medit->draw_debug_grid) {
-        return;
-    }
-
-    SDL_SetRenderDrawColor(ui->renderer, 255, 0, 255, 255);
-
-    assert(medit->grid_size.col <= INT_MAX);
-    assert(group->offset <= INT_MAX);
-    for (int i = 0; i < (int)medit->grid_size.col + 1; ++i) {
-        const SDL_FRect vertical_line = {
-            .x = (float)(i * ui->cell_size.width + (int)group->offset + ui->line_nr_padding),
-            .y = (float)0,
-            .w = (float)1,
-            .h = (float)ui->window_size.height,
-        };
-        SDL_RenderRect(ui->renderer, &vertical_line);
-    }
-
-    assert(medit->grid_size.row <= INT_MAX);
-    for (int i = 0; i < (int)medit->grid_size.row + 1; ++i) {
-        const SDL_FRect horizontal_line = {
-            .x = (float)0,
-            .y = (float)(i * ui->cell_size.height),
-            .w = (float)ui->window_size.width,
-            .h = (float)1,
-        };
-        SDL_RenderRect(ui->renderer, &horizontal_line);
-    }
-}
-
 static void ui_sdl3_draw_text(
     SDL3Ui* ui,
     const char* text,
@@ -388,7 +340,7 @@ static void ui_sdl3_draw_text(
         &text_bytes_max);
     assert(res == true);
 
-    size_t printed_bytes = SDL_min((size_t)len, text_bytes_max);
+    size_t printed_bytes = SDL_min(len, text_bytes_max);
 
     if (text_width == 0) {
         return;
@@ -429,16 +381,15 @@ static void ui_sdl3_draw_cursor(SDL3Ui* ui, FileViewGroup* group)
 
     FileView* file_view = medit_get_focused_file_view(medit);
     for (size_t i = 0; i < file_view->cursors.count; ++i) {
-        Cell* cursor = &file_view->cursors.items[i].in_view;
-
-        assert(cursor->col <= INT_MAX);
-        assert(cursor->row <= INT_MAX);
-        assert(group->offset <= INT_MAX);
+        const Cursor* cursor = &file_view->cursors.items[i];
+        const int cursor_byte = size_to_int(cursor->byte);
+        const int cursor_line = size_to_int(cursor->line);
+        const int group_offset_x = size_to_int(group->offset);
 
         const SDL_FRect cursor_rect = {
-            .x = (float)((int)group->offset + ui->line_nr_padding
-                         + ((int)cursor->col * ui->cell_size.width)),
-            .y = (float)((int)cursor->row * ui->cell_size.height),
+            .x = (float)(group_offset_x + ui->line_nr_padding
+                         + (cursor_byte * ui->cell_size.width)),
+            .y = (float)(cursor_line * ui->cell_size.height),
             .w = (float)(ui->cell_size.width),
             .h = (float)(ui->cell_size.height),
         };
@@ -447,11 +398,11 @@ static void ui_sdl3_draw_cursor(SDL3Ui* ui, FileViewGroup* group)
         SDL_RenderFillRect(ui->renderer, &cursor_rect);
 
         // Redraw char at cursor on top of it
-        Line* current_line = &file_view->file->lines.items[cursor->row];
-        if (cursor->col < current_line->count) {
-            const char* c = &current_line->items[cursor->col];
+        Line* current_line = &file_view->file->lines.items[cursor->line];
+        if (cursor->byte < current_line->count) {
+            const char* c = &current_line->items[cursor->byte];
             PixelPos char_pos = cell_to_pixel_pos(ui, *cursor);
-            char_pos.x += (int)group->offset + ui->line_nr_padding;
+            char_pos.x += group_offset_x + ui->line_nr_padding;
             ui_sdl3_draw_text(ui, c, 1, &ui->font_editor, char_pos, color_inverse(cursor_color));
         }
     }
@@ -469,11 +420,11 @@ static size_t format_line_number(SDL3Ui* ui, size_t line_number, char* buffer, s
     FileView* file_view = medit_get_focused_file_view(medit);
 
     // Compute the maximum number of digits (minimum 4)
-    const size_t line_count = SDL_max(file_view->file->lines.count, 1000);
-    const int max_digits = digits_count((int)line_count);
+    const int line_count = SDL_max(size_to_int(file_view->file->lines.count), 1000);
+    const int max_digits = digits_count(line_count);
 
     { // Compute the padding size to render this max line number
-        int written = snprintf(buffer, bufsize, "%zu ", line_count);
+        int written = snprintf(buffer, bufsize, "%d ", line_count);
         assert(written > 0);
 
         int line_number_width = 0;
@@ -503,14 +454,12 @@ static void ui_sdl3_draw_line_number(SDL3Ui* ui, size_t row, FileViewGroup* grou
 
     bool focused = medit_get_focused_file_view_group(medit) == group;
 
-    const Color line_number_color = focused && row == file_view->cursors.items[0].in_view.row
+    const Color line_number_color = focused && row == file_view->cursors.items[0].line
         ? medit->config.color_theme.line_number_current
         : medit->config.color_theme.line_number;
 
-    assert(group->offset <= INT_MAX);
-
-    PixelPos pos = cell_to_pixel_pos(ui, (Cell) { .col = 0, .row = row });
-    pos.x += (int)group->offset;
+    PixelPos pos = cell_to_pixel_pos(ui, (Cursor) { .byte = 0, .line = row });
+    pos.x += size_to_int(group->offset);
 
     char line_number[64]; // size big enough to hold the number of digits in a 64 bits integer
     size_t line_numnber_len = format_line_number(ui, row, line_number, sizeof(line_number));
@@ -521,10 +470,8 @@ static void ui_sdl3_draw_line(SDL3Ui* ui, size_t row, Line* line, FileViewGroup*
 {
     Meditor* medit = ui->medit;
 
-    assert(group->offset <= INT_MAX);
-
-    PixelPos line_pos = cell_to_pixel_pos(ui, (Cell) { .col = 0, .row = row });
-    line_pos.x += (int)group->offset + ui->line_nr_padding;
+    PixelPos line_pos = cell_to_pixel_pos(ui, (Cursor) { .byte = 0, .line = row });
+    line_pos.x += size_to_int(group->offset) + ui->line_nr_padding;
 
     ui_sdl3_draw_text(
         ui,
@@ -607,7 +554,6 @@ void medit_ui_sdl3_run(Meditor* medit)
                 ui_sdl3_draw_file_view_group_separator(&ui, group, i);
             }
             ui_sdl3_draw_file_view_group(&ui, group);
-            ui_sdl3_draw_debug_grid(&ui, group);
             if (medit->file_views.focused == i) {
                 ui_sdl3_draw_cursor(&ui, group);
             }

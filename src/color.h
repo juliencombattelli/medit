@@ -14,10 +14,10 @@ typedef struct {
 static inline Color color_from_u32(uint32_t code)
 {
     return (Color) {
-        .r = (unsigned char)((code >> (8 * 3)) & 0xFF),
-        .g = (unsigned char)((code >> (8 * 2)) & 0xFF),
-        .b = (unsigned char)((code >> (8 * 1)) & 0xFF),
-        .a = (unsigned char)((code >> (8 * 0)) & 0xFF),
+        .r = (unsigned char)((code >> (8u * 3u)) & UINT8_MAX),
+        .g = (unsigned char)((code >> (8u * 2u)) & UINT8_MAX),
+        .b = (unsigned char)((code >> (8u * 1u)) & UINT8_MAX),
+        .a = (unsigned char)((code >> (8u * 0u)) & UINT8_MAX),
     };
 }
 
