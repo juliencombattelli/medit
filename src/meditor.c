@@ -1,10 +1,8 @@
 #include "meditor.h"
 #include "dynarray.h"
+#include "utils.h"
 
 #include <string.h>
-
-#define MEDIT_MIN(a, b) ((a) < (b) ? (a) : (b))
-#define MEDIT_MAX(a, b) ((a) > (b) ? (a) : (b))
 
 #define MEDIT_LINE_DEFAULT_CAPACITY 1024
 
@@ -169,7 +167,7 @@ void medit_load_default_gui_keybind(Meditor* medit)
 
 void medit_load_default_tui_keybind(Meditor* medit)
 {
-    (void)medit;
+    MEDIT_UNUSED(medit);
 }
 
 static void fixup_cursor_col(Meditor* medit)
@@ -361,7 +359,7 @@ FileViewGroup* medit_get_focused_file_view_group(Meditor* medit)
 
 FileView* medit_get_displayed_file_view_in_group(Meditor* medit, FileViewGroup* group)
 {
-    (void)medit;
+    MEDIT_UNUSED(medit);
     assert(group->displayed < group->count);
     return &group->items[group->displayed];
 }

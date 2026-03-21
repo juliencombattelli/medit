@@ -1,9 +1,10 @@
 #include "meditor.h"
 #include "ui/sdl3/sdl3.h"
+#include "utils.h"
 
 int main(int argc, char** argv)
 {
-    (void)argc, (void)argv;
+    MEDIT_UNUSED(argc), MEDIT_UNUSED(argv);
     Meditor medit = { 0 };
 
     medit.config.editor_font_size = FONT_SIZE_DEFAULT;

@@ -148,7 +148,7 @@ static void disable_raw_mode(RendererANSITerm* renderer)
 
 static void handle_resize(int signal)
 {
-    (void)signal;
+    MEDIT_UNUSED(signal);
     terminal_resized = true;
 }
 
@@ -234,13 +234,13 @@ static void ansi_renderer_create(Meditor* medit)
 static void ansi_render_load_font(Meditor* medit)
 {
     // No font control through escape sequences inside an ANSI terminal
-    (void)medit;
+    MEDIT_UNUSED(medit);
 }
 
 static void ansi_render_unload_font(Meditor* medit)
 {
     // No font control through escape sequences inside an ANSI terminal
-    (void)medit;
+    MEDIT_UNUSED(medit);
 }
 
 static int ansi_get_text_cells(Meditor* medit, const char* text)
@@ -253,7 +253,7 @@ static int ansi_get_text_cells(Meditor* medit, const char* text)
 
 static void ansi_clear_screen(Meditor* medit, Color color)
 {
-    (void)medit, (void)color;
+    MEDIT_UNUSED(medit), MEDIT_UNUSED(color);
 }
 
 static void ansi_handle_events(Meditor* medit)
@@ -271,13 +271,13 @@ static void ansi_render_text0(Meditor* medit, const char* text, Cell cell, Color
 static void ansi_render_cursor(Meditor* medit, Color color)
 {
     // Cursor is renderer by the terminal emulator
-    (void)medit, (void)color;
+    MEDIT_UNUSED(medit), MEDIT_UNUSED(color);
 }
 
 static void ansi_render_debug_grid(Meditor* medit)
 {
     // Not really feasible from an ANSI terminal
-    (void)medit;
+    MEDIT_UNUSED(medit);
 }
 
 static void ansi_present(Meditor* medit)
