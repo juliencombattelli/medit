@@ -1,6 +1,10 @@
 - [x] support splitting line on enter
 - [x] render char cell under cursor on top of it
 - [x] add backspace
+- [ ] add selection
+- [ ] add scrolling
+- [ ] add support for unicode text
+- [ ] load and save files
 - [ ] add cursor column memorization
 - [ ] reenable multi cursor
-- [ ] add selection
+- [ ] add layout handling

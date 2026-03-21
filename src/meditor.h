@@ -38,6 +38,9 @@ typedef struct {
     size_t capacity;
 } Files;
 
+// Screen/view coordinates. col and row are in renderer-defined units
+// (e.g. terminal cell indices, or pixel position for a pixel renderer).
+// Computed by the renderer from FileCoord at draw time — not written by the core.
 typedef struct {
     size_t col;
     size_t row;
@@ -62,6 +65,8 @@ typedef struct {
 typedef struct {
     File* file;
     Cursors cursors;
+    size_t scroll_x;
+    size_t scroll_y;
 } FileView;
 
 typedef struct {
@@ -112,10 +117,10 @@ typedef struct Meditor {
 void medit_load_default_gui_keybind(Meditor* medit);
 void medit_load_default_tui_keybind(Meditor* medit);
 
-void medit_cursor_up(Meditor* medit, size_t cells);
-void medit_cursor_down(Meditor* medit, size_t cells);
-void medit_cursor_left(Meditor* medit, size_t cells);
-void medit_cursor_right(Meditor* medit, size_t cells);
+void medit_cursor_up(Meditor* medit);
+void medit_cursor_down(Meditor* medit);
+void medit_cursor_left(Meditor* medit);
+void medit_cursor_right(Meditor* medit);
 
 void medit_insert_text(Meditor* medit, const char* text, size_t n, size_t cells);
 

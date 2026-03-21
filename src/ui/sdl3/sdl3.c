@@ -4,6 +4,7 @@
 #include "font.h"
 #include "keybind.h"
 #include "meditor.h"
+#include "utf8.h"
 #include "utils.h"
 
 #include <SDL3/SDL.h>
@@ -269,7 +270,7 @@ static void ui_sdl3_on_text_input(SDL3Ui* ui, const char* text)
     const size_t text_cells = 1; // medit_get_text_cells(medit, event.text.text);
     size_t text_len = strlen(text);
     medit_insert_text(ui->medit, text, text_len, text_cells);
-    medit_cursor_right(ui->medit, text_cells);
+    medit_cursor_right(ui->medit);
 }
 
 static void ui_sdl3_on_key_down(SDL3Ui* ui, SDL_Event* event)
@@ -419,43 +420,100 @@ static void ui_sdl3_draw_text(
 
 static void ui_sdl3_draw_cursor(SDL3Ui* ui, FileViewGroup* group)
 {
-    if (!ui->cursor_blink.show_cursor) {
-        return;
-    }
-
     Meditor* medit = ui->medit;
 
     Color cursor_color = ui->medit->config.color_theme.cursor;
 
     FileView* file_view = medit_get_focused_file_view(medit);
     for (size_t i = 0; i < file_view->cursors.count; ++i) {
-        Cell* cursor = &file_view->cursors.items[i].in_view;
+        FileCoord* cursor = &file_view->cursors.items[i].in_file;
 
-        assert(cursor->col <= INT_MAX);
-        assert(cursor->row <= INT_MAX);
+        assert(cursor->byte <= INT_MAX);
+        assert(cursor->line <= INT_MAX);
         assert(group->offset <= INT_MAX);
 
         const SDL_FRect cursor_rect = {
             .x = (float)((int)group->offset + ui->line_nr_padding
-                         + ((int)cursor->col * ui->cell_size.width)),
-            .y = (float)((int)cursor->row * ui->cell_size.height),
+                         + ((int)cursor->byte * ui->cell_size.width)),
+            .y = (float)((int)cursor->line * ui->cell_size.height - file_view->scroll_y),
             .w = (float)(ui->cell_size.width),
             .h = (float)(ui->cell_size.height),
         };
+
+        // TODO take group->offset.y + group->size.h
+        if (cursor_rect.y >= ui->window_size.height - ui->cell_size.height) {
+            printf("Cursor out of view\n");
+            // TODO compute the height to scroll instead of moving just one cell up/down
+            file_view->scroll_y += ui->cell_size.height;
+        }
 
         SDL_SetRenderDrawColor(ui->renderer, color_to_RGBA_args(cursor_color));
         SDL_RenderFillRect(ui->renderer, &cursor_rect);
 
         // Redraw char at cursor on top of it
-        Line* current_line = &file_view->file->lines.items[cursor->row];
-        if (cursor->col < current_line->count) {
-            const char* c = &current_line->items[cursor->col];
-            PixelPos char_pos = cell_to_pixel_pos(ui, *cursor);
+        Line* current_line = &file_view->file->lines.items[cursor->line];
+        if (cursor->byte < current_line->count) {
+            const char* c = &current_line->items[cursor->byte];
+            Cell cell = {
+                .col = cursor->byte,
+                .row = cursor->line,
+            };
+            PixelPos char_pos = cell_to_pixel_pos(ui, cell);
             char_pos.x += (int)group->offset + ui->line_nr_padding;
+            char_pos.y -= file_view->scroll_y;
             ui_sdl3_draw_text(ui, c, 1, &ui->font_editor, char_pos, color_inverse(cursor_color));
         }
     }
 }
+
+// static void ui_sdl3_draw_cursor_utf8(SDL3Ui* ui, FileViewGroup* group)
+// {
+//     Meditor* medit = ui->medit;
+
+//     Color cursor_color = ui->medit->config.color_theme.cursor;
+
+//     FileView* file_view = medit_get_focused_file_view(medit);
+//     for (size_t i = 0; i < file_view->cursors.count; ++i) {
+//         FileCoord* fc = &file_view->cursors.items[i].in_file;
+
+//         // Convert byte offset to codepoint index for visual column placement
+//         Line* current_line = &file_view->file->lines.items[fc->line];
+//         Cell visual = {
+//             .col = utf8_byte_to_codepoint_index(current_line->items, fc->byte),
+//             .row = fc->line,
+//         };
+
+//         assert(visual.col <= INT_MAX);
+//         assert(visual.row <= INT_MAX);
+//         assert(group->offset <= INT_MAX);
+
+//         const SDL_FRect cursor_rect = {
+//             .x = (float)((int)group->offset + ui->line_nr_padding
+//                          + ((int)visual.col * ui->cell_size.width)),
+//             .y = (float)((int)visual.row * ui->cell_size.height),
+//             .w = (float)(ui->cell_size.width),
+//             .h = (float)(ui->cell_size.height),
+//         };
+
+//         SDL_SetRenderDrawColor(ui->renderer, color_to_RGBA_args(cursor_color));
+//         SDL_RenderFillRect(ui->renderer, &cursor_rect);
+
+//         // Redraw char at cursor on top of it
+//         if (fc->byte < current_line->count) {
+//             size_t cp_size = utf8_codepoint_size((unsigned char)current_line->items[fc->byte]);
+//             const char* c = &current_line->items[fc->byte];
+//             PixelPos char_pos = cell_to_pixel_pos(ui, visual);
+//             char_pos.x += (int)group->offset + ui->line_nr_padding;
+//             ui_sdl3_draw_text(
+//                 ui,
+//                 c,
+//                 cp_size,
+//                 &ui->font_editor,
+//                 char_pos,
+//                 color_inverse(cursor_color));
+//         }
+//     }
+// }
 
 static void ui_sdl3_render(SDL3Ui* ui)
 {
@@ -503,7 +561,7 @@ static void ui_sdl3_draw_line_number(SDL3Ui* ui, size_t row, FileViewGroup* grou
 
     bool focused = medit_get_focused_file_view_group(medit) == group;
 
-    const Color line_number_color = focused && row == file_view->cursors.items[0].in_view.row
+    const Color line_number_color = focused && row == file_view->cursors.items[0].in_file.line
         ? medit->config.color_theme.line_number_current
         : medit->config.color_theme.line_number;
 
@@ -511,6 +569,7 @@ static void ui_sdl3_draw_line_number(SDL3Ui* ui, size_t row, FileViewGroup* grou
 
     PixelPos pos = cell_to_pixel_pos(ui, (Cell) { .col = 0, .row = row });
     pos.x += (int)group->offset;
+    pos.y -= file_view->scroll_y;
 
     char line_number[64]; // size big enough to hold the number of digits in a 64 bits integer
     size_t line_numnber_len = format_line_number(ui, row, line_number, sizeof(line_number));
@@ -521,10 +580,13 @@ static void ui_sdl3_draw_line(SDL3Ui* ui, size_t row, Line* line, FileViewGroup*
 {
     Meditor* medit = ui->medit;
 
+    FileView* file_view = medit_get_focused_file_view(medit);
+
     assert(group->offset <= INT_MAX);
 
     PixelPos line_pos = cell_to_pixel_pos(ui, (Cell) { .col = 0, .row = row });
     line_pos.x += (int)group->offset + ui->line_nr_padding;
+    line_pos.y -= file_view->scroll_y;
 
     ui_sdl3_draw_text(
         ui,
@@ -552,12 +614,16 @@ static void ui_sdl3_draw_file_view_group(SDL3Ui* ui, FileViewGroup* group)
     Meditor* medit = ui->medit;
     FileView* file_view = medit_get_displayed_file_view_in_group(medit, group);
     Lines* lines = &file_view->file->lines;
-    size_t row = 0;
-    dynarray_foreach(Line, line, lines)
-    {
-        ui_sdl3_draw_line_number(ui, row, group);
-        ui_sdl3_draw_line(ui, row, line, group);
-        row++;
+    for (size_t i = 0; i < lines->count; ++i) {
+        if (i < file_view->scroll_y / ui->cell_size.height) {
+            continue;
+        }
+        if (i > file_view->scroll_y / ui->cell_size.height + ui->window_size.height) {
+            continue;
+        }
+        Line* line = &lines->items[i];
+        ui_sdl3_draw_line_number(ui, i, group);
+        ui_sdl3_draw_line(ui, i, line, group);
     }
 }
 
@@ -608,7 +674,7 @@ void medit_ui_sdl3_run(Meditor* medit)
             }
             ui_sdl3_draw_file_view_group(&ui, group);
             ui_sdl3_draw_debug_grid(&ui, group);
-            if (medit->file_views.focused == i) {
+            if (medit->file_views.focused == i && ui.cursor_blink.show_cursor) {
                 ui_sdl3_draw_cursor(&ui, group);
             }
         }

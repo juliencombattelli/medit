@@ -1,6 +1,8 @@
 #include "meditor.h"
 #include "ui/sdl3/sdl3.h"
 
+#include <string.h>
+
 int main(int argc, char** argv)
 {
     (void)argc, (void)argv;
@@ -18,8 +20,9 @@ int main(int argc, char** argv)
 
     medit_new_empty_file(&medit);
     medit_new_empty_file(&medit);
-    const char text[] = "😊😊😊😊😊😊ùùùù😊";
-    medit_insert_text(&medit, text, sizeof(text), 0);
+    // const char text[] = "😊😊😊😊😊😊ùùùù😊";
+    const char text[] = "Hello, world!";
+    medit_insert_text(&medit, text, strlen(text), 0);
     medit_ui_sdl3_run(&medit);
     medit_close_files(&medit);
 }
