@@ -385,11 +385,12 @@ static void ui_sdl3_draw_cursor(SDL3Ui* ui, FileViewGroup* group)
         const int cursor_byte = size_to_int(cursor->byte);
         const int cursor_line = size_to_int(cursor->line);
         const int group_offset_x = size_to_int(group->area.x);
+        const int group_offset_y = size_to_int(group->area.y);
 
         const SDL_FRect cursor_rect = {
             .x = (float)(group_offset_x + ui->line_nr_padding
                          + (cursor_byte * ui->cell_size.width)),
-            .y = (float)(cursor_line * ui->cell_size.height),
+            .y = (float)(group_offset_y + (cursor_line * ui->cell_size.height)),
             .w = (float)(ui->cell_size.width),
             .h = (float)(ui->cell_size.height),
         };
@@ -460,6 +461,7 @@ static void ui_sdl3_draw_line_number(SDL3Ui* ui, size_t row, FileViewGroup* grou
 
     PixelPos pos = cell_to_pixel_pos(ui, (Cursor) { .byte = 0, .line = row });
     pos.x += size_to_int(group->area.x);
+    pos.y += size_to_int(group->area.y);
 
     char line_number[64]; // size big enough to hold the number of digits in a 64 bits integer
     size_t line_numnber_len = format_line_number(ui, row, line_number, sizeof(line_number));
@@ -472,6 +474,7 @@ static void ui_sdl3_draw_line(SDL3Ui* ui, size_t row, Line* line, FileViewGroup*
 
     PixelPos line_pos = cell_to_pixel_pos(ui, (Cursor) { .byte = 0, .line = row });
     line_pos.x += size_to_int(group->area.x) + ui->line_nr_padding;
+    line_pos.y += size_to_int(group->area.y);
 
     ui_sdl3_draw_text(
         ui,
@@ -480,19 +483,6 @@ static void ui_sdl3_draw_line(SDL3Ui* ui, size_t row, Line* line, FileViewGroup*
         &ui->font_editor,
         line_pos,
         medit->config.color_theme.editor_fg);
-}
-
-// TODO temporary function placing groups on screen till we have a proper layout engine
-static void temp_ui_sdl3_update_file_view_groups_size(SDL3Ui* ui)
-{
-    size_t offset_x = 0;
-    FileViewGroups* groups = &ui->medit->file_views;
-    dynarray_foreach(FileViewGroup, group, groups)
-    {
-        group->area.x = offset_x;
-        group->area.w = (size_t)ui->window_size.width / groups->count;
-        offset_x += group->area.w;
-    }
 }
 
 static void ui_sdl3_draw_file_view_group(SDL3Ui* ui, FileViewGroup* group)
@@ -509,18 +499,71 @@ static void ui_sdl3_draw_file_view_group(SDL3Ui* ui, FileViewGroup* group)
     }
 }
 
-static void ui_sdl3_draw_file_view_group_separator(SDL3Ui* ui, FileViewGroup* group, size_t i)
+static void ui_sdl3_draw_file_view_group_separator(SDL3Ui* ui, FileViewGroup* group)
 {
     const SDL_FRect vertical_line = {
-        .x = (float)(i * (size_t)ui->cell_size.width + group->area.x),
-        .y = (float)0,
-        .w = (float)1,
-        .h = (float)ui->window_size.height,
+        .x = (float)group->area.x,
+        .y = (float)group->area.y,
+        .w = (float)group->area.w,
+        .h = (float)group->area.h,
     };
     SDL_SetRenderDrawColor(
         ui->renderer,
         color_to_RGBA_args(ui->medit->config.color_theme.line_number));
     SDL_RenderRect(ui->renderer, &vertical_line);
+}
+
+// TODO temporary function placing groups on screen till we have a proper layout engine
+static void temp_ui_sdl3_update_file_view_groups_size(SDL3Ui* ui)
+{
+    FileViewGroups* groups = &ui->medit->file_views;
+
+    assert(groups->count > 0 && "You forgot to create some demo group");
+
+    size_t cols = 1;
+    while (cols * cols < groups->count) {
+        cols++;
+    }
+    size_t rows = (groups->count + cols - 1) / cols;
+    size_t group_width = (size_t)ui->window_size.width / cols;
+    size_t group_height = (size_t)ui->window_size.height / rows;
+
+    for (size_t i = 0; i < groups->count; ++i) {
+        size_t col = i % cols;
+        size_t row = i / cols;
+        groups->items[i].area = (Rect) {
+            .x = col * group_width,
+            .y = row * group_height,
+            .w = group_width,
+            .h = group_height,
+        };
+        printf(
+            "group %zu: x=%zu, y=%zu, w=%zu, h=%zu\n",
+            i,
+            groups->items[i].area.x,
+            groups->items[i].area.y,
+            groups->items[i].area.w,
+            groups->items[i].area.h);
+    }
+}
+
+void temp_ui_sdl3_setup_layout(SDL3Ui* ui)
+{
+    Meditor* medit = ui->medit;
+
+    // Create an empty file in some file view groups
+    for (size_t i = 0; i < 11; ++i) {
+        dynarray_append(&medit->file_views, (FileViewGroup) { 0 });
+        medit->file_views.focused = medit->file_views.count - 1;
+        medit_new_empty_file(medit, &dynarray_last(&medit->file_views));
+    }
+
+    // Insert some text in the focused latest created group
+    const char text[] = "😊😊😊😊😊😊ùùùù😊";
+    medit_insert_text(medit, text, sizeof(text));
+
+    // Update the layout of the groups in a grid fashion
+    temp_ui_sdl3_update_file_view_groups_size(ui);
 }
 
 void medit_ui_sdl3_run(Meditor* medit)
@@ -529,6 +572,8 @@ void medit_ui_sdl3_run(Meditor* medit)
     assert(ui_sdl3_create(&ui, medit));
 
     ui_sdl3_load_editor_font(&ui);
+
+    temp_ui_sdl3_setup_layout(&ui);
 
     medit->running = true;
     medit->input_in_frame = true;
@@ -540,8 +585,6 @@ void medit_ui_sdl3_run(Meditor* medit)
             ui_sdl3_load_editor_font(&ui);
         }
 
-        temp_ui_sdl3_update_file_view_groups_size(&ui);
-
         if (!medit->input_in_frame) {
             continue;
         }
@@ -551,9 +594,7 @@ void medit_ui_sdl3_run(Meditor* medit)
 
         for (size_t i = 0; i < medit->file_views.count; ++i) {
             FileViewGroup* group = &medit->file_views.items[i];
-            if (i != 0) {
-                ui_sdl3_draw_file_view_group_separator(&ui, group, i);
-            }
+            ui_sdl3_draw_file_view_group_separator(&ui, group);
             ui_sdl3_draw_file_view_group(&ui, group);
             if (medit->file_views.focused == i) {
                 ui_sdl3_draw_cursor(&ui, group);
