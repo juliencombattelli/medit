@@ -482,7 +482,8 @@ static void ui_sdl3_draw_line(SDL3Ui* ui, size_t row, Line* line, FileViewGroup*
         medit->config.color_theme.editor_fg);
 }
 
-static void ui_sdl3_update_file_view_groups_size(SDL3Ui* ui)
+// TODO temporary function placing groups on screen till we have a proper layout engine
+static void temp_ui_sdl3_update_file_view_groups_size(SDL3Ui* ui)
 {
     size_t offset_x = 0;
     FileViewGroups* groups = &ui->medit->file_views;
@@ -539,7 +540,7 @@ void medit_ui_sdl3_run(Meditor* medit)
             ui_sdl3_load_editor_font(&ui);
         }
 
-        ui_sdl3_update_file_view_groups_size(&ui);
+        temp_ui_sdl3_update_file_view_groups_size(&ui);
 
         if (!medit->input_in_frame) {
             continue;
