@@ -50,17 +50,29 @@ typedef struct {
 } Cursors;
 
 typedef struct {
+    size_t x;
+    size_t y;
+} Scrolling;
+
+typedef struct {
     File* file;
     Cursors cursors;
+    Scrolling scrolling;
 } FileView;
+
+typedef struct {
+    size_t x;
+    size_t y;
+    size_t w;
+    size_t h;
+} Rect;
 
 typedef struct {
     FileView* items;
     size_t count;
     size_t capacity;
     size_t displayed;
-    size_t offset;
-    size_t width;
+    Rect area; // area covered by the group on screen
 } FileViewGroup;
 
 typedef struct {

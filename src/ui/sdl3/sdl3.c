@@ -384,7 +384,7 @@ static void ui_sdl3_draw_cursor(SDL3Ui* ui, FileViewGroup* group)
         const Cursor* cursor = &file_view->cursors.items[i];
         const int cursor_byte = size_to_int(cursor->byte);
         const int cursor_line = size_to_int(cursor->line);
-        const int group_offset_x = size_to_int(group->offset);
+        const int group_offset_x = size_to_int(group->area.x);
 
         const SDL_FRect cursor_rect = {
             .x = (float)(group_offset_x + ui->line_nr_padding
@@ -459,7 +459,7 @@ static void ui_sdl3_draw_line_number(SDL3Ui* ui, size_t row, FileViewGroup* grou
         : medit->config.color_theme.line_number;
 
     PixelPos pos = cell_to_pixel_pos(ui, (Cursor) { .byte = 0, .line = row });
-    pos.x += size_to_int(group->offset);
+    pos.x += size_to_int(group->area.x);
 
     char line_number[64]; // size big enough to hold the number of digits in a 64 bits integer
     size_t line_numnber_len = format_line_number(ui, row, line_number, sizeof(line_number));
@@ -471,7 +471,7 @@ static void ui_sdl3_draw_line(SDL3Ui* ui, size_t row, Line* line, FileViewGroup*
     Meditor* medit = ui->medit;
 
     PixelPos line_pos = cell_to_pixel_pos(ui, (Cursor) { .byte = 0, .line = row });
-    line_pos.x += size_to_int(group->offset) + ui->line_nr_padding;
+    line_pos.x += size_to_int(group->area.x) + ui->line_nr_padding;
 
     ui_sdl3_draw_text(
         ui,
@@ -484,13 +484,13 @@ static void ui_sdl3_draw_line(SDL3Ui* ui, size_t row, Line* line, FileViewGroup*
 
 static void ui_sdl3_update_file_view_groups_size(SDL3Ui* ui)
 {
-    size_t offset = 0;
+    size_t offset_x = 0;
     FileViewGroups* groups = &ui->medit->file_views;
     dynarray_foreach(FileViewGroup, group, groups)
     {
-        group->offset = offset;
-        group->width = (size_t)ui->window_size.width / groups->count;
-        offset += group->width;
+        group->area.x = offset_x;
+        group->area.w = (size_t)ui->window_size.width / groups->count;
+        offset_x += group->area.w;
     }
 }
 
@@ -511,7 +511,7 @@ static void ui_sdl3_draw_file_view_group(SDL3Ui* ui, FileViewGroup* group)
 static void ui_sdl3_draw_file_view_group_separator(SDL3Ui* ui, FileViewGroup* group, size_t i)
 {
     const SDL_FRect vertical_line = {
-        .x = (float)(i * (size_t)ui->cell_size.width + group->offset),
+        .x = (float)(i * (size_t)ui->cell_size.width + group->area.x),
         .y = (float)0,
         .w = (float)1,
         .h = (float)ui->window_size.height,
