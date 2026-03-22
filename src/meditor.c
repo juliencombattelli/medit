@@ -285,7 +285,7 @@ void medit_insert_text(Meditor* medit, const char* text, size_t n)
     dynarray_insert_many(current_line, text, n, cursor_col);
 }
 
-void medit_new_empty_file(Meditor* medit)
+void medit_new_empty_file(Meditor* medit, FileViewGroup* group)
 {
     File new_file = { 0 };
     dynarray_append(&medit->opened_files, new_file);
@@ -295,11 +295,7 @@ void medit_new_empty_file(Meditor* medit)
     };
     dynarray_append(&new_file_view.cursors, (Cursor) { 0 });
 
-    FileViewGroup new_file_view_group = { 0 };
-    dynarray_append(&new_file_view_group, new_file_view);
-
-    medit->file_views.focused = medit->file_views.count;
-    dynarray_append(&medit->file_views, new_file_view_group);
+    dynarray_append(group, new_file_view);
 
     medit_insert_new_line(medit);
 }

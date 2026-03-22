@@ -1,3 +1,4 @@
+#include "dynarray.h"
 #include "meditor.h"
 #include "ui/sdl3/sdl3.h"
 #include "utils.h"
@@ -20,8 +21,16 @@ int main(int argc, char** argv)
     medit.config.editor_font_path = FONT_PATH_DEFAULT;
     medit.config.color_theme = default_color_theme;
 
-    medit_new_empty_file(&medit);
-    medit_new_empty_file(&medit);
+    // Create an empty file in a first file view group
+    dynarray_append(&medit.file_views, (FileViewGroup) { 0 });
+    medit.file_views.focused = medit.file_views.count - 1;
+    medit_new_empty_file(&medit, &dynarray_last(&medit.file_views));
+
+    // Create an empty file in a second file view group
+    dynarray_append(&medit.file_views, (FileViewGroup) { 0 });
+    medit.file_views.focused = medit.file_views.count - 1;
+    medit_new_empty_file(&medit, &dynarray_last(&medit.file_views));
+
     const char text[] = "😊😊😊😊😊😊ùùùù😊";
     medit_insert_text(&medit, text, sizeof(text));
     medit_ui_sdl3_run(&medit);
