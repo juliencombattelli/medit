@@ -369,6 +369,32 @@ static void ui_sdl3_draw_text(
     SDL_DestroyTexture(texture);
 }
 
+static void ui_sdl3_update_cursor_position(SDL3Ui* ui, FileViewGroup* group)
+{
+    Meditor* medit = ui->medit;
+
+    FileView* file_view = medit_get_displayed_file_view_in_group(medit, group);
+
+    // TODO consider use size_t for those variables
+    assert(ui->line_nr_padding >= 0);
+    assert(ui->cell_size.width >= 0);
+    assert(ui->cell_size.height >= 0);
+    for (size_t i = 0; i < file_view->cursors.count; ++i) {
+        Cursor* cursor = &file_view->cursors.items[i];
+        cursor->on_screen = (Rect) {
+            // TODO compute x with the length of the current line up to the char before the cursor
+            // instead of using cursor_byte*cell_width
+            // However it's ok for y to use cursor_line*cell_height as the cell height is fixed by
+            // the font
+            .x = group->area.x + (cursor->byte * (size_t)ui->cell_size.width),
+            .y = group->area.y + (cursor->line * (size_t)ui->cell_size.height),
+            // TODO compute cell_width with the length of the glyph under the cursor
+            .w = (size_t)ui->cell_size.width,
+            .h = (size_t)ui->cell_size.height,
+        };
+    }
+}
+
 static void ui_sdl3_draw_cursor(SDL3Ui* ui, FileViewGroup* group)
 {
     if (!ui->cursor_blink.show_cursor) {
@@ -382,30 +408,57 @@ static void ui_sdl3_draw_cursor(SDL3Ui* ui, FileViewGroup* group)
     FileView* file_view = medit_get_focused_file_view(medit);
     for (size_t i = 0; i < file_view->cursors.count; ++i) {
         const Cursor* cursor = &file_view->cursors.items[i];
-        const int cursor_byte = size_to_int(cursor->byte);
-        const int cursor_line = size_to_int(cursor->line);
-        const int group_offset_x = size_to_int(group->area.x);
-        const int group_offset_y = size_to_int(group->area.y);
 
-        const SDL_FRect cursor_rect = {
-            .x = (float)(group_offset_x + ui->line_nr_padding
-                         + (cursor_byte * ui->cell_size.width)),
-            .y = (float)(group_offset_y + (cursor_line * ui->cell_size.height)),
-            .w = (float)(ui->cell_size.width),
-            .h = (float)(ui->cell_size.height),
+        SDL_FRect cursor_frect = {
+            .x = (float)(cursor->on_screen.x + (size_t)ui->line_nr_padding),
+            .y = (float)cursor->on_screen.y,
+            .w = (float)cursor->on_screen.w,
+            .h = (float)cursor->on_screen.h,
         };
-
         SDL_SetRenderDrawColor(ui->renderer, color_to_RGBA_args(cursor_color));
-        SDL_RenderFillRect(ui->renderer, &cursor_rect);
+        SDL_RenderFillRect(ui->renderer, &cursor_frect);
 
         // Redraw char at cursor on top of it
         Line* current_line = &file_view->file->lines.items[cursor->line];
         if (cursor->byte < current_line->count) {
             const char* c = &current_line->items[cursor->byte];
             PixelPos char_pos = cell_to_pixel_pos(ui, *cursor);
-            char_pos.x += group_offset_x + ui->line_nr_padding;
+            char_pos.x += size_to_int(group->area.x) + ui->line_nr_padding;
             ui_sdl3_draw_text(ui, c, 1, &ui->font_editor, char_pos, color_inverse(cursor_color));
         }
+    }
+}
+
+static void ui_sdl3_scroll_file_view(SDL3Ui* ui, FileViewGroup* group)
+{
+    FileView* file_view = medit_get_displayed_file_view_in_group(ui->medit, group);
+    // Only handle scrolling based on main cursor position
+    Cursor* cursor = &file_view->cursors.items[0];
+
+    const size_t scroll_margin_x = (size_t)(ui->cell_size.width) * 3;
+    const size_t scroll_margin_y = (size_t)(ui->cell_size.height) * 3;
+    const size_t cursor_left_edge = cursor->on_screen.x;
+    const size_t cursor_right_edge = cursor->on_screen.x + cursor->on_screen.w;
+    const size_t cursor_top_edge = cursor->on_screen.y;
+    const size_t cursor_bottom_edge = cursor->on_screen.y + cursor->on_screen.h;
+    const size_t group_right_border = group->area.x + group->area.w - scroll_margin_x;
+    const size_t group_bottom_border = group->area.y + group->area.h - scroll_margin_y;
+
+    if (cursor_right_edge > group_right_border) {
+        file_view->scrolling.x = cursor_right_edge - group_right_border;
+        printf("cursor x too far right, shifting by %zu\n", file_view->scrolling.x);
+    }
+    if (cursor_left_edge < scroll_margin_x) {
+        file_view->scrolling.x = scroll_margin_x;
+        printf("cursor x too far left, shifting by %zu\n", file_view->scrolling.x);
+    }
+    if (cursor_bottom_edge > group_bottom_border) {
+        file_view->scrolling.y = cursor_bottom_edge - group_bottom_border;
+        printf("cursor y too far down, shifting by %zu\n", file_view->scrolling.y);
+    }
+    if (cursor_top_edge < scroll_margin_y) {
+        file_view->scrolling.y = scroll_margin_y;
+        printf("cursor y too far up, shifting by %zu\n", file_view->scrolling.y);
     }
 }
 
@@ -552,7 +605,7 @@ void temp_ui_sdl3_setup_layout(SDL3Ui* ui)
     Meditor* medit = ui->medit;
 
     // Create an empty file in some file view groups
-    for (size_t i = 0; i < 11; ++i) {
+    for (size_t i = 0; i < 9; ++i) {
         dynarray_append(&medit->file_views, (FileViewGroup) { 0 });
         medit->file_views.focused = medit->file_views.count - 1;
         medit_new_empty_file(medit, &dynarray_last(&medit->file_views));
@@ -580,20 +633,24 @@ void medit_ui_sdl3_run(Meditor* medit)
     while (medit->running) {
         ui_sdl3_handle_event(&ui);
 
-        if (ui.editor_font_size != medit->config.editor_font_size) {
-            ui_sdl3_unload_editor_font(&ui);
-            ui_sdl3_load_editor_font(&ui);
-        }
-
         if (!medit->input_in_frame) {
             continue;
         }
         medit->input_in_frame = false;
 
+        if (ui.editor_font_size != medit->config.editor_font_size) {
+            ui_sdl3_unload_editor_font(&ui);
+            ui_sdl3_load_editor_font(&ui);
+        }
+
         ui_sdl3_clear(&ui);
 
         for (size_t i = 0; i < medit->file_views.count; ++i) {
             FileViewGroup* group = &medit->file_views.items[i];
+            // TODO consider doing this on event instead of every frame
+            ui_sdl3_update_cursor_position(&ui, group);
+            ui_sdl3_scroll_file_view(&ui, group);
+
             ui_sdl3_draw_file_view_group_separator(&ui, group);
             ui_sdl3_draw_file_view_group(&ui, group);
             if (medit->file_views.focused == i) {

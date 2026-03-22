@@ -39,8 +39,18 @@ typedef struct {
 } Files;
 
 typedef struct {
+    size_t x;
+    size_t y;
+    size_t w;
+    size_t h;
+} Rect;
+
+typedef struct {
     size_t line;
     size_t byte;
+    // On screen coordinates of the cursor, excluding the ui elements around the file view
+    // So (x=0,y=0) is the top-left corner if the first text glyph in of the viewed file
+    Rect on_screen;
 } Cursor;
 
 typedef struct {
@@ -59,13 +69,6 @@ typedef struct {
     Cursors cursors;
     Scrolling scrolling;
 } FileView;
-
-typedef struct {
-    size_t x;
-    size_t y;
-    size_t w;
-    size_t h;
-} Rect;
 
 typedef struct {
     FileView* items;

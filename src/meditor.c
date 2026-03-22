@@ -91,9 +91,13 @@ static void action_dump_state(Meditor* medit)
 
     printf("Dump state:\n");
     printf(
-        "  cursor: byte=%zu, line=%zu; lines:%zu\n  lines:\n",
+        "  cursor: byte=%zu, line=%zu, x=%zu, y=%zu, w=%zu, h=%zu; lines:%zu\n  lines:\n",
         file_view->cursors.items[0].byte,
         file_view->cursors.items[0].line,
+        file_view->cursors.items[0].on_screen.x,
+        file_view->cursors.items[0].on_screen.y,
+        file_view->cursors.items[0].on_screen.w,
+        file_view->cursors.items[0].on_screen.h,
         file_view->file->lines.count);
     Lines* lines = &file_view->file->lines;
     int row = 0;
