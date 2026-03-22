@@ -429,7 +429,7 @@ static void ui_sdl3_draw_cursor(SDL3Ui* ui, FileViewGroup* group)
     }
 }
 
-static void ui_sdl3_scroll_file_view(SDL3Ui* ui, FileViewGroup* group)
+static void ui_sdl3_scroll_file_view(SDL3Ui* ui, FileViewGroup* group, size_t i)
 {
     FileView* file_view = medit_get_displayed_file_view_in_group(ui->medit, group);
     // Only handle scrolling based on main cursor position
@@ -446,19 +446,19 @@ static void ui_sdl3_scroll_file_view(SDL3Ui* ui, FileViewGroup* group)
 
     if (cursor_right_edge > group_right_border) {
         file_view->scrolling.x = cursor_right_edge - group_right_border;
-        printf("cursor x too far right, shifting by %zu\n", file_view->scrolling.x);
+        printf("cursor[%zu] x too far right, shifting by %zu\n", i, file_view->scrolling.x);
     }
     if (cursor_left_edge < scroll_margin_x) {
         file_view->scrolling.x = scroll_margin_x;
-        printf("cursor x too far left, shifting by %zu\n", file_view->scrolling.x);
+        printf("cursor[%zu] x too far left, shifting by %zu\n", i, file_view->scrolling.x);
     }
     if (cursor_bottom_edge > group_bottom_border) {
         file_view->scrolling.y = cursor_bottom_edge - group_bottom_border;
-        printf("cursor y too far down, shifting by %zu\n", file_view->scrolling.y);
+        printf("cursor[%zu] y too far down, shifting by %zu\n", i, file_view->scrolling.y);
     }
     if (cursor_top_edge < scroll_margin_y) {
         file_view->scrolling.y = scroll_margin_y;
-        printf("cursor y too far up, shifting by %zu\n", file_view->scrolling.y);
+        printf("cursor[%zu] y too far up, shifting by %zu\n", i, file_view->scrolling.y);
     }
 }
 
@@ -649,7 +649,7 @@ void medit_ui_sdl3_run(Meditor* medit)
             FileViewGroup* group = &medit->file_views.items[i];
             // TODO consider doing this on event instead of every frame
             ui_sdl3_update_cursor_position(&ui, group);
-            ui_sdl3_scroll_file_view(&ui, group);
+            ui_sdl3_scroll_file_view(&ui, group, i);
 
             ui_sdl3_draw_file_view_group_separator(&ui, group);
             ui_sdl3_draw_file_view_group(&ui, group);
