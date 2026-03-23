@@ -1,7 +1,7 @@
 - [x] support splitting line on enter
 - [x] render char cell under cursor on top of it
 - [x] add backspace
-- [ ] scrolling
+- [x] scrolling
 - [ ] unicode handling
 - [ ] reenable multi cursor
 - [ ] add cursor column memorization
