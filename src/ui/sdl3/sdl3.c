@@ -411,8 +411,9 @@ static void ui_sdl3_draw_cursor(SDL3Ui* ui, FileViewGroup* group)
         const Cursor* cursor = &file_view->cursors.items[i];
 
         SDL_FRect cursor_frect = {
-            .x = (float)(cursor->on_screen.x + int_to_size(ui->line_nr_padding)),
-            .y = (float)cursor->on_screen.y,
+            .x = (float)(cursor->on_screen.x + int_to_size(ui->line_nr_padding)
+                         - file_view->scrolling.x),
+            .y = (float)(cursor->on_screen.y - file_view->scrolling.y),
             .w = (float)cursor->on_screen.w,
             .h = (float)cursor->on_screen.h,
         };
@@ -424,20 +425,22 @@ static void ui_sdl3_draw_cursor(SDL3Ui* ui, FileViewGroup* group)
         if (cursor->byte < current_line->count) {
             const char* c = &current_line->items[cursor->byte];
             PixelPos char_pos = cell_to_pixel_pos(ui, *cursor);
-            char_pos.x += size_to_int(group->area.x) + ui->line_nr_padding;
+            char_pos.x += size_to_int(group->area.x) + ui->line_nr_padding
+                - size_to_int(file_view->scrolling.x);
+            char_pos.y += size_to_int(group->area.y) - size_to_int(file_view->scrolling.y);
             ui_sdl3_draw_text(ui, c, 1, &ui->font_editor, char_pos, color_inverse(cursor_color));
         }
     }
 }
 
-static void ui_sdl3_scroll_file_view(SDL3Ui* ui, FileViewGroup* group, size_t i)
+static void ui_sdl3_scroll_file_view(SDL3Ui* ui, FileViewGroup* group)
 {
     FileView* file_view = medit_get_displayed_file_view_in_group(ui->medit, group);
     // Only handle scrolling based on main cursor position
     Cursor* cursor = &file_view->cursors.items[0];
 
-    const size_t scroll_margin_x = int_to_size(ui->cell_size.width) * 3;
-    const size_t scroll_margin_y = int_to_size(ui->cell_size.height) * 3;
+    const size_t scroll_margin_x = int_to_size(ui->cell_size.width) /* * 3*/;
+    const size_t scroll_margin_y = int_to_size(ui->cell_size.height) /* * 3*/;
     const size_t cursor_left_edge = cursor->on_screen.x;
     const size_t cursor_right_edge = cursor->on_screen.x + cursor->on_screen.w;
     const size_t cursor_top_edge = cursor->on_screen.y;
@@ -446,32 +449,20 @@ static void ui_sdl3_scroll_file_view(SDL3Ui* ui, FileViewGroup* group, size_t i)
         - int_to_size(ui->line_nr_padding);
     const size_t group_bottom_border = group->area.y + group->area.h - scroll_margin_y;
 
-    printf(
-        "[DEBUG] cursor: u=%zu,d=%zu,l=%zu,r=%zu;   edge: u=%zu,d=%zu,l=%zu,r=%zu\n",
-        cursor_top_edge,
-        cursor_bottom_edge,
-        cursor_left_edge,
-        cursor_right_edge,
-        scroll_margin_x,
-        group_bottom_border,
-        scroll_margin_y,
-        group_right_border);
+    file_view->scrolling.x = 0;
+    file_view->scrolling.y = 0;
 
     if (cursor_right_edge > group_right_border) {
         file_view->scrolling.x = cursor_right_edge - group_right_border;
-        printf("[DEBUG] cursor[%zu] x too far right, shifting by %zu\n", i, file_view->scrolling.x);
     }
     if (cursor_left_edge < scroll_margin_x && cursor->byte != 0) {
         file_view->scrolling.x = scroll_margin_x;
-        printf("[DEBUG] cursor[%zu] x too far left, shifting by %zu\n", i, file_view->scrolling.x);
     }
     if (cursor_bottom_edge > group_bottom_border) {
         file_view->scrolling.y = cursor_bottom_edge - group_bottom_border;
-        printf("[DEBUG] cursor[%zu] y too far down, shifting by %zu\n", i, file_view->scrolling.y);
     }
     if (cursor_top_edge < scroll_margin_y && cursor->line != 0) {
         file_view->scrolling.y = scroll_margin_y;
-        printf("[DEBUG] cursor[%zu] y too far up, shifting by %zu\n", i, file_view->scrolling.y);
     }
 }
 
@@ -509,7 +500,7 @@ static void ui_sdl3_draw_line_number(SDL3Ui* ui, size_t row, FileViewGroup* grou
 {
     Meditor* medit = ui->medit;
 
-    FileView* file_view = medit_get_focused_file_view(medit);
+    FileView* file_view = medit_get_displayed_file_view_in_group(medit, group);
 
     bool focused = medit_get_focused_file_view_group(medit) == group;
 
@@ -519,7 +510,7 @@ static void ui_sdl3_draw_line_number(SDL3Ui* ui, size_t row, FileViewGroup* grou
 
     PixelPos pos = cell_to_pixel_pos(ui, (Cursor) { .byte = 0, .line = row });
     pos.x += size_to_int(group->area.x);
-    pos.y += size_to_int(group->area.y);
+    pos.y += size_to_int(group->area.y) - size_to_int(file_view->scrolling.y);
 
     char line_number[INT64_DIGITS_COUNT] = { 0 };
     int written = snprintf(
@@ -528,18 +519,38 @@ static void ui_sdl3_draw_line_number(SDL3Ui* ui, size_t row, FileViewGroup* grou
         "%*zu",
         ui->line_nr_max_digits,
         row + 1);
-
     size_t line_number_len = int_to_size(written);
+
+    const SDL_Rect clipping_rect = {
+        .x = size_to_int(group->area.x),
+        .y = size_to_int(group->area.y),
+        .w = ui->line_nr_padding,
+        .h = size_to_int(group->area.h),
+    };
+    assert(SDL_SetRenderClipRect(ui->renderer, &clipping_rect));
+
     ui_sdl3_draw_text(ui, line_number, line_number_len, &ui->font_editor, pos, line_number_color);
+
+    assert(SDL_SetRenderClipRect(ui->renderer, NULL));
 }
 
 static void ui_sdl3_draw_line(SDL3Ui* ui, size_t row, Line* line, FileViewGroup* group)
 {
     Meditor* medit = ui->medit;
+    FileView* file_view = medit_get_displayed_file_view_in_group(medit, group);
 
     PixelPos line_pos = cell_to_pixel_pos(ui, (Cursor) { .byte = 0, .line = row });
-    line_pos.x += size_to_int(group->area.x) + ui->line_nr_padding;
-    line_pos.y += size_to_int(group->area.y);
+    line_pos.x += size_to_int(group->area.x) + ui->line_nr_padding
+        - size_to_int(file_view->scrolling.x);
+    line_pos.y += size_to_int(group->area.y) - size_to_int(file_view->scrolling.y);
+
+    const SDL_Rect clipping_rect = {
+        .x = size_to_int(group->area.x) + ui->line_nr_padding,
+        .y = size_to_int(group->area.y),
+        .w = size_to_int(group->area.w) - ui->line_nr_padding,
+        .h = size_to_int(group->area.h),
+    };
+    assert(SDL_SetRenderClipRect(ui->renderer, &clipping_rect));
 
     ui_sdl3_draw_text(
         ui,
@@ -548,6 +559,8 @@ static void ui_sdl3_draw_line(SDL3Ui* ui, size_t row, Line* line, FileViewGroup*
         &ui->font_editor,
         line_pos,
         medit->config.color_theme.editor_fg);
+
+    assert(SDL_SetRenderClipRect(ui->renderer, NULL));
 }
 
 static void ui_sdl3_draw_file_view_group(SDL3Ui* ui, FileViewGroup* group)
@@ -659,10 +672,15 @@ void medit_ui_sdl3_run(Meditor* medit)
 
         for (size_t i = 0; i < medit->file_views.count; ++i) {
             FileViewGroup* group = &medit->file_views.items[i];
-            // TODO consider doing this on event instead of every frame
-            ui_sdl3_compute_line_number_gutter_width(&ui, group);
-            ui_sdl3_update_cursor_position(&ui, group);
-            ui_sdl3_scroll_file_view(&ui, group, i);
+            { // TODO consider doing this on event instead of every frame
+                ui_sdl3_compute_line_number_gutter_width(&ui, group);
+                ui_sdl3_update_cursor_position(&ui, group);
+                // TODO scrolling is done by rendering the all file with an offset and a clipping
+                // rect corresponding to the group where the file is viewed
+                // This could be optimized by only rendering the lines and bytes inside/near the
+                // clipping rect
+                ui_sdl3_scroll_file_view(&ui, group);
+            }
 
             ui_sdl3_draw_file_view_group_separator(&ui, group);
             ui_sdl3_draw_file_view_group(&ui, group);
