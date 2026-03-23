@@ -72,6 +72,8 @@ static void ui_sdl3_draw_text(
 static void ui_sdl3_draw_cursor(SDL3Ui* ui, FileViewGroup* group);
 static void ui_sdl3_render(SDL3Ui* ui);
 
+static void temp_ui_sdl3_update_file_view_groups_size(SDL3Ui* ui);
+
 // TODO remove
 static PixelPos cell_to_pixel_pos(SDL3Ui* ui, Cursor cell)
 {
@@ -235,6 +237,8 @@ static void ui_sdl3_on_window_resized(SDL3Ui* ui, int w, int h)
             .width = w,
             .height = h,
         });
+
+    temp_ui_sdl3_update_file_view_groups_size(ui);
 }
 
 static void ui_sdl3_update_cursor_blinking_timer(SDL3Ui* ui)
@@ -433,36 +437,44 @@ static void ui_sdl3_draw_cursor(SDL3Ui* ui, FileViewGroup* group)
     }
 }
 
-static void ui_sdl3_scroll_file_view(SDL3Ui* ui, FileViewGroup* group)
+static void ui_sdl3_scroll_file_view(SDL3Ui* ui, FileViewGroup* group, size_t i)
 {
     FileView* file_view = medit_get_displayed_file_view_in_group(ui->medit, group);
     // Only handle scrolling based on main cursor position
     Cursor* cursor = &file_view->cursors.items[0];
 
-    const size_t scroll_margin_x = int_to_size(ui->cell_size.width) /* * 3*/;
-    const size_t scroll_margin_y = int_to_size(ui->cell_size.height) /* * 3*/;
-    const size_t cursor_left_edge = cursor->on_screen.x;
+    const size_t scroll_margin_x = int_to_size(ui->cell_size.width) * 3;
+    const size_t scroll_margin_y = int_to_size(ui->cell_size.height) * 3;
     const size_t cursor_right_edge = cursor->on_screen.x + cursor->on_screen.w;
-    const size_t cursor_top_edge = cursor->on_screen.y;
     const size_t cursor_bottom_edge = cursor->on_screen.y + cursor->on_screen.h;
     const size_t group_right_border = group->area.x + group->area.w - scroll_margin_x
         - int_to_size(ui->line_nr_padding);
     const size_t group_bottom_border = group->area.y + group->area.h - scroll_margin_y;
 
-    file_view->scrolling.x = 0;
-    file_view->scrolling.y = 0;
-
-    if (cursor_right_edge > group_right_border) {
+    // Scroll right when cursor moves past the right margin
+    if (cursor_right_edge > group_right_border + file_view->scrolling.x) {
         file_view->scrolling.x = cursor_right_edge - group_right_border;
     }
-    if (cursor_left_edge < scroll_margin_x && cursor->byte != 0) {
-        file_view->scrolling.x = scroll_margin_x;
+    // Scroll left when cursor moves past the left margin
+    else if (cursor->on_screen.x < group->area.x + scroll_margin_x + file_view->scrolling.x) {
+        if (cursor->on_screen.x >= group->area.x + scroll_margin_x) {
+            file_view->scrolling.x = cursor->on_screen.x - group->area.x - scroll_margin_x;
+        } else {
+            file_view->scrolling.x = 0;
+        }
     }
-    if (cursor_bottom_edge > group_bottom_border) {
+
+    // Scroll down when cursor moves past the bottom margin
+    if (cursor_bottom_edge > group_bottom_border + file_view->scrolling.y) {
         file_view->scrolling.y = cursor_bottom_edge - group_bottom_border;
     }
-    if (cursor_top_edge < scroll_margin_y && cursor->line != 0) {
-        file_view->scrolling.y = scroll_margin_y;
+    // Scroll up when cursor moves past the top margin
+    else if (cursor->on_screen.y < group->area.y + scroll_margin_y + file_view->scrolling.y) {
+        if (cursor->on_screen.y >= group->area.y + scroll_margin_y) {
+            file_view->scrolling.y = cursor->on_screen.y - group->area.y - scroll_margin_y;
+        } else {
+            file_view->scrolling.y = 0;
+        }
     }
 }
 
@@ -679,7 +691,7 @@ void medit_ui_sdl3_run(Meditor* medit)
                 // rect corresponding to the group where the file is viewed
                 // This could be optimized by only rendering the lines and bytes inside/near the
                 // clipping rect
-                ui_sdl3_scroll_file_view(&ui, group);
+                ui_sdl3_scroll_file_view(&ui, group, i);
             }
 
             ui_sdl3_draw_file_view_group_separator(&ui, group);
