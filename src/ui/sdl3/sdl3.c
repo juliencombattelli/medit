@@ -378,9 +378,8 @@ static void ui_sdl3_update_cursor_position(SDL3Ui* ui, FileViewGroup* group)
     FileView* file_view = medit_get_displayed_file_view_in_group(medit, group);
 
     // TODO consider use size_t for those variables
-    assert(ui->line_nr_padding >= 0);
-    assert(ui->cell_size.width >= 0);
-    assert(ui->cell_size.height >= 0);
+    size_t cell_w = int_to_size(ui->cell_size.width);
+    size_t cell_h = int_to_size(ui->cell_size.height);
     for (size_t i = 0; i < file_view->cursors.count; ++i) {
         Cursor* cursor = &file_view->cursors.items[i];
         cursor->on_screen = (Rect) {
@@ -388,11 +387,11 @@ static void ui_sdl3_update_cursor_position(SDL3Ui* ui, FileViewGroup* group)
             // instead of using cursor_byte*cell_width
             // However it's ok for y to use cursor_line*cell_height as the cell height is fixed by
             // the font
-            .x = group->area.x + (cursor->byte * (size_t)ui->cell_size.width),
-            .y = group->area.y + (cursor->line * (size_t)ui->cell_size.height),
+            .x = group->area.x + (cursor->byte * cell_w),
+            .y = group->area.y + (cursor->line * cell_h),
             // TODO compute cell_width with the length of the glyph under the cursor
-            .w = (size_t)ui->cell_size.width,
-            .h = (size_t)ui->cell_size.height,
+            .w = cell_w,
+            .h = cell_h,
         };
     }
 }
@@ -412,7 +411,7 @@ static void ui_sdl3_draw_cursor(SDL3Ui* ui, FileViewGroup* group)
         const Cursor* cursor = &file_view->cursors.items[i];
 
         SDL_FRect cursor_frect = {
-            .x = (float)(cursor->on_screen.x + (size_t)ui->line_nr_padding),
+            .x = (float)(cursor->on_screen.x + int_to_size(ui->line_nr_padding)),
             .y = (float)cursor->on_screen.y,
             .w = (float)cursor->on_screen.w,
             .h = (float)cursor->on_screen.h,
@@ -437,14 +436,14 @@ static void ui_sdl3_scroll_file_view(SDL3Ui* ui, FileViewGroup* group, size_t i)
     // Only handle scrolling based on main cursor position
     Cursor* cursor = &file_view->cursors.items[0];
 
-    const size_t scroll_margin_x = (size_t)(ui->cell_size.width) * 3;
-    const size_t scroll_margin_y = (size_t)(ui->cell_size.height) * 3;
+    const size_t scroll_margin_x = int_to_size(ui->cell_size.width) * 3;
+    const size_t scroll_margin_y = int_to_size(ui->cell_size.height) * 3;
     const size_t cursor_left_edge = cursor->on_screen.x;
     const size_t cursor_right_edge = cursor->on_screen.x + cursor->on_screen.w;
     const size_t cursor_top_edge = cursor->on_screen.y;
     const size_t cursor_bottom_edge = cursor->on_screen.y + cursor->on_screen.h;
     const size_t group_right_border = group->area.x + group->area.w - scroll_margin_x
-        - (size_t)ui->line_nr_padding;
+        - int_to_size(ui->line_nr_padding);
     const size_t group_bottom_border = group->area.y + group->area.h - scroll_margin_y;
 
     printf(
@@ -591,8 +590,8 @@ static void temp_ui_sdl3_update_file_view_groups_size(SDL3Ui* ui)
         cols++;
     }
     size_t rows = (groups->count + cols - 1) / cols;
-    size_t group_width = (size_t)ui->window_size.width / cols;
-    size_t group_height = (size_t)ui->window_size.height / rows;
+    size_t group_width = int_to_size(ui->window_size.width) / cols;
+    size_t group_height = int_to_size(ui->window_size.height) / rows;
 
     for (size_t i = 0; i < groups->count; ++i) {
         size_t col = i % cols;
