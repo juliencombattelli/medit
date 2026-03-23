@@ -447,7 +447,7 @@ static void ui_sdl3_scroll_file_view(SDL3Ui* ui, FileViewGroup* group, size_t i)
     const size_t group_bottom_border = group->area.y + group->area.h - scroll_margin_y;
 
     printf(
-        "cursor: u=%zu,d=%zu,l=%zu,r=%zu;   edge: u=%zu,d=%zu,l=%zu,r=%zu\n",
+        "[DEBUG] cursor: u=%zu,d=%zu,l=%zu,r=%zu;   edge: u=%zu,d=%zu,l=%zu,r=%zu\n",
         cursor_top_edge,
         cursor_bottom_edge,
         cursor_left_edge,
@@ -459,19 +459,19 @@ static void ui_sdl3_scroll_file_view(SDL3Ui* ui, FileViewGroup* group, size_t i)
 
     if (cursor_right_edge > group_right_border) {
         file_view->scrolling.x = cursor_right_edge - group_right_border;
-        printf("cursor[%zu] x too far right, shifting by %zu\n", i, file_view->scrolling.x);
+        printf("[DEBUG] cursor[%zu] x too far right, shifting by %zu\n", i, file_view->scrolling.x);
     }
     if (cursor_left_edge < scroll_margin_x && cursor->byte != 0) {
         file_view->scrolling.x = scroll_margin_x;
-        printf("cursor[%zu] x too far left, shifting by %zu\n", i, file_view->scrolling.x);
+        printf("[DEBUG] cursor[%zu] x too far left, shifting by %zu\n", i, file_view->scrolling.x);
     }
     if (cursor_bottom_edge > group_bottom_border) {
         file_view->scrolling.y = cursor_bottom_edge - group_bottom_border;
-        printf("cursor[%zu] y too far down, shifting by %zu\n", i, file_view->scrolling.y);
+        printf("[DEBUG] cursor[%zu] y too far down, shifting by %zu\n", i, file_view->scrolling.y);
     }
     if (cursor_top_edge < scroll_margin_y && cursor->line != 0) {
         file_view->scrolling.y = scroll_margin_y;
-        printf("cursor[%zu] y too far up, shifting by %zu\n", i, file_view->scrolling.y);
+        printf("[DEBUG] cursor[%zu] y too far up, shifting by %zu\n", i, file_view->scrolling.y);
     }
 }
 
@@ -603,7 +603,7 @@ static void temp_ui_sdl3_update_file_view_groups_size(SDL3Ui* ui)
             .h = group_height,
         };
         printf(
-            "group %zu: x=%zu, y=%zu, w=%zu, h=%zu\n",
+            "[DEBUG] group %zu: x=%zu, y=%zu, w=%zu, h=%zu\n",
             i,
             groups->items[i].area.x,
             groups->items[i].area.y,
