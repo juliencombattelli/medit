@@ -12,4 +12,10 @@ static inline int size_to_int(size_t i)
     return (int)i;
 }
 
+static inline size_t int_to_size(int i)
+{
+    assert(i >= 0);
+    return (size_t)i;
+}
+
 #endif // MEDIT_SAFEINT_H_

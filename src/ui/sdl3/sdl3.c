@@ -43,6 +43,7 @@ typedef struct {
     PixelSize window_size;
     CursorBlink cursor_blink;
     int line_nr_padding;
+    int line_nr_max_digits;
     int editor_font_size;
 } SDL3Ui;
 
@@ -207,8 +208,9 @@ static void ui_sdl3_load_editor_font(SDL3Ui* ui)
         medit->config.editor_font_size,
         0); // Do not align the emoji font width to the main font width
     if (!ui->font_editor.emoji) {
-        printf("Warning: failed to find a size aligned to the grid for emoji "
-               "font\n");
+        printf(
+            "Warning: failed to find a size aligned to the grid for emoji "
+            "font\n");
     } else {
         if (!TTF_AddFallbackFont(ui->font_editor.main, ui->font_editor.emoji)) {
             printf("Warning: failed to load fallback emoji font: %s\n", SDL_GetError());
@@ -441,14 +443,26 @@ static void ui_sdl3_scroll_file_view(SDL3Ui* ui, FileViewGroup* group, size_t i)
     const size_t cursor_right_edge = cursor->on_screen.x + cursor->on_screen.w;
     const size_t cursor_top_edge = cursor->on_screen.y;
     const size_t cursor_bottom_edge = cursor->on_screen.y + cursor->on_screen.h;
-    const size_t group_right_border = group->area.x + group->area.w - scroll_margin_x;
+    const size_t group_right_border = group->area.x + group->area.w - scroll_margin_x
+        - (size_t)ui->line_nr_padding;
     const size_t group_bottom_border = group->area.y + group->area.h - scroll_margin_y;
+
+    printf(
+        "cursor: u=%zu,d=%zu,l=%zu,r=%zu;   edge: u=%zu,d=%zu,l=%zu,r=%zu\n",
+        cursor_top_edge,
+        cursor_bottom_edge,
+        cursor_left_edge,
+        cursor_right_edge,
+        scroll_margin_x,
+        group_bottom_border,
+        scroll_margin_y,
+        group_right_border);
 
     if (cursor_right_edge > group_right_border) {
         file_view->scrolling.x = cursor_right_edge - group_right_border;
         printf("cursor[%zu] x too far right, shifting by %zu\n", i, file_view->scrolling.x);
     }
-    if (cursor_left_edge < scroll_margin_x) {
+    if (cursor_left_edge < scroll_margin_x && cursor->byte != 0) {
         file_view->scrolling.x = scroll_margin_x;
         printf("cursor[%zu] x too far left, shifting by %zu\n", i, file_view->scrolling.x);
     }
@@ -456,7 +470,7 @@ static void ui_sdl3_scroll_file_view(SDL3Ui* ui, FileViewGroup* group, size_t i)
         file_view->scrolling.y = cursor_bottom_edge - group_bottom_border;
         printf("cursor[%zu] y too far down, shifting by %zu\n", i, file_view->scrolling.y);
     }
-    if (cursor_top_edge < scroll_margin_y) {
+    if (cursor_top_edge < scroll_margin_y && cursor->line != 0) {
         file_view->scrolling.y = scroll_margin_y;
         printf("cursor[%zu] y too far up, shifting by %zu\n", i, file_view->scrolling.y);
     }
@@ -467,37 +481,29 @@ static void ui_sdl3_render(SDL3Ui* ui)
     SDL_RenderPresent(ui->renderer);
 }
 
-static size_t format_line_number(SDL3Ui* ui, size_t line_number, char* buffer, size_t bufsize)
+static void ui_sdl3_compute_line_number_gutter_width(SDL3Ui* ui, FileViewGroup* group)
 {
     Meditor* medit = ui->medit;
+    FileView* file_view = medit_get_displayed_file_view_in_group(medit, group);
 
-    FileView* file_view = medit_get_focused_file_view(medit);
-
-    // Compute the maximum number of digits (minimum 4)
     const int line_count = SDL_max(size_to_int(file_view->file->lines.count), 1000);
-    const int max_digits = digits_count(line_count);
+    ui->line_nr_max_digits = digits_count(line_count);
 
-    { // Compute the padding size to render this max line number
-        int written = snprintf(buffer, bufsize, "%d ", line_count);
-        assert(written > 0);
-
-        int line_number_width = 0;
-        TTF_MeasureString(
-            ui->font_editor.main,
-            buffer,
-            (size_t)written,
-            0,
-            &line_number_width,
-            NULL);
-        assert(line_number_width >= 0);
-
-        ui->line_nr_padding = line_number_width;
-    }
-
-    // Render the number of the current line
-    int written = snprintf(buffer, bufsize, "%*zu", max_digits, line_number + 1);
+    char buffer[INT64_DIGITS_COUNT] = { 0 };
+    int written = snprintf(buffer, sizeof(buffer), "%d ", line_count);
     assert(written > 0);
-    return (size_t)written;
+
+    int line_number_width = 0;
+    TTF_MeasureString(
+        ui->font_editor.main,
+        buffer,
+        int_to_size(written),
+        0,
+        &line_number_width,
+        NULL);
+    assert(line_number_width >= 0);
+
+    ui->line_nr_padding = line_number_width;
 }
 
 static void ui_sdl3_draw_line_number(SDL3Ui* ui, size_t row, FileViewGroup* group)
@@ -516,9 +522,16 @@ static void ui_sdl3_draw_line_number(SDL3Ui* ui, size_t row, FileViewGroup* grou
     pos.x += size_to_int(group->area.x);
     pos.y += size_to_int(group->area.y);
 
-    char line_number[64]; // size big enough to hold the number of digits in a 64 bits integer
-    size_t line_numnber_len = format_line_number(ui, row, line_number, sizeof(line_number));
-    ui_sdl3_draw_text(ui, line_number, line_numnber_len, &ui->font_editor, pos, line_number_color);
+    char line_number[INT64_DIGITS_COUNT] = { 0 };
+    int written = snprintf(
+        line_number,
+        sizeof(line_number),
+        "%*zu",
+        ui->line_nr_max_digits,
+        row + 1);
+
+    size_t line_number_len = int_to_size(written);
+    ui_sdl3_draw_text(ui, line_number, line_number_len, &ui->font_editor, pos, line_number_color);
 }
 
 static void ui_sdl3_draw_line(SDL3Ui* ui, size_t row, Line* line, FileViewGroup* group)
@@ -648,6 +661,7 @@ void medit_ui_sdl3_run(Meditor* medit)
         for (size_t i = 0; i < medit->file_views.count; ++i) {
             FileViewGroup* group = &medit->file_views.items[i];
             // TODO consider doing this on event instead of every frame
+            ui_sdl3_compute_line_number_gutter_width(&ui, group);
             ui_sdl3_update_cursor_position(&ui, group);
             ui_sdl3_scroll_file_view(&ui, group, i);
 

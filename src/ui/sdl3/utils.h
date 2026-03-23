@@ -40,4 +40,10 @@ static inline int digits_count(int n)
     return 10;
 }
 
+// Maximum number of digits needed to represent any 64-bits integer (including a potential sign for
+// signed integers and a null character)
+enum {
+    INT64_DIGITS_COUNT = 22u,
+};
+
 #endif // MEDIT_UI_SDL3_UTILS_H_
