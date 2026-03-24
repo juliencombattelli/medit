@@ -48,6 +48,7 @@ typedef struct {
 typedef struct {
     size_t line;
     size_t byte;
+    size_t len; // length in bytes of the grapheme under the cursor
     // On screen coordinates of the cursor, excluding the ui elements around the file view
     // So (x=0,y=0) is the top-left corner if the first text glyph in of the viewed file
     Rect on_screen;

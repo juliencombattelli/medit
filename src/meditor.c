@@ -1,5 +1,6 @@
 #include "meditor.h"
 #include "dynarray.h"
+#include "unicode.h"
 #include "utils.h"
 
 #include <string.h>
@@ -241,7 +242,14 @@ void medit_cursor_right(Meditor* medit)
     Line* line = medit_get_current_line(medit);
     Cursor* cursor = &file_view->cursors.items[0];
     if (cursor->byte < line->count) {
-        ++cursor->byte;
+        // ++cursor->byte;
+        UcGraphemeIter it = { 0 };
+        uc_grapheme_iter_init(&it, (uint8_t*)line->items, line->count, cursor->byte);
+        UcSpan out = { 0 };
+        uc_grapheme_iter_next(&it, &out);
+        cursor->byte += out.len;
+        uc_grapheme_iter_next(&it, &out);
+        cursor->len = out.len;
     } else if (cursor->line < file_view->file->lines.count - 1) {
         ++cursor->line;
         cursor->byte = 0;
