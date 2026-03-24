@@ -1,12 +1,15 @@
-if (DEFINED SDL3_DIR)
-    # If the user set SDL3_DIR, then assume that they realy want Medit to
+if (NOT DEFINED FETCHCONTENT_SOURCE_DIR_SDL3 AND DEFINED SDL3_DIR)
+    # If the user set SDL3_DIR, then assume that they really want Medit to
     # use the specified installation, so error out if it is not found
     set(SDL3_REQUIRED REQUIRED)
 endif()
 
 find_package(SDL3 CONFIG ${SDL3_REQUIRED})
 
-if(NOT DEFINED SDL3_FOUND)
+if(SDL3_FOUND)
+    message(STATUS "Found SDL3 (SDL3_DIR: ${SDL3_DIR})")
+else()
+    message(STATUS "Using vendored SDL3")
     include(FetchContent)
     
     FetchContent_Declare(
