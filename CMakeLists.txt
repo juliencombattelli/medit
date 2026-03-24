@@ -5,9 +5,9 @@ set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
 
-include(cmake/FindPackageOrFetchSDL3.cmake)
-include(cmake/FindPackageOrFetchSDL3_ttf.cmake)
-include(cmake/FindPackageOrFetchutf8proc.cmake)
+include(cmake/FindPackageOrFetch/SDL3.cmake)
+include(cmake/FindPackageOrFetch/SDL3_ttf.cmake)
+include(cmake/FindPackageOrFetch/utf8proc.cmake)
 
 if(MSVC)
     set(COMPILE_OPTIONS /W4)
