@@ -7,6 +7,7 @@ set(CMAKE_C_EXTENSIONS OFF)
 
 include(cmake/FindPackageOrFetchSDL3.cmake)
 include(cmake/FindPackageOrFetchSDL3_ttf.cmake)
+include(cmake/FindPackageOrFetchutf8proc.cmake)
 
 if(MSVC)
     set(COMPILE_OPTIONS /W4)
@@ -28,7 +29,7 @@ add_executable(medit
 target_compile_options(medit PRIVATE ${COMPILE_OPTIONS})
 target_link_options(medit PRIVATE ${LINK_OPTIONS})
 target_include_directories(medit PRIVATE src)
-target_link_libraries(medit PRIVATE SDL3::SDL3 SDL3_ttf::SDL3_ttf)
+target_link_libraries(medit PRIVATE SDL3::SDL3 SDL3_ttf::SDL3_ttf utf8proc::utf8proc)
 
 add_executable(test_dynarray test/dynarray.c)
 target_compile_options(test_dynarray PRIVATE ${COMPILE_OPTIONS})

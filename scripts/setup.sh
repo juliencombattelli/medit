@@ -51,6 +51,7 @@ fi
 # Download dependencies
 clone_or_checkout https://github.com/libsdl-org/SDL release-3.4.2 "$SRC_DIR/SDL"
 clone_or_checkout https://github.com/libsdl-org/SDL_ttf release-3.2.2 "$SRC_DIR/SDL_ttf"
+clone_or_checkout https://github.com/JuliaStrings/utf8proc v2.11.3 "$SRC_DIR/utf8proc"
 
 # Build and install SDL (static and shared)
 cmake -S "$SRC_DIR/SDL" -B "$SRC_DIR/SDL/build" \
@@ -72,3 +73,17 @@ cmake -S "$SRC_DIR/SDL_ttf" -B "$SRC_DIR/SDL_ttf/build" \
     -DBUILD_SHARED_LIBS=OFF -DSDLTTF_INSTALL_MAN=ON -DSDLTTF_VENDORED=ON
 cmake --build "$SRC_DIR/SDL_ttf/build" -j
 cmake --install "$SRC_DIR/SDL_ttf/build"
+
+# Build and install utf8proc (shared)
+cmake -S "$SRC_DIR/utf8proc" -B "$SRC_DIR/utf8proc/build" \
+    -DCMAKE_BUILD_TYPE=Release "$@" \
+    -DBUILD_SHARED_LIBS=ON -DUTF8PROC_ENABLE_TESTING=OFF
+cmake --build "$SRC_DIR/utf8proc/build" -j
+cmake --install "$SRC_DIR/utf8proc/build"
+
+# Build and install utf8proc (static)
+cmake -S "$SRC_DIR/utf8proc" -B "$SRC_DIR/utf8proc/build" \
+    -DCMAKE_BUILD_TYPE=Release "$@" \
+    -DBUILD_SHARED_LIBS=OFF -DUTF8PROC_ENABLE_TESTING=OFF
+cmake --build "$SRC_DIR/utf8proc/build" -j
+cmake --install "$SRC_DIR/utf8proc/build"
