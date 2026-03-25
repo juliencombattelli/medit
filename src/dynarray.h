@@ -89,6 +89,16 @@
         (da)->count -= 1;                                                                          \
     } while (0)
 
+#define dynarray_remove_many(da, pos, cnt)                                                         \
+    do {                                                                                           \
+        assert(pos < (da)->count);                                                                 \
+        memmove(                                                                                   \
+            (da)->items + (pos),                                                                   \
+            (da)->items + (pos) + (cnt),                                                           \
+            ((da)->count - (cnt) - (pos)) * sizeof(*(da)->items));                                 \
+        (da)->count -= (cnt);                                                                      \
+    } while (0)
+
 #define dynarray_foreach(Type, it, da)                                                             \
     for (Type* it = (da)->items; it < (da)->items + (da)->count; ++it)
 

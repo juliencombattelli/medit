@@ -1,5 +1,6 @@
 #include "meditor.h"
 #include "dynarray.h"
+#include "unicode.h"
 #include "utils.h"
 
 #include <string.h>
@@ -217,9 +218,17 @@ void medit_cursor_down(Meditor* medit)
 void medit_cursor_left(Meditor* medit)
 {
     FileView* file_view = medit_get_focused_file_view(medit);
+    Line* line = medit_get_current_line(medit);
     Cursor* cursor = &file_view->cursors.items[0];
     if (cursor->byte > 0) {
-        --cursor->byte;
+        UcGraphemeIter it = { 0 };
+        uc_grapheme_iter_init(&it, (uint8_t*)line->items, line->count, cursor->byte);
+        UcSpan out = { 0 };
+        // Move the cursor to the previous grapheme by shifting left by the length of the current
+        // grapheme and save its length
+        uc_grapheme_iter_prev(&it, &out);
+        cursor->byte -= out.len;
+        cursor->len = out.len;
     } else if (cursor->line > 0) {
         --cursor->line;
         Line* upper_line = medit_get_current_line(medit);
@@ -241,8 +250,18 @@ void medit_cursor_right(Meditor* medit)
     Line* line = medit_get_current_line(medit);
     Cursor* cursor = &file_view->cursors.items[0];
     if (cursor->byte < line->count) {
-        ++cursor->byte;
+        UcGraphemeIter it = { 0 };
+        uc_grapheme_iter_init(&it, (uint8_t*)line->items, line->count, cursor->byte);
+        UcSpan out = { 0 };
+        // Move the cursor to the next grapheme by shifting right by the length of the current
+        // grapheme
+        uc_grapheme_iter_next(&it, &out);
+        cursor->byte += out.len;
+        // Save the length of the grapheme at the new cursor position
+        uc_grapheme_iter_next(&it, &out);
+        cursor->len = out.len;
     } else if (cursor->line < file_view->file->lines.count - 1) {
+        // End of current line, switch to the following one if any
         ++cursor->line;
         cursor->byte = 0;
     }
@@ -417,7 +436,19 @@ void medit_erase_char(Meditor* medit)
         dynarray_free(erased);
         dynarray_remove(lines, cursor_line);
     } else {
-        // Remove a single char before the cursor
-        dynarray_remove(current_line, cursor_byte - 1);
+        Cursor* cursor = &file_view->cursors.items[0];
+        // Remove the grapheme before the cursor
+        dynarray_remove_many(current_line, cursor_byte - cursor->len, cursor->len);
+        // Update the length of the cursor as the character under it was removed and the whole line
+        // shifted left by one grapheme
+        UcGraphemeIter it = { 0 };
+        uc_grapheme_iter_init(
+            &it,
+            (uint8_t*)current_line->items,
+            current_line->count,
+            cursor->byte);
+        UcSpan out = { 0 };
+        uc_grapheme_iter_next(&it, &out);
+        cursor->len = out.len;
     }
 }

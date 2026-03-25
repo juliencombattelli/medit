@@ -1,4 +1,3 @@
-#include "dynarray.h"
 #include "meditor.h"
 #include "ui/sdl3/sdl3.h"
 #include "utils.h"

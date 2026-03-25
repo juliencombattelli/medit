@@ -5,6 +5,7 @@
 #include "keybind.h"
 #include "meditor.h"
 #include "safeint.h"
+#include "unicode.h"
 #include "utils.h"
 
 #include <SDL3/SDL.h>
@@ -386,15 +387,34 @@ static void ui_sdl3_update_cursor_position(SDL3Ui* ui, FileViewGroup* group)
     size_t cell_h = int_to_size(ui->cell_size.height);
     for (size_t i = 0; i < file_view->cursors.count; ++i) {
         Cursor* cursor = &file_view->cursors.items[i];
+        Line* line = &file_view->file->lines.items[cursor->line];
+        // Compute x offset of the cursor in the line
+        int line_w = 0;
+        if (cursor->byte != 0) {
+            TTF_MeasureString(
+                ui->font_editor.main,
+                file_view->file->lines.items[cursor->line].items,
+                cursor->byte,
+                0,
+                &line_w,
+                NULL);
+        }
+        // Compute cursor width
+        int cursor_w = size_to_int(cell_w);
+        if (line->count != cursor->byte) {
+            // cursor not at end of line (excludes also empty lines)
+            TTF_MeasureString(
+                ui->font_editor.main,
+                &line->items[cursor->byte],
+                cursor->len,
+                0,
+                &cursor_w,
+                NULL);
+        }
         cursor->on_screen = (Rect) {
-            // TODO compute x with the length of the current line up to the char before the cursor
-            // instead of using cursor_byte*cell_width
-            // However it's ok for y to use cursor_line*cell_height as the cell height is fixed by
-            // the font
-            .x = group->area.x + (cursor->byte * cell_w),
+            .x = group->area.x + int_to_size(line_w),
             .y = group->area.y + (cursor->line * cell_h),
-            // TODO compute cell_width with the length of the glyph under the cursor
-            .w = cell_w,
+            .w = int_to_size(cursor_w),
             .h = cell_h,
         };
     }
@@ -428,11 +448,18 @@ static void ui_sdl3_draw_cursor(SDL3Ui* ui, FileViewGroup* group)
         Line* current_line = &file_view->file->lines.items[cursor->line];
         if (cursor->byte < current_line->count) {
             const char* c = &current_line->items[cursor->byte];
-            PixelPos char_pos = cell_to_pixel_pos(ui, *cursor);
-            char_pos.x += size_to_int(group->area.x) + ui->line_nr_padding
-                - size_to_int(file_view->scrolling.x);
-            char_pos.y += size_to_int(group->area.y) - size_to_int(file_view->scrolling.y);
-            ui_sdl3_draw_text(ui, c, 1, &ui->font_editor, char_pos, color_inverse(cursor_color));
+            PixelPos char_pos = {
+                .x = size_to_int(cursor->on_screen.x) + ui->line_nr_padding
+                    - size_to_int(file_view->scrolling.x),
+                .y = size_to_int(cursor->on_screen.y - file_view->scrolling.y),
+            };
+            ui_sdl3_draw_text(
+                ui,
+                c,
+                cursor->len,
+                &ui->font_editor,
+                char_pos,
+                color_inverse(cursor_color));
         }
     }
 }
@@ -638,7 +665,7 @@ void temp_ui_sdl3_setup_layout(SDL3Ui* ui)
 
     // Insert some text in the focused latest created group
     const char text[] = "😊😊😊😊😊😊ùùùù😊";
-    medit_insert_text(medit, text, sizeof(text));
+    medit_insert_text(medit, text, strlen(text));
 
     // Update the layout of the groups in a grid fashion
     temp_ui_sdl3_update_file_view_groups_size(ui);
@@ -652,6 +679,22 @@ void medit_ui_sdl3_run(Meditor* medit)
     ui_sdl3_load_editor_font(&ui);
 
     temp_ui_sdl3_setup_layout(&ui);
+
+    for (size_t i = 0; i < medit->file_views.count; ++i) {
+        FileViewGroup* group = &medit->file_views.items[i];
+        for (size_t j = 0; j < group->count; ++j) {
+            FileView* file_view = &group->items[j];
+            Cursor* cursor = &file_view->cursors.items[0];
+            Line* line = &file_view->file->lines.items[0];
+
+            UcGraphemeIter it = { 0 };
+            uc_grapheme_iter_init(&it, (uint8_t*)line->items, line->count, cursor->byte);
+            UcSpan out = { 0 };
+            uc_grapheme_iter_next(&it, &out);
+            cursor->len = out.len;
+            printf("group %zu, fileview %zu, cursor->len=%zu\n", i, j, cursor->len);
+        }
+    }
 
     medit->running = true;
     medit->input_in_frame = true;
