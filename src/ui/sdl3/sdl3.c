@@ -717,10 +717,6 @@ void medit_ui_sdl3_run(Meditor* medit)
                 { // TODO consider doing this on event instead of every frame
                     ui_sdl3_compute_line_number_gutter_width(&ui, group);
                     ui_sdl3_update_cursor_position(&ui, group);
-                    // TODO scrolling is done by rendering the all file with an offset and a
-                    // clipping rect corresponding to the group where the file is viewed This could
-                    // be optimized by only rendering the lines and bytes inside/near the clipping
-                    // rect
                     ui_sdl3_scroll_file_view(&ui, group);
                 }
 
