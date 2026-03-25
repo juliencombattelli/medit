@@ -19,7 +19,7 @@ if [ ! -f asset/font/consola.ttf ]; then
 fi
 
 cmake -S . -B build \
-    -DCMAKE_BUILD_TYPE=RelWithDebInfo -DFETCHCONTENT_QUIET=NO \
+    -DCMAKE_BUILD_TYPE=Debug -DFETCHCONTENT_QUIET=NO \
     -DSDL3_DIR=../medit-deps-install/lib/cmake/SDL3 \
     -DSDL3_ttf_DIR=../medit-deps-install/lib/cmake/SDL3_ttf \
     -Dutf8proc_DIR=../medit-deps-install/lib/cmake/utf8proc \

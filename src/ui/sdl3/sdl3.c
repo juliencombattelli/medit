@@ -35,6 +35,22 @@ typedef struct {
 } Font;
 
 typedef struct {
+    TTF_Text* text; // cached line content TTF_Text, NULL if not yet created
+    const char* line_ptr; // line->items at cache time, for invalidation
+    size_t line_count; // line->count at cache time, for invalidation
+    TTF_Text* nr_text; // cached line number TTF_Text, NULL if not yet created
+    int cached_nr; // row+1 at cache time, for invalidation
+    int cached_nr_digits; // line_nr_max_digits at cache time, for invalidation
+} CachedLine;
+
+typedef struct {
+    CachedLine* items;
+    size_t count;
+    size_t capacity;
+    File* file; // file this cache belongs to, NULL if invalid
+} LineCache;
+
+typedef struct {
     Meditor* medit;
     SDL_Window* window;
     SDL_Renderer* renderer;
@@ -46,6 +62,9 @@ typedef struct {
     int line_nr_padding;
     int line_nr_max_digits;
     int editor_font_size;
+    TTF_TextEngine* text_engine;
+    LineCache* group_caches;
+    size_t group_caches_count;
 } SDL3Ui;
 
 static bool ui_sdl3_create(SDL3Ui* ui, Meditor* medit);
@@ -74,12 +93,88 @@ static void ui_sdl3_draw_cursor(SDL3Ui* ui, FileViewGroup* group);
 static void ui_sdl3_render(SDL3Ui* ui);
 
 static void temp_ui_sdl3_update_file_view_groups_size(SDL3Ui* ui);
+static void ui_sdl3_invalidate_line_caches(SDL3Ui* ui);
 
 enum {
     DEFAULT_WINDOW_WIDTH = 1280,
     DEFAULT_WINDOW_HEIGHT = 720,
     DEFAULT_CURSOR_BLINK_PERIOD_MS = 1000,
 };
+
+static void ui_sdl3_invalidate_line_caches(SDL3Ui* ui)
+{
+    for (size_t g = 0; g < ui->group_caches_count; ++g) {
+        LineCache* cache = &ui->group_caches[g];
+        for (size_t i = 0; i < cache->count; ++i) {
+            if (cache->items[i].text) {
+                TTF_DestroyText(cache->items[i].text);
+                cache->items[i].text = NULL;
+            }
+            if (cache->items[i].nr_text) {
+                TTF_DestroyText(cache->items[i].nr_text);
+                cache->items[i].nr_text = NULL;
+            }
+        }
+        cache->count = 0;
+        cache->file = NULL;
+    }
+}
+
+static void ui_sdl3_ensure_group_caches(SDL3Ui* ui, size_t group_idx)
+{
+    if (group_idx >= ui->group_caches_count) {
+        size_t new_count = group_idx + 1;
+        ui->group_caches = realloc(ui->group_caches, new_count * sizeof(LineCache));
+        assert(ui->group_caches != NULL && "Buy more RAM lol");
+        memset(
+            ui->group_caches + ui->group_caches_count,
+            0,
+            (new_count - ui->group_caches_count) * sizeof(LineCache));
+        ui->group_caches_count = new_count;
+    }
+}
+
+static void ui_sdl3_sync_group_cache(SDL3Ui* ui, size_t group_idx, FileView* file_view)
+{
+    LineCache* cache = &ui->group_caches[group_idx];
+    File* file = file_view->file;
+
+    if (cache->file != file) {
+        for (size_t i = 0; i < cache->count; ++i) {
+            if (cache->items[i].text) {
+                TTF_DestroyText(cache->items[i].text);
+                cache->items[i].text = NULL;
+            }
+            if (cache->items[i].nr_text) {
+                TTF_DestroyText(cache->items[i].nr_text);
+                cache->items[i].nr_text = NULL;
+            }
+        }
+        cache->count = 0;
+        cache->file = file;
+    }
+
+    size_t new_count = file->lines.count;
+
+    // Destroy TTF_Text objects for lines that were removed
+    for (size_t i = new_count; i < cache->count; ++i) {
+        if (cache->items[i].text) {
+            TTF_DestroyText(cache->items[i].text);
+            cache->items[i].text = NULL;
+        }
+        if (cache->items[i].nr_text) {
+            TTF_DestroyText(cache->items[i].nr_text);
+            cache->items[i].nr_text = NULL;
+        }
+    }
+
+    // Grow cache array and zero out new slots
+    if (new_count > cache->count) {
+        dynarray_reserve(cache, new_count);
+        memset(cache->items + cache->count, 0, (new_count - cache->count) * sizeof(CachedLine));
+    }
+    cache->count = new_count;
+}
 
 static bool ui_sdl3_create(SDL3Ui* ui, Meditor* medit)
 {
@@ -100,8 +195,12 @@ static bool ui_sdl3_create(SDL3Ui* ui, Meditor* medit)
 
     try(SDL_SetRenderVSync(renderer, 1));
 
+    TTF_TextEngine* text_engine = TTF_CreateRendererTextEngine(renderer);
+    try(text_engine);
+
     ui->window = window;
     ui->renderer = renderer;
+    ui->text_engine = text_engine;
 
     try(SDL_ShowWindow(ui->window));
 
@@ -117,6 +216,13 @@ static bool ui_sdl3_create(SDL3Ui* ui, Meditor* medit)
 static void ui_sdl3_destroy(SDL3Ui* ui)
 {
     SDL_StopTextInput(ui->window);
+
+    ui_sdl3_invalidate_line_caches(ui);
+    for (size_t g = 0; g < ui->group_caches_count; ++g) {
+        free(ui->group_caches[g].items);
+    }
+    free(ui->group_caches);
+    TTF_DestroyRendererTextEngine(ui->text_engine);
 
     SDL_DestroyRenderer(ui->renderer);
     SDL_DestroyWindow(ui->window);
@@ -217,6 +323,7 @@ static void ui_sdl3_load_editor_font(SDL3Ui* ui)
 
 static void ui_sdl3_unload_editor_font(SDL3Ui* ui)
 {
+    ui_sdl3_invalidate_line_caches(ui);
     TTF_ClearFallbackFonts(ui->font_editor.main);
     TTF_CloseFont(ui->font_editor.main);
     TTF_CloseFont(ui->font_editor.emoji);
@@ -326,47 +433,11 @@ static void ui_sdl3_draw_text(
         return;
     }
 
-    // Take one extra cell to allow display partial chars
-    int max_string_width = ui->window_size.width + ui->cell_size.width;
-
-    int text_width = 0;
-    size_t text_bytes_max = 0;
-    bool res = TTF_MeasureString(
-        font->main,
-        text,
-        len,
-        max_string_width,
-        &text_width,
-        &text_bytes_max);
-    assert(res == true);
-
-    size_t printed_bytes = SDL_min(len, text_bytes_max);
-
-    if (text_width == 0) {
-        return;
-    }
-
-    SDL_Surface* surface = TTF_RenderText_Blended(
-        font->main,
-        text,
-        printed_bytes,
-        color_to_sdl3(color));
-    assert(surface != NULL);
-
-    SDL_Texture* texture = SDL_CreateTextureFromSurface(ui->renderer, surface);
-    assert(texture != NULL);
-
-    const SDL_FRect glyph_rect = {
-        .x = (float)pos.x,
-        .y = (float)pos.y,
-        .w = (float)surface->w,
-        .h = (float)surface->h,
-    };
-
-    SDL_RenderTexture(ui->renderer, texture, NULL, &glyph_rect);
-
-    SDL_DestroySurface(surface);
-    SDL_DestroyTexture(texture);
+    TTF_Text* t = TTF_CreateText(ui->text_engine, font->main, text, len);
+    assert(t != NULL);
+    assert(TTF_SetTextColor(t, color_to_RGBA_args(color)));
+    TTF_DrawRendererText(t, (float)pos.x, (float)pos.y);
+    TTF_DestroyText(t);
 }
 
 static void ui_sdl3_update_cursor_position(SDL3Ui* ui, FileViewGroup* group)
@@ -523,7 +594,11 @@ static void ui_sdl3_compute_line_number_gutter_width(SDL3Ui* ui, FileViewGroup* 
     ui->line_nr_padding = line_number_width;
 }
 
-static void ui_sdl3_draw_line_number(SDL3Ui* ui, size_t row, FileViewGroup* group)
+static void ui_sdl3_draw_line_number(
+    SDL3Ui* ui,
+    size_t row,
+    FileViewGroup* group,
+    CachedLine* cached)
 {
     Meditor* medit = ui->medit;
 
@@ -550,6 +625,26 @@ static void ui_sdl3_draw_line_number(SDL3Ui* ui, size_t row, FileViewGroup* grou
         row + 1);
     size_t line_number_len = int_to_size(written);
 
+    // Update cached TTF_Text for this line number if the content changed
+    int cur_nr = (int)(row + 1);
+    if (cached->nr_text == NULL || cached->cached_nr != cur_nr
+        || cached->cached_nr_digits != ui->line_nr_max_digits) {
+        if (cached->nr_text == NULL) {
+            cached->nr_text = TTF_CreateText(
+                ui->text_engine,
+                ui->font_editor.main,
+                line_number,
+                line_number_len);
+        } else {
+            TTF_SetTextString(cached->nr_text, line_number, line_number_len);
+        }
+        assert(cached->nr_text != NULL);
+        cached->cached_nr = cur_nr;
+        cached->cached_nr_digits = ui->line_nr_max_digits;
+    }
+
+    assert(TTF_SetTextColor(cached->nr_text, color_to_RGBA_args(line_number_color)));
+
     const SDL_Rect clipping_rect = {
         .x = size_to_int(group->area.x),
         .y = size_to_int(group->area.y),
@@ -558,13 +653,22 @@ static void ui_sdl3_draw_line_number(SDL3Ui* ui, size_t row, FileViewGroup* grou
     };
     assert(SDL_SetRenderClipRect(ui->renderer, &clipping_rect));
 
-    ui_sdl3_draw_text(ui, line_number, line_number_len, &ui->font_editor, pos, line_number_color);
+    TTF_DrawRendererText(cached->nr_text, (float)pos.x, (float)pos.y);
 
     assert(SDL_SetRenderClipRect(ui->renderer, NULL));
 }
 
-static void ui_sdl3_draw_line(SDL3Ui* ui, size_t row, Line* line, FileViewGroup* group)
+static void ui_sdl3_draw_line(
+    SDL3Ui* ui,
+    size_t row,
+    Line* line,
+    FileViewGroup* group,
+    CachedLine* cached)
 {
+    if (line->count == 0) {
+        return;
+    }
+
     Meditor* medit = ui->medit;
     FileView* file_view = medit_get_displayed_file_view_in_group(medit, group);
 
@@ -574,6 +678,25 @@ static void ui_sdl3_draw_line(SDL3Ui* ui, size_t row, Line* line, FileViewGroup*
             - size_to_int(file_view->scrolling.y),
     };
 
+    // Update cached TTF_Text if the line content changed
+    if (cached->text == NULL || cached->line_ptr != line->items
+        || cached->line_count != line->count) {
+        if (cached->text == NULL) {
+            cached->text = TTF_CreateText(
+                ui->text_engine,
+                ui->font_editor.main,
+                line->items,
+                line->count);
+        } else {
+            TTF_SetTextString(cached->text, line->items, line->count);
+        }
+        assert(cached->text != NULL);
+        cached->line_ptr = line->items;
+        cached->line_count = line->count;
+    }
+
+    assert(TTF_SetTextColor(cached->text, color_to_RGBA_args(medit->config.color_theme.editor_fg)));
+
     const SDL_Rect clipping_rect = {
         .x = size_to_int(group->area.x) + ui->line_nr_padding,
         .y = size_to_int(group->area.y),
@@ -582,13 +705,7 @@ static void ui_sdl3_draw_line(SDL3Ui* ui, size_t row, Line* line, FileViewGroup*
     };
     assert(SDL_SetRenderClipRect(ui->renderer, &clipping_rect));
 
-    ui_sdl3_draw_text(
-        ui,
-        line->items,
-        line->count,
-        &ui->font_editor,
-        line_pos,
-        medit->config.color_theme.editor_fg);
+    TTF_DrawRendererText(cached->text, (float)line_pos.x, (float)line_pos.y);
 
     assert(SDL_SetRenderClipRect(ui->renderer, NULL));
 }
@@ -599,11 +716,21 @@ static void ui_sdl3_draw_file_view_group(SDL3Ui* ui, FileViewGroup* group)
     FileView* file_view = medit_get_displayed_file_view_in_group(medit, group);
     Lines* lines = &file_view->file->lines;
 
+    size_t group_idx = (size_t)(group - medit->file_views.items);
+    ui_sdl3_ensure_group_caches(ui, group_idx);
+    ui_sdl3_sync_group_cache(ui, group_idx, file_view);
+    LineCache* cache = &ui->group_caches[group_idx];
+
     const size_t first_rendered_line = (file_view->scrolling.y / int_to_size(ui->cell_size.height));
-    for (size_t row = first_rendered_line; row < lines->count; ++row) {
+    const size_t last_rendered_line = SDL_min(
+        lines->count,
+        (file_view->scrolling.y + int_to_size(ui->cell_size.height) + group->area.h)
+            / int_to_size(ui->cell_size.height));
+    for (size_t row = first_rendered_line; row < last_rendered_line; ++row) {
         Line* line = &lines->items[row];
-        ui_sdl3_draw_line_number(ui, row, group);
-        ui_sdl3_draw_line(ui, row, line, group);
+        CachedLine* cached_line = &cache->items[row];
+        ui_sdl3_draw_line_number(ui, row, group, cached_line);
+        ui_sdl3_draw_line(ui, row, line, group, cached_line);
     }
 }
 
@@ -659,16 +786,18 @@ void temp_ui_sdl3_setup_layout(SDL3Ui* ui)
 {
     Meditor* medit = ui->medit;
 
-    // Create an empty file in some file view groups
-    for (size_t i = 0; i < 9; ++i) {
-        dynarray_append(&medit->file_views, (FileViewGroup) { 0 });
-        medit->file_views.focused = medit->file_views.count - 1;
-        medit_new_empty_file(medit, &dynarray_last(&medit->file_views));
-    }
+    medit_load_file(medit, "./src/ui/sdl3/sdl3.c");
 
-    // Insert some text in the focused latest created group
-    const char text[] = "😊😊😊😊😊😊ùùùù😊";
-    medit_insert_text(medit, text, strlen(text));
+    // // Create an empty file in some file view groups
+    // for (size_t i = 0; i < 1; ++i) {
+    //     dynarray_append(&medit->file_views, (FileViewGroup) { 0 });
+    //     medit->file_views.focused = medit->file_views.count - 1;
+    //     medit_new_empty_file(medit, &dynarray_last(&medit->file_views));
+    // }
+
+    // // Insert some text in the focused latest created group
+    // const char text[] = "😊😊😊😊😊😊ùùùù😊";
+    // medit_insert_text(medit, text, strlen(text));
 
     // Update the layout of the groups in a grid fashion
     temp_ui_sdl3_update_file_view_groups_size(ui);

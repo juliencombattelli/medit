@@ -3,6 +3,7 @@
 #include "unicode.h"
 #include "utils.h"
 
+#include <stdio.h>
 #include <string.h>
 
 #define MEDIT_LINE_DEFAULT_CAPACITY 1024
@@ -329,6 +330,69 @@ void medit_new_empty_file(Meditor* medit, FileViewGroup* group)
     dynarray_append(group, new_file_view);
 
     medit_insert_new_line(medit);
+}
+
+void medit_load_file(Meditor* medit, const char* filepath)
+{
+    // Create a group if none exists
+    if (medit->file_views.count == 0) {
+        dynarray_append(&medit->file_views, (FileViewGroup) { 0 });
+        medit->file_views.focused = 0;
+    }
+    FileViewGroup* group = medit_get_focused_file_view_group(medit);
+
+    // Create and register the new file
+    File new_file = { .name = filepath };
+    dynarray_append(&medit->opened_files, new_file);
+    File* file = &dynarray_last(&medit->opened_files);
+
+    FILE* f = fopen(filepath, "re");
+    if (f == NULL) {
+        printf("Error: cannot open file %s\n", filepath);
+        // Fall back to a single empty line
+        Line empty_line = { 0 };
+        dynarray_reserve(&empty_line, MEDIT_LINE_DEFAULT_CAPACITY);
+        dynarray_append(&file->lines, empty_line);
+    } else {
+        char buf[MEDIT_LINE_DEFAULT_CAPACITY];
+        Line current_line = { 0 };
+        dynarray_reserve(&current_line, MEDIT_LINE_DEFAULT_CAPACITY);
+
+        while (fgets(buf, sizeof(buf), f) != NULL) {
+            size_t len = strlen(buf);
+            // Strip trailing CRLF or LF
+            if (len > 0 && buf[len - 1] == '\n') {
+                len--;
+                if (len > 0 && buf[len - 1] == '\r') {
+                    len--;
+                }
+                dynarray_append_many(&current_line, buf, len);
+                dynarray_append(&file->lines, current_line);
+                current_line = (Line) { 0 };
+                dynarray_reserve(&current_line, MEDIT_LINE_DEFAULT_CAPACITY);
+            } else {
+                // Buffer was too small; accumulate into the same line
+                dynarray_append_many(&current_line, buf, len);
+            }
+        }
+        // Trailing line with no newline, or empty file
+        if (current_line.count > 0 || file->lines.count == 0) {
+            dynarray_append(&file->lines, current_line);
+        } else {
+            dynarray_free(current_line);
+        }
+
+        (void)fclose(f);
+    }
+
+    // Create a file view pointing to the loaded file
+    FileView new_file_view = {
+        .file = file,
+    };
+    dynarray_append(&new_file_view.cursors, (Cursor) { 0 });
+
+    dynarray_append(group, new_file_view);
+    group->displayed = group->count - 1;
 }
 
 void medit_close_files(Meditor* medit)

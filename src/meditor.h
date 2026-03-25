@@ -124,6 +124,7 @@ void medit_cursor_right(Meditor* medit);
 void medit_insert_text(Meditor* medit, const char* text, size_t n);
 
 void medit_new_empty_file(Meditor* medit, FileViewGroup* group);
+void medit_load_file(Meditor* medit, const char* filepath);
 void medit_close_files(Meditor* medit);
 
 void medit_split_line(Meditor* medit);
