@@ -2,7 +2,9 @@
 - [x] render char cell under cursor on top of it
 - [x] add backspace
 - [x] scrolling
-- [ ] unicode handling
+- [x] unicode handling
+- [ ] optimize rendering for long files
+- [ ] save/load file
 - [ ] reenable multi cursor
 - [ ] add cursor column memorization
 - [ ] add selection
