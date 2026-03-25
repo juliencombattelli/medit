@@ -68,7 +68,15 @@ static void action_restore_cursor(Meditor* medit)
 static void action_cursor_begin_of_line(Meditor* medit)
 {
     FileView* file_view = medit_get_focused_file_view(medit);
-    file_view->cursors.items[0].byte = 0;
+    Cursor* cursor = &file_view->cursors.items[0];
+    cursor->byte = 0;
+    // Update the length of the cursor based on the new grapheme where it is at
+    Line* current_line = &file_view->file->lines.items[cursor->line];
+    UcGraphemeIter it = { 0 };
+    uc_grapheme_iter_init(&it, (uint8_t*)current_line->items, current_line->count, cursor->byte);
+    UcSpan out = { 0 };
+    uc_grapheme_iter_next(&it, &out);
+    cursor->len = out.len;
 }
 
 static void action_cursor_end_of_line(Meditor* medit)
