@@ -659,16 +659,18 @@ void temp_ui_sdl3_setup_layout(SDL3Ui* ui)
 {
     Meditor* medit = ui->medit;
 
-    // Create an empty file in some file view groups
-    for (size_t i = 0; i < 9; ++i) {
-        dynarray_append(&medit->file_views, (FileViewGroup) { 0 });
-        medit->file_views.focused = medit->file_views.count - 1;
-        medit_new_empty_file(medit, &dynarray_last(&medit->file_views));
-    }
+    medit_load_file(medit, "./src/ui/sdl3/sdl3.c");
 
-    // Insert some text in the focused latest created group
-    const char text[] = "😊😊😊😊😊😊ùùùù😊";
-    medit_insert_text(medit, text, strlen(text));
+    // // Create an empty file in some file view groups
+    // for (size_t i = 0; i < 9; ++i) {
+    //     dynarray_append(&medit->file_views, (FileViewGroup) { 0 });
+    //     medit->file_views.focused = medit->file_views.count - 1;
+    //     medit_new_empty_file(medit, &dynarray_last(&medit->file_views));
+    // }
+
+    // // Insert some text in the focused latest created group
+    // const char text[] = "😊😊😊😊😊😊ùùùù😊";
+    // medit_insert_text(medit, text, strlen(text));
 
     // Update the layout of the groups in a grid fashion
     temp_ui_sdl3_update_file_view_groups_size(ui);

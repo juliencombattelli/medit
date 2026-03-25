@@ -18,7 +18,9 @@ elseif(CMAKE_C_COMPILER_ID MATCHES ".*Clang" OR CMAKE_C_COMPILER_ID STREQUAL "GN
         -Wno-missing-braces
         -fsanitize=address,undefined -fno-omit-frame-pointer
     )
-    set(LINK_OPTIONS -fsanitize=address,undefined)
+    set(LINK_OPTIONS
+        -fsanitize=address,undefined
+    )
 endif()
 
 add_executable(medit
