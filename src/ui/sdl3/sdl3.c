@@ -599,8 +599,10 @@ static void ui_sdl3_draw_file_view_group(SDL3Ui* ui, FileViewGroup* group)
     FileView* file_view = medit_get_displayed_file_view_in_group(medit, group);
     Lines* lines = &file_view->file->lines;
 
-    const size_t first_rendered_line = (file_view->scrolling.y / int_to_size(ui->cell_size.height));
-    for (size_t row = first_rendered_line; row < lines->count; ++row) {
+    const size_t first_rendered_line = file_view->scrolling.y / int_to_size(ui->cell_size.height);
+    const size_t screen_lines = int_to_size(ui->window_size.height / ui->cell_size.height) + 1;
+    const size_t rendered_line_count = SDL_min(lines->count, first_rendered_line + screen_lines);
+    for (size_t row = first_rendered_line; row < rendered_line_count; ++row) {
         Line* line = &lines->items[row];
         ui_sdl3_draw_line_number(ui, row, group);
         ui_sdl3_draw_line(ui, row, line, group);
