@@ -3,7 +3,7 @@
 - [x] add backspace
 - [x] scrolling
 - [x] unicode handling
-- [ ] optimize rendering for long files
+- [x] optimize rendering for long files
 - [ ] save/load file
 - [ ] reenable multi cursor
 - [ ] add cursor column memorization

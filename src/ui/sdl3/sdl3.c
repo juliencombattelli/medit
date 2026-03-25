@@ -96,6 +96,8 @@ static bool ui_sdl3_create(SDL3Ui* ui, Meditor* medit)
     SDL_Renderer* renderer = SDL_CreateRenderer(window, NULL);
     try(renderer);
 
+    printf("[DEBUG] Selected renderer: %s\n", SDL_GetRendererName(renderer));
+
     try(SDL_SetRenderVSync(renderer, 1));
 
     ui->window = window;
@@ -589,12 +591,12 @@ static void ui_sdl3_draw_file_view_group(SDL3Ui* ui, FileViewGroup* group)
     Meditor* medit = ui->medit;
     FileView* file_view = medit_get_displayed_file_view_in_group(medit, group);
     Lines* lines = &file_view->file->lines;
-    size_t row = 0;
-    dynarray_foreach(Line, line, lines)
-    {
+
+    const size_t first_rendered_line = (file_view->scrolling.y / int_to_size(ui->cell_size.height));
+    for (size_t row = first_rendered_line; row < lines->count; ++row) {
+        Line* line = &lines->items[row];
         ui_sdl3_draw_line_number(ui, row, group);
         ui_sdl3_draw_line(ui, row, line, group);
-        row++;
     }
 }
 
@@ -694,38 +696,35 @@ void medit_ui_sdl3_run(Meditor* medit)
     medit->input_in_frame = true;
     while (medit->running) {
         ui_sdl3_handle_event(&ui);
+        if (medit->input_in_frame) {
 
-        if (!medit->input_in_frame) {
-            continue;
+            if (ui.editor_font_size != medit->config.editor_font_size) {
+                ui_sdl3_unload_editor_font(&ui);
+                ui_sdl3_load_editor_font(&ui);
+            }
+
+            ui_sdl3_clear(&ui);
+
+            for (size_t i = 0; i < medit->file_views.count; ++i) {
+                FileViewGroup* group = &medit->file_views.items[i];
+                { // TODO consider doing this on event instead of every frame
+                    ui_sdl3_compute_line_number_gutter_width(&ui, group);
+                    ui_sdl3_update_cursor_position(&ui, group);
+                    // TODO scrolling is done by rendering the all file with an offset and a
+                    // clipping rect corresponding to the group where the file is viewed This could
+                    // be optimized by only rendering the lines and bytes inside/near the clipping
+                    // rect
+                    ui_sdl3_scroll_file_view(&ui, group);
+                }
+
+                ui_sdl3_draw_file_view_group_separator(&ui, group);
+                ui_sdl3_draw_file_view_group(&ui, group);
+                if (medit->file_views.focused == i) {
+                    ui_sdl3_draw_cursor(&ui, group);
+                }
+            }
         }
         medit->input_in_frame = false;
-
-        if (ui.editor_font_size != medit->config.editor_font_size) {
-            ui_sdl3_unload_editor_font(&ui);
-            ui_sdl3_load_editor_font(&ui);
-        }
-
-        ui_sdl3_clear(&ui);
-
-        for (size_t i = 0; i < medit->file_views.count; ++i) {
-            FileViewGroup* group = &medit->file_views.items[i];
-            { // TODO consider doing this on event instead of every frame
-                ui_sdl3_compute_line_number_gutter_width(&ui, group);
-                ui_sdl3_update_cursor_position(&ui, group);
-                // TODO scrolling is done by rendering the all file with an offset and a clipping
-                // rect corresponding to the group where the file is viewed
-                // This could be optimized by only rendering the lines and bytes inside/near the
-                // clipping rect
-                ui_sdl3_scroll_file_view(&ui, group);
-            }
-
-            ui_sdl3_draw_file_view_group_separator(&ui, group);
-            ui_sdl3_draw_file_view_group(&ui, group);
-            if (medit->file_views.focused == i) {
-                ui_sdl3_draw_cursor(&ui, group);
-            }
-        }
-
         ui_sdl3_render(&ui);
     }
 
