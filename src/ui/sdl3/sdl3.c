@@ -75,15 +75,6 @@ static void ui_sdl3_render(SDL3Ui* ui);
 
 static void temp_ui_sdl3_update_file_view_groups_size(SDL3Ui* ui);
 
-// TODO remove
-static PixelPos cell_to_pixel_pos(SDL3Ui* ui, Cursor cell)
-{
-    return (PixelPos) {
-        .x = size_to_int(cell.byte) * ui->cell_size.width,
-        .y = size_to_int(cell.line) * ui->cell_size.height,
-    };
-}
-
 enum {
     DEFAULT_WINDOW_WIDTH = 1280,
     DEFAULT_WINDOW_HEIGHT = 720,
@@ -535,9 +526,11 @@ static void ui_sdl3_draw_line_number(SDL3Ui* ui, size_t row, FileViewGroup* grou
         ? medit->config.color_theme.line_number_current
         : medit->config.color_theme.line_number;
 
-    PixelPos pos = cell_to_pixel_pos(ui, (Cursor) { .byte = 0, .line = row });
-    pos.x += size_to_int(group->area.x);
-    pos.y += size_to_int(group->area.y) - size_to_int(file_view->scrolling.y);
+    PixelPos pos = {
+        .x = size_to_int(group->area.x),
+        .y = size_to_int((row * int_to_size(ui->cell_size.height)) + group->area.y)
+            - size_to_int(file_view->scrolling.y),
+    };
 
     char line_number[INT64_DIGITS_COUNT] = { 0 };
     int written = snprintf(
@@ -566,10 +559,11 @@ static void ui_sdl3_draw_line(SDL3Ui* ui, size_t row, Line* line, FileViewGroup*
     Meditor* medit = ui->medit;
     FileView* file_view = medit_get_displayed_file_view_in_group(medit, group);
 
-    PixelPos line_pos = cell_to_pixel_pos(ui, (Cursor) { .byte = 0, .line = row });
-    line_pos.x += size_to_int(group->area.x) + ui->line_nr_padding
-        - size_to_int(file_view->scrolling.x);
-    line_pos.y += size_to_int(group->area.y) - size_to_int(file_view->scrolling.y);
+    PixelPos line_pos = {
+        .x = size_to_int(group->area.x) + ui->line_nr_padding - size_to_int(file_view->scrolling.x),
+        .y = size_to_int((row * int_to_size(ui->cell_size.height)) + group->area.y)
+            - size_to_int(file_view->scrolling.y),
+    };
 
     const SDL_Rect clipping_rect = {
         .x = size_to_int(group->area.x) + ui->line_nr_padding,
