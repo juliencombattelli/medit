@@ -415,15 +415,18 @@ static void ui_sdl3_update_cursor_position(SDL3Ui* ui, FileViewGroup* group)
 
 static void ui_sdl3_draw_cursor(SDL3Ui* ui, FileViewGroup* group)
 {
-    if (!ui->cursor_blink.show_cursor) {
-        return;
-    }
-
     Meditor* medit = ui->medit;
 
     Color cursor_color = ui->medit->config.color_theme.cursor;
 
-    FileView* file_view = medit_get_focused_file_view(medit);
+    FileView* file_view = medit_get_displayed_file_view_in_group(medit, group);
+
+    bool focused = medit_get_focused_file_view_group(medit) == group;
+
+    if (focused && !ui->cursor_blink.show_cursor) {
+        return;
+    }
+
     for (size_t i = 0; i < file_view->cursors.count; ++i) {
         const Cursor* cursor = &file_view->cursors.items[i];
 
@@ -435,12 +438,16 @@ static void ui_sdl3_draw_cursor(SDL3Ui* ui, FileViewGroup* group)
             .h = (float)cursor->on_screen.h,
         };
         SDL_SetRenderDrawColor(ui->renderer, color_to_RGBA_args(cursor_color));
-        SDL_RenderFillRect(ui->renderer, &cursor_frect);
+        if (focused) {
+            SDL_RenderFillRect(ui->renderer, &cursor_frect);
+        } else {
+            SDL_RenderRect(ui->renderer, &cursor_frect);
+        }
 
-        // Redraw char at cursor on top of it
+        // Redraw glyph at cursor on top of it
         Line* current_line = &file_view->file->lines.items[cursor->line];
         if (cursor->byte < current_line->count) {
-            const char* c = &current_line->items[cursor->byte];
+            const char* grapheme = &current_line->items[cursor->byte];
             PixelPos char_pos = {
                 .x = size_to_int(cursor->on_screen.x) + ui->line_nr_padding
                     - size_to_int(file_view->scrolling.x),
@@ -448,7 +455,7 @@ static void ui_sdl3_draw_cursor(SDL3Ui* ui, FileViewGroup* group)
             };
             ui_sdl3_draw_text(
                 ui,
-                c,
+                grapheme,
                 cursor->len,
                 &ui->font_editor,
                 char_pos,
@@ -719,9 +726,7 @@ void medit_ui_sdl3_run(Meditor* medit)
 
                 ui_sdl3_draw_file_view_group_separator(&ui, group);
                 ui_sdl3_draw_file_view_group(&ui, group);
-                if (medit->file_views.focused == i) {
-                    ui_sdl3_draw_cursor(&ui, group);
-                }
+                ui_sdl3_draw_cursor(&ui, group);
             }
         }
         medit->input_in_frame = false;
