@@ -76,8 +76,8 @@ static void ui_sdl3_render(SDL3Ui* ui);
 static void temp_ui_sdl3_update_file_view_groups_size(SDL3Ui* ui);
 
 enum {
-    DEFAULT_WINDOW_WIDTH = 1280,
-    DEFAULT_WINDOW_HEIGHT = 720,
+    DEFAULT_WINDOW_WIDTH = 1920,
+    DEFAULT_WINDOW_HEIGHT = 1080,
     DEFAULT_CURSOR_BLINK_PERIOD_MS = 1000,
 };
 
@@ -98,7 +98,8 @@ static bool ui_sdl3_create(SDL3Ui* ui, Meditor* medit)
 
     printf("[DEBUG] Selected renderer: %s\n", SDL_GetRendererName(renderer));
 
-    try(SDL_SetRenderVSync(renderer, 1));
+    // try(SDL_SetRenderVSync(renderer, 1));
+    try(SDL_SetRenderVSync(renderer, SDL_RENDERER_VSYNC_DISABLED));
 
     ui->window = window;
     ui->renderer = renderer;
