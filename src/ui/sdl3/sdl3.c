@@ -707,6 +707,9 @@ void medit_ui_sdl3_run(Meditor* medit)
         }
     }
 
+    Uint64 frame_count = 0;
+    Uint64 last_fps_time = SDL_GetTicksNS();
+
     medit->running = true;
     medit->input_in_frame = true;
     while (medit->running) {
@@ -735,6 +738,15 @@ void medit_ui_sdl3_run(Meditor* medit)
         }
         medit->input_in_frame = false;
         ui_sdl3_render(&ui);
+
+        frame_count++;
+        Uint64 now = SDL_GetTicksNS();
+        Uint64 elapsed = now - last_fps_time;
+        if (elapsed >= 1000000000ULL) {
+            SDL_Log("FPS: %.1f", (double)frame_count * 1e9 / (double)elapsed);
+            frame_count = 0;
+            last_fps_time = now;
+        }
     }
 
     ui_sdl3_unload_editor_font(&ui);
