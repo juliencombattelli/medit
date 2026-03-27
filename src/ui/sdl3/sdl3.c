@@ -32,6 +32,8 @@ typedef struct {
     SDL_PropertiesID props;
     TTF_Font* main;
     TTF_Font* emoji;
+    size_t line_spacing;
+    size_t default_cursor_width;
 } Font;
 
 typedef struct {
@@ -40,7 +42,6 @@ typedef struct {
     SDL_Renderer* renderer;
     Font font_ui;
     Font font_editor;
-    PixelSize cell_size;
     PixelSize window_size;
     CursorBlink cursor_blink;
     int line_nr_padding;
@@ -53,7 +54,6 @@ static void ui_sdl3_destroy(SDL3Ui* ui);
 
 static void ui_sdl3_resize_window_with_data(SDL3Ui* ui, PixelSize window_size);
 static void ui_sdl3_resize_window(SDL3Ui* ui);
-static void ui_sdl3_resize_cell(SDL3Ui* ui);
 
 static void ui_sdl3_load_ui_font(SDL3Ui* ui);
 static void ui_sdl3_unload_ui_font(SDL3Ui* ui);
@@ -145,17 +145,6 @@ static void ui_sdl3_resize_window(SDL3Ui* ui)
     ui_sdl3_resize_window_with_data(ui, (PixelSize) { .width = w, .height = h });
 }
 
-static void ui_sdl3_resize_cell(SDL3Ui* ui)
-{
-    int w = 0;
-    int h = 0;
-    TTF_GetStringSize(ui->font_editor.main, "M", 0, &w, &h);
-    assert(w >= 0);
-    assert(h >= 0);
-
-    ui->cell_size = (PixelSize) { .width = w, .height = h };
-}
-
 // static void ui_sdl3_load_ui_font(SDL3Ui* ui);
 // static void ui_sdl3_unload_ui_font(SDL3Ui* ui);
 
@@ -194,7 +183,19 @@ static void ui_sdl3_load_editor_font(SDL3Ui* ui)
         abort();
     }
 
-    ui_sdl3_resize_cell(ui);
+    if (!TTF_FontIsFixedWidth(ui->font_editor.main)) {
+        printf(
+            "[WARN] The loaded editor font is not monospace: %s",
+            TTF_GetFontFamilyName(ui->font_editor.main));
+    }
+
+    int h = TTF_GetFontLineSkip(ui->font_editor.main);
+    ui->font_editor.line_spacing = int_to_size(h);
+
+    int w = 0;
+    assert(TTF_GetStringSize(ui->font_editor.main, "M", 0, &w, NULL));
+    ui->font_editor.default_cursor_width = int_to_size(w);
+
     ui_sdl3_resize_window(ui);
 
     ui->font_editor.emoji = load_emoji_font_aligned_to(
@@ -331,8 +332,8 @@ static void ui_sdl3_draw_text(
         return;
     }
 
-    // Take one extra cell to allow display partial chars
-    int max_string_width = ui->window_size.width + ui->cell_size.width;
+    // Take a 10% margin to allow display partial chars
+    int max_string_width = (int)((float)ui->window_size.width * 1.1f);
 
     int text_width = 0;
     size_t text_bytes_max = 0;
@@ -361,9 +362,12 @@ static void ui_sdl3_draw_text(
     SDL_Texture* texture = SDL_CreateTextureFromSurface(ui->renderer, surface);
     assert(texture != NULL);
 
+    // +1 to round up the result
+    int line_centering_offset = (size_to_int(ui->font_editor.line_spacing) - surface->h + 1) / 2;
+
     const SDL_FRect glyph_rect = {
         .x = (float)pos.x,
-        .y = (float)pos.y,
+        .y = (float)pos.y + (float)line_centering_offset,
         .w = (float)surface->w,
         .h = (float)surface->h,
     };
@@ -380,9 +384,6 @@ static void ui_sdl3_update_cursor_position(SDL3Ui* ui, FileViewGroup* group)
 
     FileView* file_view = medit_get_displayed_file_view_in_group(medit, group);
 
-    // TODO consider use size_t for those variables
-    size_t cell_w = int_to_size(ui->cell_size.width);
-    size_t cell_h = int_to_size(ui->cell_size.height);
     for (size_t i = 0; i < file_view->cursors.count; ++i) {
         Cursor* cursor = &file_view->cursors.items[i];
         Line* line = &file_view->file->lines.items[cursor->line];
@@ -398,7 +399,7 @@ static void ui_sdl3_update_cursor_position(SDL3Ui* ui, FileViewGroup* group)
                 NULL);
         }
         // Compute cursor width
-        int cursor_w = size_to_int(cell_w);
+        int cursor_w = size_to_int(ui->font_editor.default_cursor_width);
         if (line->count != cursor->byte) {
             // cursor not at end of line (excludes also empty lines)
             TTF_MeasureString(
@@ -411,9 +412,9 @@ static void ui_sdl3_update_cursor_position(SDL3Ui* ui, FileViewGroup* group)
         }
         cursor->on_screen = (Rect) {
             .x = group->area.x + int_to_size(line_w),
-            .y = group->area.y + (cursor->line * cell_h),
+            .y = group->area.y + (cursor->line * ui->font_editor.line_spacing),
             .w = int_to_size(cursor_w),
-            .h = cell_h,
+            .h = ui->font_editor.line_spacing,
         };
     }
 }
@@ -474,8 +475,8 @@ static void ui_sdl3_scroll_file_view(SDL3Ui* ui, FileViewGroup* group)
     FileView* file_view = medit_get_displayed_file_view_in_group(ui->medit, group);
     Cursor* cursor = &file_view->cursors.items[0];
 
-    const size_t margin_x = int_to_size(ui->cell_size.width) * 3;
-    const size_t margin_y = int_to_size(ui->cell_size.height) * 3;
+    const size_t margin_x = ui->font_editor.default_cursor_width * 3;
+    const size_t margin_y = ui->font_editor.line_spacing * 3;
 
     const size_t right_border = group->area.x + group->area.w - margin_x
         - int_to_size(ui->line_nr_padding);
@@ -542,7 +543,7 @@ static void ui_sdl3_draw_line_number(SDL3Ui* ui, size_t row, FileViewGroup* grou
 
     PixelPos pos = {
         .x = size_to_int(group->area.x),
-        .y = size_to_int((row * int_to_size(ui->cell_size.height)) + group->area.y)
+        .y = size_to_int((row * ui->font_editor.line_spacing) + group->area.y)
             - size_to_int(file_view->scrolling.y),
     };
 
@@ -575,7 +576,7 @@ static void ui_sdl3_draw_line(SDL3Ui* ui, size_t row, Line* line, FileViewGroup*
 
     PixelPos line_pos = {
         .x = size_to_int(group->area.x) + ui->line_nr_padding - size_to_int(file_view->scrolling.x),
-        .y = size_to_int((row * int_to_size(ui->cell_size.height)) + group->area.y)
+        .y = size_to_int((row * ui->font_editor.line_spacing) + group->area.y)
             - size_to_int(file_view->scrolling.y),
     };
 
@@ -604,8 +605,9 @@ static void ui_sdl3_draw_file_view_group(SDL3Ui* ui, FileViewGroup* group)
     FileView* file_view = medit_get_displayed_file_view_in_group(medit, group);
     Lines* lines = &file_view->file->lines;
 
-    const size_t first_rendered_line = file_view->scrolling.y / int_to_size(ui->cell_size.height);
-    const size_t screen_lines = int_to_size(ui->window_size.height / ui->cell_size.height) + 1;
+    const size_t first_rendered_line = file_view->scrolling.y / ui->font_editor.line_spacing;
+    const size_t screen_lines = (int_to_size(ui->window_size.height) / ui->font_editor.line_spacing)
+        + 1;
     const size_t rendered_line_count = SDL_min(lines->count, first_rendered_line + screen_lines);
     for (size_t row = first_rendered_line; row < rendered_line_count; ++row) {
         Line* line = &lines->items[row];
