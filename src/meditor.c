@@ -66,25 +66,14 @@ static void action_restore_cursor(Meditor* medit)
     // TODO memset other cursors
 }
 
-static void action_cursor_begin_of_line(Meditor* medit)
+static void action_cursor_line_begin(Meditor* medit)
 {
-    FileView* file_view = medit_get_focused_file_view(medit);
-    Cursor* cursor = &file_view->cursors.items[0];
-    cursor->byte = 0;
-    // Update the length of the cursor based on the new grapheme where it is at
-    Line* current_line = &file_view->file->lines.items[cursor->line];
-    UcGraphemeIter it = { 0 };
-    uc_grapheme_iter_init(&it, (uint8_t*)current_line->items, current_line->count, cursor->byte);
-    UcSpan out = { 0 };
-    uc_grapheme_iter_next(&it, &out);
-    cursor->len = out.len;
+    medit_cursor_line_begin(medit);
 }
 
-static void action_cursor_end_of_line(Meditor* medit)
+static void action_cursor_line_end(Meditor* medit)
 {
-    FileView* file_view = medit_get_focused_file_view(medit);
-    Line* line = medit_get_current_line(medit);
-    file_view->cursors.items[0].byte = line->count;
+    medit_cursor_line_end(medit);
 }
 
 static void action_add_cursor_down(Meditor* medit)
@@ -159,8 +148,8 @@ void medit_load_default_gui_keybind(Meditor* medit)
     keybind_bind(keybind, KEY_DOWN, MOD_NONE, action_cursor_down, medit);
     keybind_bind(keybind, KEY_LEFT, MOD_NONE, action_cursor_left, medit);
     keybind_bind(keybind, KEY_RIGHT, MOD_NONE, action_cursor_right, medit);
-    keybind_bind(keybind, KEY_HOME, MOD_NONE, action_cursor_begin_of_line, medit);
-    keybind_bind(keybind, KEY_END, MOD_NONE, action_cursor_end_of_line, medit);
+    keybind_bind(keybind, KEY_HOME, MOD_NONE, action_cursor_line_begin, medit);
+    keybind_bind(keybind, KEY_END, MOD_NONE, action_cursor_line_end, medit);
 
     keybind_bind(keybind, KEY_ESCAPE, MOD_NONE, action_restore_cursor, medit);
     keybind_bind(keybind, KEY_DOWN, MOD_CTRL_ALT, action_add_cursor_down, medit);
@@ -178,13 +167,29 @@ void medit_load_default_tui_keybind(Meditor* medit)
     MEDIT_UNUSED(medit);
 }
 
-static void fixup_cursor_col(Meditor* medit)
+// Update the length of the grapheme at the cursor position
+static void update_cursor_len(Meditor* medit)
 {
-    // Adjust cursor column position when switching line
     FileView* file_view = medit_get_focused_file_view(medit);
     Line* line = medit_get_current_line(medit);
     Cursor* cursor = &file_view->cursors.items[0];
+
+    UcGraphemeIter it = { 0 };
+    uc_grapheme_iter_init(&it, (uint8_t*)line->items, line->count, cursor->byte);
+    UcSpan out = { 0 };
+    uc_grapheme_iter_next(&it, &out);
+    cursor->len = MEDIT_MAX(out.len, 1);
+}
+
+// Adjust cursor column position mainly when switching line
+static void fixup_cursor_col(Meditor* medit)
+{
+    FileView* file_view = medit_get_focused_file_view(medit);
+    Line* line = medit_get_current_line(medit);
+    Cursor* cursor = &file_view->cursors.items[0];
+
     cursor->byte = MEDIT_MIN(cursor->byte, line->count);
+    update_cursor_len(medit);
 }
 
 void medit_cursor_up(Meditor* medit)
@@ -242,6 +247,7 @@ void medit_cursor_left(Meditor* medit)
         --cursor->line;
         Line* upper_line = medit_get_current_line(medit);
         cursor->byte = upper_line->count;
+        update_cursor_len(medit);
     }
     // TODO handle multi cursor
     // for (size_t c = 0; c <= medit->cursor_index; ++c) {
@@ -273,6 +279,7 @@ void medit_cursor_right(Meditor* medit)
         // End of current line, switch to the following one if any
         ++cursor->line;
         cursor->byte = 0;
+        update_cursor_len(medit);
     }
     // TODO handle multi cursor
     // for (size_t c = 0; c <= medit->cursor_index; ++c) {
@@ -287,23 +294,41 @@ void medit_cursor_right(Meditor* medit)
     // }
 }
 
-void medit_split_line(Meditor* medit)
+void medit_cursor_line_begin(Meditor* medit)
+{
+    FileView* file_view = medit_get_focused_file_view(medit);
+    Cursor* cursor = &file_view->cursors.items[0];
+
+    cursor->byte = 0;
+    update_cursor_len(medit);
+}
+
+void medit_cursor_line_end(Meditor* medit)
+{
+    FileView* file_view = medit_get_focused_file_view(medit);
+    Line* line = medit_get_current_line(medit);
+
+    file_view->cursors.items[0].byte = line->count;
+    update_cursor_len(medit);
+}
+
+void medit_split_line_at_cursor(Meditor* medit)
 {
     FileView* file_view = medit_get_focused_file_view(medit);
 
-    const size_t cursor_byte = file_view->cursors.items[0].byte;
     const size_t cursor_line = file_view->cursors.items[0].line;
-    medit_insert_new_line(medit);
-    medit_cursor_down(medit);
-    Line* current_line = &file_view->file->lines.items[cursor_line];
-    if (current_line->count != 0) {
-        medit_insert_text(
-            medit,
-            &current_line->items[cursor_byte],
-            current_line->count - cursor_byte);
-        memset(&current_line->items[cursor_byte], 0, current_line->count - cursor_byte);
-        current_line->count = cursor_byte;
-    }
+    const size_t cursor_byte = file_view->cursors.items[0].byte;
+
+    Line* current_line = medit_get_current_line(medit);
+    Line* new_line = medit_new_line_at(medit, cursor_line + 1);
+
+    dynarray_insert_many(
+        new_line,
+        &current_line->items[cursor_byte],
+        current_line->count - cursor_byte,
+        0);
+    memset(&current_line->items[cursor_byte], 0, current_line->count - cursor_byte);
+    current_line->count = cursor_byte;
 }
 
 void medit_insert_text(Meditor* medit, const char* text, size_t n)
@@ -329,7 +354,7 @@ void medit_new_empty_file(Meditor* medit, FileViewGroup* group)
 
     dynarray_append(group, new_file_view);
 
-    medit_insert_new_line(medit);
+    medit_new_line_at(medit, 0);
 }
 
 void medit_load_file(Meditor* medit, const char* filepath)
@@ -419,19 +444,17 @@ void medit_close_files(Meditor* medit)
     dynarray_free(medit->opened_files);
 }
 
-void medit_insert_new_line(Meditor* medit)
+Line* medit_new_line_at(Meditor* medit, size_t pos)
 {
-    // TODO verify if next line is empty with a non-null capacity for reuse
     FileView* file_view = medit_get_focused_file_view(medit);
-
     Lines* lines = &file_view->file->lines;
 
     Line empty_line = { 0 };
     dynarray_reserve(&empty_line, MEDIT_LINE_DEFAULT_CAPACITY);
 
-    const size_t line_pos = lines->count > 0 ? file_view->cursors.items[0].line + 1 : 0;
+    dynarray_insert(lines, empty_line, pos);
 
-    dynarray_insert(lines, empty_line, line_pos);
+    return &lines->items[pos];
 }
 
 FileViewGroup* medit_get_focused_file_view_group(Meditor* medit)
@@ -514,14 +537,6 @@ void medit_erase_char(Meditor* medit)
         dynarray_remove_many(current_line, cursor_byte - cursor->len, cursor->len);
         // Update the length of the cursor as the character under it was removed and the whole line
         // shifted left by one grapheme
-        UcGraphemeIter it = { 0 };
-        uc_grapheme_iter_init(
-            &it,
-            (uint8_t*)current_line->items,
-            current_line->count,
-            cursor->byte);
-        UcSpan out = { 0 };
-        uc_grapheme_iter_next(&it, &out);
-        cursor->len = out.len;
+        update_cursor_len(medit);
     }
 }

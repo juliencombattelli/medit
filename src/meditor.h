@@ -120,6 +120,8 @@ void medit_cursor_up(Meditor* medit);
 void medit_cursor_down(Meditor* medit);
 void medit_cursor_left(Meditor* medit);
 void medit_cursor_right(Meditor* medit);
+void medit_cursor_line_begin(Meditor* medit);
+void medit_cursor_line_end(Meditor* medit);
 
 void medit_insert_text(Meditor* medit, const char* text, size_t n);
 
@@ -127,8 +129,8 @@ void medit_new_empty_file(Meditor* medit, FileViewGroup* group);
 void medit_load_file(Meditor* medit, const char* filepath);
 void medit_close_files(Meditor* medit);
 
-void medit_split_line(Meditor* medit);
-void medit_insert_new_line(Meditor* medit);
+void medit_split_line_at_cursor(Meditor* medit);
+Line* medit_new_line_at(Meditor* medit, size_t pos);
 
 FileViewGroup* medit_get_focused_file_view_group(Meditor* medit);
 FileView* medit_get_displayed_file_view_in_group(Meditor* medit, FileViewGroup* group);

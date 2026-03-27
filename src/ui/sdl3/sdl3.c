@@ -261,7 +261,11 @@ static void ui_sdl3_on_text_input(SDL3Ui* ui, const char* text)
 static void ui_sdl3_on_key_down(SDL3Ui* ui, SDL_Event* event)
 {
     switch (event->key.key) {
-        case SDLK_RETURN: medit_split_line(ui->medit); break;
+        case SDLK_RETURN: {
+            medit_split_line_at_cursor(ui->medit);
+            medit_cursor_down(ui->medit);
+            medit_cursor_line_begin(ui->medit);
+        } break;
         case SDLK_BACKSPACE: medit_erase_char(ui->medit); break;
         default: break;
     }
