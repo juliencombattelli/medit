@@ -6,6 +6,6 @@
 - [x] optimize rendering for long files
 - [ ] save/load file
 - [ ] reenable multi cursor
-- [ ] add cursor column memorization
+- [x] add cursor column memorization
 - [ ] add selection
 - [ ] layout engine

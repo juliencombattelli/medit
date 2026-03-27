@@ -181,6 +181,43 @@ static void update_cursor_len(Meditor* medit)
     cursor->len = MEDIT_MAX(out.len, 1);
 }
 
+// Count the number of grapheme clusters from byte 0 up to `byte` in `line[0..len)`.
+static size_t grapheme_col_from_byte(const char* line, size_t len, size_t byte)
+{
+    UcGraphemeIter it;
+    uc_grapheme_iter_init(&it, (uint8_t*)line, len, 0);
+    size_t col = 0;
+    UcSpan span;
+    while (it.pos < byte && uc_grapheme_iter_next(&it, &span)) {
+        ++col;
+    }
+    return col;
+}
+
+// Return the byte offset of the `col`-th grapheme cluster start in `line[0..len)`.
+// If the line has fewer than `col` graphemes, returns `len` (end of line).
+static size_t byte_from_grapheme_col(const char* line, size_t len, size_t col)
+{
+    UcGraphemeIter it;
+    uc_grapheme_iter_init(&it, (uint8_t*)line, len, 0);
+    size_t c = 0;
+    UcSpan span;
+    while (c < col && uc_grapheme_iter_next(&it, &span)) {
+        ++c;
+    }
+    return it.pos;
+}
+
+// Update preferred_col to reflect the cursor's current byte position on the current line.
+// Call this after every horizontal cursor move.
+static void update_preferred_col(Meditor* medit)
+{
+    FileView* file_view = medit_get_focused_file_view(medit);
+    Line* line = medit_get_current_line(medit);
+    Cursor* cursor = &file_view->cursors.items[0];
+    cursor->preferred_col = grapheme_col_from_byte(line->items, line->count, cursor->byte);
+}
+
 // Adjust cursor column position mainly when switching line
 static void fixup_cursor_col(Meditor* medit)
 {
@@ -188,7 +225,7 @@ static void fixup_cursor_col(Meditor* medit)
     Line* line = medit_get_current_line(medit);
     Cursor* cursor = &file_view->cursors.items[0];
 
-    cursor->byte = MEDIT_MIN(cursor->byte, line->count);
+    cursor->byte = byte_from_grapheme_col(line->items, line->count, cursor->preferred_col);
     update_cursor_len(medit);
 }
 
@@ -249,6 +286,7 @@ void medit_cursor_left(Meditor* medit)
         cursor->byte = upper_line->count;
         update_cursor_len(medit);
     }
+    update_preferred_col(medit);
     // TODO handle multi cursor
     // for (size_t c = 0; c <= medit->cursor_index; ++c) {
     //     Vec2* cursor = &medit->cursor_pos[c];
@@ -281,6 +319,7 @@ void medit_cursor_right(Meditor* medit)
         cursor->byte = 0;
         update_cursor_len(medit);
     }
+    update_preferred_col(medit);
     // TODO handle multi cursor
     // for (size_t c = 0; c <= medit->cursor_index; ++c) {
     //     Vec2* cursor = &medit->cursor_pos[c];
@@ -300,6 +339,7 @@ void medit_cursor_line_begin(Meditor* medit)
     Cursor* cursor = &file_view->cursors.items[0];
 
     cursor->byte = 0;
+    cursor->preferred_col = 0;
     update_cursor_len(medit);
 }
 
@@ -310,6 +350,7 @@ void medit_cursor_line_end(Meditor* medit)
 
     file_view->cursors.items[0].byte = line->count;
     update_cursor_len(medit);
+    update_preferred_col(medit);
 }
 
 void medit_split_line_at_cursor(Meditor* medit)

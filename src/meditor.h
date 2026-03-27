@@ -49,6 +49,10 @@ typedef struct {
     size_t line;
     size_t byte;
     size_t len; // length in bytes of the grapheme under the cursor
+    // Grapheme column from the start of the line, set by horizontal moves and preserved across
+    // vertical moves so that up/down navigation lands on the correct grapheme even when lines
+    // contain multi-byte clusters.
+    size_t preferred_col;
     // On screen coordinates of the cursor, excluding the ui elements around the file view
     // So (x=0,y=0) is the top-left corner if the first text glyph in of the viewed file
     Rect on_screen;
