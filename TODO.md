@@ -4,7 +4,9 @@
 - [x] scrolling
 - [x] unicode handling
 - [x] optimize rendering for long files
-- [ ] save/load file
+- [-] save/load file
+- [ ] boost text rendering performance by using a glyph atlas
+- [ ] add a string view library
 - [ ] reenable multi cursor
 - [x] add cursor column memorization
 - [ ] add selection
