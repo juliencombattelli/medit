@@ -1,5 +1,5 @@
-#ifndef MEDIT_UI_SDL3_UTILS_H_
-#define MEDIT_UI_SDL3_UTILS_H_
+#ifndef MEDIT_UI_SDL3_SDL3_UTILS_H_
+#define MEDIT_UI_SDL3_SDL3_UTILS_H_
 
 #include "color.h"
 #include "limits.h"
@@ -46,4 +46,4 @@ enum {
     INT64_DIGITS_COUNT = 22u,
 };
 
-#endif // MEDIT_UI_SDL3_UTILS_H_
+#endif // MEDIT_UI_SDL3_SDL3_UTILS_H_

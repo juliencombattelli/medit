@@ -1,10 +1,10 @@
 #include "sdl3.h"
 #include "assert.h"
-#include "dynarray.h"
 #include "font.h"
 #include "keybind.h"
 #include "meditor.h"
 #include "safeint.h"
+#include "sdl3_utils.h"
 #include "unicode.h"
 #include "utils.h"
 
@@ -24,9 +24,9 @@ typedef struct {
 } PixelPos;
 
 typedef struct {
-    Uint64 last_ticks;
-    bool show_cursor;
-} CursorBlink;
+    SDL_TimerID timer;
+    bool show;
+} CursorBlinker;
 
 typedef struct {
     SDL_PropertiesID props;
@@ -45,7 +45,7 @@ typedef struct {
     Font font_ui;
     Font font_editor;
     PixelSize window_size;
-    CursorBlink cursor_blink;
+    CursorBlinker cursor_blinker;
     Uint64 t_frame_start;
     int line_nr_padding;
     int line_nr_max_digits;
@@ -82,6 +82,14 @@ enum {
     DEFAULT_WINDOW_WIDTH = 1280,
     DEFAULT_WINDOW_HEIGHT = 720,
     DEFAULT_CURSOR_BLINK_MS = 500,
+};
+
+enum {
+    WAIT_FOR_EVENT_TIMEOUT_MS = 100,
+};
+
+enum UserEvents {
+    EVENT_CURSOR_BLINK = 42,
 };
 
 static bool ui_sdl3_create(SDL3Ui* ui, Meditor* medit)
@@ -251,19 +259,36 @@ static void ui_sdl3_on_window_resized(SDL3Ui* ui, int w, int h)
     temp_ui_sdl3_update_file_view_groups_size(ui);
 }
 
-static void ui_sdl3_update_cursor_blinking_timer(SDL3Ui* ui)
+static Uint32 ui_sdl3_on_cursor_should_blink(void* userdata, SDL_TimerID timer_id, Uint32 interval)
 {
-    Uint64 ticks = SDL_GetTicks();
-    if (ticks - ui->cursor_blink.last_ticks > DEFAULT_CURSOR_BLINK_MS) {
-        ui->cursor_blink.show_cursor = !ui->cursor_blink.show_cursor;
-        ui->cursor_blink.last_ticks = ticks;
-    }
+    MEDIT_UNUSED(timer_id);
+    MEDIT_UNUSED(interval);
+
+    SDL3Ui* ui = userdata;
+    ui->cursor_blinker.show = !ui->cursor_blinker.show;
+
+    Uint64 now = SDL_GetTicksNS();
+    SDL_Event event = {
+        .user = (SDL_UserEvent) {
+            .type = SDL_EVENT_USER,
+            .timestamp = now,
+            .code = EVENT_CURSOR_BLINK,
+        },
+    };
+    SDL_PushEvent(&event);
+
+    return DEFAULT_CURSOR_BLINK_MS;
 }
 
-static void ui_sdl3_reset_cursor_blinking_timer(SDL3Ui* ui)
+static void ui_sdl3_enable_cursor_blink(SDL3Ui* ui)
 {
-    ui->cursor_blink.last_ticks = SDL_GetTicks();
-    ui->cursor_blink.show_cursor = true;
+    ui->cursor_blinker.show = false;
+    ui->cursor_blinker.timer = SDL_AddTimer(0, ui_sdl3_on_cursor_should_blink, ui);
+}
+
+static void ui_sdl3_disable_cursor_blink(SDL3Ui* ui)
+{
+    SDL_RemoveTimer(ui->cursor_blinker.timer);
 }
 
 static void ui_sdl3_reset_cursor_blinking_timer_on_input(SDL3Ui* ui, SDL_Event* event)
@@ -271,7 +296,8 @@ static void ui_sdl3_reset_cursor_blinking_timer_on_input(SDL3Ui* ui, SDL_Event* 
     switch (event->type) {
         case SDL_EVENT_WINDOW_RESIZED:
         case SDL_EVENT_KEY_DOWN: {
-            ui_sdl3_reset_cursor_blinking_timer(ui);
+            ui_sdl3_disable_cursor_blink(ui);
+            ui_sdl3_enable_cursor_blink(ui);
         } break;
         default: break;
     }
@@ -332,7 +358,7 @@ static void ui_sdl3_handle_event(SDL3Ui* ui)
 
     // Block until an event arrives or a timeout, saving CPU.
     // Pass NULL to avoid consuming the first event, so PollEvent drains everything uniformly.
-    if (SDL_WaitEventTimeout(NULL, DEFAULT_CURSOR_BLINK_MS / 5)) {
+    if (SDL_WaitEventTimeout(NULL, WAIT_FOR_EVENT_TIMEOUT_MS)) {
         // Record when we woke up with real work to do — used to measure input-to-display latency.
         ui->t_frame_start = SDL_GetTicksNS();
         SDL_Event event = { 0 };
@@ -344,7 +370,6 @@ static void ui_sdl3_handle_event(SDL3Ui* ui)
         // Timeout (cursor blink tick, no real input): not a frame, don't measure.
         ui->t_frame_start = 0;
     }
-    ui_sdl3_update_cursor_blinking_timer(ui);
 }
 
 static void ui_sdl3_clear(SDL3Ui* ui)
@@ -433,7 +458,7 @@ static void ui_sdl3_draw_cursor(SDL3Ui* ui, FileViewGroup* group)
 
     bool focused = medit_get_focused_file_view_group(medit) == group;
 
-    if (focused && !ui->cursor_blink.show_cursor) {
+    if (focused && !ui->cursor_blinker.show) {
         return;
     }
 
