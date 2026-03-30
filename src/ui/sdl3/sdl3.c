@@ -44,6 +44,7 @@ typedef struct {
     Font font_editor;
     PixelSize window_size;
     CursorBlink cursor_blink;
+    Uint64 t_frame_start;
     int line_nr_padding;
     int line_nr_max_digits;
     int editor_font_size;
@@ -320,11 +321,15 @@ static void ui_sdl3_handle_event(SDL3Ui* ui)
     // Pass NULL to avoid consuming the first event, so PollEvent drains everything uniformly.
     if (SDL_WaitEventTimeout(NULL, DEFAULT_CURSOR_BLINK_MS / 5)) {
         // Record when we woke up with real work to do — used to measure input-to-display latency.
+        ui->t_frame_start = SDL_GetTicksNS();
         SDL_Event event = { 0 };
         while (SDL_PollEvent(&event)) {
             ui_sdl3_reset_cursor_blinking_timer_on_input(ui, &event);
             ui_sdl3_dispatch_event(ui, &event);
         }
+    } else {
+        // Timeout (cursor blink tick, no real input): not a frame, don't measure.
+        ui->t_frame_start = 0;
     }
     ui_sdl3_update_cursor_blinking_timer(ui);
 }
@@ -728,6 +733,7 @@ void medit_ui_sdl3_run(Meditor* medit)
     }
 
     Uint64 frame_count = 0;
+    Uint64 last_fps_elapsed_ns = 0;
     Uint64 last_fps_time = SDL_GetTicksNS();
 
     medit->running = true;
@@ -754,13 +760,22 @@ void medit_ui_sdl3_run(Meditor* medit)
         }
         ui_sdl3_render(&ui);
 
-        frame_count++;
-        Uint64 now = SDL_GetTicksNS();
-        Uint64 elapsed = now - last_fps_time;
-        if (elapsed >= 1000000000ULL) {
-            SDL_Log("FPS: %.1f", (double)frame_count * 1e9 / (double)elapsed);
-            frame_count = 0;
-            last_fps_time = now;
+        // Measure input-to-display latency: only for active frames (not idle cursor-blink ticks).
+        if (ui.t_frame_start != 0) {
+            frame_count++;
+            Uint64 frame_ns = SDL_GetTicksNS() - ui.t_frame_start;
+            Uint64 now = SDL_GetTicksNS();
+            Uint64 elapsed = now - last_fps_time;
+            last_fps_elapsed_ns += frame_ns;
+            if (elapsed >= 1000000000ULL) {
+                SDL_Log(
+                    "Active frames: %llu | Avg frame time: %.2fms",
+                    (unsigned long long)frame_count,
+                    (double)last_fps_elapsed_ns / 1e6 / (double)frame_count);
+                frame_count = 0;
+                last_fps_elapsed_ns = 0;
+                last_fps_time = now;
+            }
         }
     }
 
