@@ -76,9 +76,9 @@ static void ui_sdl3_render(SDL3Ui* ui);
 static void temp_ui_sdl3_update_file_view_groups_size(SDL3Ui* ui);
 
 enum {
-    DEFAULT_WINDOW_WIDTH = 1920,
-    DEFAULT_WINDOW_HEIGHT = 1080,
-    DEFAULT_CURSOR_BLINK_PERIOD_MS = 1000,
+    DEFAULT_WINDOW_WIDTH = 1280,
+    DEFAULT_WINDOW_HEIGHT = 720,
+    DEFAULT_CURSOR_BLINK_MS = 500,
 };
 
 static bool ui_sdl3_create(SDL3Ui* ui, Meditor* medit)
@@ -240,9 +240,8 @@ static void ui_sdl3_on_window_resized(SDL3Ui* ui, int w, int h)
 static void ui_sdl3_update_cursor_blinking_timer(SDL3Ui* ui)
 {
     Uint64 ticks = SDL_GetTicks();
-    if (ticks - ui->cursor_blink.last_ticks > DEFAULT_CURSOR_BLINK_PERIOD_MS / 2) {
+    if (ticks - ui->cursor_blink.last_ticks > DEFAULT_CURSOR_BLINK_MS) {
         ui->cursor_blink.show_cursor = !ui->cursor_blink.show_cursor;
-        ui->medit->input_in_frame = true; // Force to redraw screen
         ui->cursor_blink.last_ticks = ticks;
     }
 }
@@ -251,6 +250,17 @@ static void ui_sdl3_reset_cursor_blinking_timer(SDL3Ui* ui)
 {
     ui->cursor_blink.last_ticks = SDL_GetTicks();
     ui->cursor_blink.show_cursor = true;
+}
+
+static void ui_sdl3_reset_cursor_blinking_timer_on_input(SDL3Ui* ui, SDL_Event* event)
+{
+    switch (event->type) {
+        case SDL_EVENT_WINDOW_RESIZED:
+        case SDL_EVENT_KEY_DOWN: {
+            ui_sdl3_reset_cursor_blinking_timer(ui);
+        } break;
+        default: break;
+    }
 }
 
 static void ui_sdl3_on_text_input(SDL3Ui* ui, const char* text)
@@ -273,43 +283,50 @@ static void ui_sdl3_on_key_down(SDL3Ui* ui, SDL_Event* event)
     }
 }
 
-static void ui_sdl3_handle_event(SDL3Ui* ui)
+static void ui_sdl3_dispatch_event(SDL3Ui* ui, SDL_Event* event)
 {
     Meditor* medit = ui->medit;
 
-    ui_sdl3_update_cursor_blinking_timer(ui);
-
-    // Save current font size to monitor changes
-    ui->editor_font_size = medit->config.editor_font_size;
-
-    SDL_Event event = { 0 };
-    while (SDL_PollEvent(&event) != 0) {
-        medit->input_in_frame = true;
-        // Force cursor to reappear at each keystroke (for any event actually) by reseting its timer
-        ui_sdl3_reset_cursor_blinking_timer(ui);
-        switch (event.type) {
-            case SDL_EVENT_QUIT: medit->running = false; break;
-            case SDL_EVENT_WINDOW_RESIZED:
-                ui_sdl3_on_window_resized(ui, event.window.data1, event.window.data2);
+    switch (event->type) {
+        case SDL_EVENT_QUIT: medit->running = false; break;
+        case SDL_EVENT_WINDOW_RESIZED:
+            ui_sdl3_on_window_resized(ui, event->window.data1, event->window.data2);
+            break;
+        case SDL_EVENT_KEY_DOWN: {
+            KeybindEvent keybind_event = keybind_sdl3_translate_event(event);
+            if (keybind_handle_event(&medit->keybind, &keybind_event)) {
                 break;
-            case SDL_EVENT_KEY_DOWN: {
-                KeybindEvent keybind_event = keybind_sdl3_translate_event(&event);
-                if (keybind_handle_event(&medit->keybind, &keybind_event)) {
-                    break;
-                }
-                ui_sdl3_on_key_down(ui, &event);
-            } break;
-            case SDL_EVENT_TEXT_INPUT: {
-                ui_sdl3_on_text_input(ui, event.text.text);
-            } break;
-            case SDL_EVENT_KEYMAP_CHANGED: {
-                printf("Reloading keymapping\n");
-                keybind_reinit(&medit->keybind);
-                medit_load_default_gui_keybind(medit);
-            } break;
-            default: break;
+            }
+            ui_sdl3_on_key_down(ui, event);
+        } break;
+        case SDL_EVENT_TEXT_INPUT: {
+            ui_sdl3_on_text_input(ui, event->text.text);
+        } break;
+        case SDL_EVENT_KEYMAP_CHANGED: {
+            printf("Reloading keymapping\n");
+            keybind_reinit(&medit->keybind);
+            medit_load_default_gui_keybind(medit);
+        } break;
+        default: break;
+    }
+}
+
+static void ui_sdl3_handle_event(SDL3Ui* ui)
+{
+    // Save current font size to monitor changes
+    ui->editor_font_size = ui->medit->config.editor_font_size;
+
+    // Block until an event arrives or a timeout, saving CPU.
+    // Pass NULL to avoid consuming the first event, so PollEvent drains everything uniformly.
+    if (SDL_WaitEventTimeout(NULL, DEFAULT_CURSOR_BLINK_MS / 5)) {
+        // Record when we woke up with real work to do — used to measure input-to-display latency.
+        SDL_Event event = { 0 };
+        while (SDL_PollEvent(&event)) {
+            ui_sdl3_reset_cursor_blinking_timer_on_input(ui, &event);
+            ui_sdl3_dispatch_event(ui, &event);
         }
     }
+    ui_sdl3_update_cursor_blinking_timer(ui);
 }
 
 static void ui_sdl3_clear(SDL3Ui* ui)
@@ -714,32 +731,27 @@ void medit_ui_sdl3_run(Meditor* medit)
     Uint64 last_fps_time = SDL_GetTicksNS();
 
     medit->running = true;
-    medit->input_in_frame = true;
     while (medit->running) {
         ui_sdl3_handle_event(&ui);
-        if (medit->input_in_frame) {
-
-            if (ui.editor_font_size != medit->config.editor_font_size) {
-                ui_sdl3_unload_editor_font(&ui);
-                ui_sdl3_load_editor_font(&ui);
-            }
-
-            ui_sdl3_clear(&ui);
-
-            for (size_t i = 0; i < medit->file_views.count; ++i) {
-                FileViewGroup* group = &medit->file_views.items[i];
-                { // TODO consider doing this on event instead of every frame
-                    ui_sdl3_compute_line_number_gutter_width(&ui, group);
-                    ui_sdl3_update_cursor_position(&ui, group);
-                    ui_sdl3_scroll_file_view(&ui, group);
-                }
-
-                ui_sdl3_draw_file_view_group_separator(&ui, group);
-                ui_sdl3_draw_file_view_group(&ui, group);
-                ui_sdl3_draw_cursor(&ui, group);
-            }
+        if (ui.editor_font_size != medit->config.editor_font_size) {
+            ui_sdl3_unload_editor_font(&ui);
+            ui_sdl3_load_editor_font(&ui);
         }
-        medit->input_in_frame = false;
+
+        ui_sdl3_clear(&ui);
+
+        for (size_t i = 0; i < medit->file_views.count; ++i) {
+            FileViewGroup* group = &medit->file_views.items[i];
+            { // TODO consider doing this on event instead of every frame
+                ui_sdl3_compute_line_number_gutter_width(&ui, group);
+                ui_sdl3_update_cursor_position(&ui, group);
+                ui_sdl3_scroll_file_view(&ui, group);
+            }
+
+            ui_sdl3_draw_file_view_group_separator(&ui, group);
+            ui_sdl3_draw_file_view_group(&ui, group);
+            ui_sdl3_draw_cursor(&ui, group);
+        }
         ui_sdl3_render(&ui);
 
         frame_count++;

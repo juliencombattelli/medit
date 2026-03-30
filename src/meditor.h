@@ -113,7 +113,6 @@ typedef struct Meditor {
     Files opened_files;
     FileViewGroups file_views;
     bool running;
-    bool input_in_frame;
 } Meditor;
 
 // TODO move into UI modules
