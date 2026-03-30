@@ -34,6 +34,18 @@ target_link_options(medit PRIVATE ${LINK_OPTIONS})
 target_include_directories(medit PRIVATE src)
 target_link_libraries(medit PRIVATE SDL3::SDL3 SDL3_ttf::SDL3_ttf utf8proc::utf8proc)
 
+if(WIN32)
+    install(TARGETS medit RUNTIME DESTINATION .)
+    install(RUNTIME_DEPENDENCY_SET deps
+        PRE_EXCLUDE_REGEXES  [[api-ms-win-.*]] [[ext-ms-.*]]
+        POST_EXCLUDE_REGEXES [[.*[/\\]system32[/\\].*\.dll]]
+        DESTINATION .
+    )
+    install(DIRECTORY asset DESTINATION .)
+    # Install sources as well just to be able to open them on Windows
+    install(DIRECTORY src DESTINATION .)
+endif()
+
 add_executable(test_dynarray test/dynarray.c)
 target_compile_options(test_dynarray PRIVATE ${COMPILE_OPTIONS})
 target_link_options(test_dynarray PRIVATE ${LINK_OPTIONS})
