@@ -10,6 +10,7 @@ usage() {
     echo
     echo "Arguments:"
     echo "  SRC_DIR         The path where to clone and build the projects."
+    echo "  BUILD_DIR       The path where the build artifacts are stored."
     echo "  INSTALL_DIR     The path where to install the projects. Optional."
     echo "                    If not specified, a default value is used by CMake."
 }
@@ -27,7 +28,8 @@ clone_or_checkout() (
 )
 
 SRC_DIR="$1"
-INSTALL_DIR="${2:-}"
+BUILD_DIR="$2"
+INSTALL_DIR="${3:-}"
 
 if [ -z "$SRC_DIR" ]; then
     echo "Missing argument"
@@ -53,37 +55,28 @@ clone_or_checkout https://github.com/libsdl-org/SDL release-3.4.2 "$SRC_DIR/SDL"
 clone_or_checkout https://github.com/libsdl-org/SDL_ttf release-3.2.2 "$SRC_DIR/SDL_ttf"
 clone_or_checkout https://github.com/JuliaStrings/utf8proc v2.11.3 "$SRC_DIR/utf8proc"
 
-# Build and install SDL (static and shared)
-cmake -S "$SRC_DIR/SDL" -B "$SRC_DIR/SDL/build" \
-    -DCMAKE_BUILD_TYPE=Release "$@" \
-    -DSDL_SHARED=ON -DSDL_STATIC=ON -DSDL_INSTALL_DOCS=ON
-cmake --build "$SRC_DIR/SDL/build" -j
-cmake --install "$SRC_DIR/SDL/build"
+CONFIG=RelWithDebInfo
 
-# Build and install SDL_ttf (shared)
-cmake -S "$SRC_DIR/SDL_ttf" -B "$SRC_DIR/SDL_ttf/build" \
-    -DCMAKE_BUILD_TYPE=Release "$@" \
-    -DBUILD_SHARED_LIBS=ON -DSDLTTF_INSTALL_MAN=ON -DSDLTTF_VENDORED=ON
-cmake --build "$SRC_DIR/SDL_ttf/build" -j
-cmake --install "$SRC_DIR/SDL_ttf/build"
+# Build and install SDL (static)
+cmake -S "$SRC_DIR/SDL" -B "$BUILD_DIR/SDL/build" \
+    -G"Ninja Multi-Config" "$@" \
+    --toolchain "$(pwd)/cmake/MinGW.cmake" \
+    -DSDL_SHARED=OFF -DSDL_STATIC=ON -DSDL_INSTALL_DOCS=ON
+cmake --build "$BUILD_DIR/SDL/build" -j --config $CONFIG
+cmake --install "$BUILD_DIR/SDL/build" --config $CONFIG
 
 # Build and install SDL_ttf (static)
-cmake -S "$SRC_DIR/SDL_ttf" -B "$SRC_DIR/SDL_ttf/build" \
-    -DCMAKE_BUILD_TYPE=Release "$@" \
+cmake -S "$SRC_DIR/SDL_ttf" -B "$BUILD_DIR/SDL_ttf/build" \
+    -G"Ninja Multi-Config" "$@" \
+    --toolchain "$(pwd)/cmake/MinGW.cmake" \
     -DBUILD_SHARED_LIBS=OFF -DSDLTTF_INSTALL_MAN=ON -DSDLTTF_VENDORED=ON
-cmake --build "$SRC_DIR/SDL_ttf/build" -j
-cmake --install "$SRC_DIR/SDL_ttf/build"
-
-# Build and install utf8proc (shared)
-cmake -S "$SRC_DIR/utf8proc" -B "$SRC_DIR/utf8proc/build" \
-    -DCMAKE_BUILD_TYPE=Release "$@" \
-    -DBUILD_SHARED_LIBS=ON -DUTF8PROC_ENABLE_TESTING=OFF
-cmake --build "$SRC_DIR/utf8proc/build" -j
-cmake --install "$SRC_DIR/utf8proc/build"
+cmake --build "$BUILD_DIR/SDL_ttf/build" -j --config $CONFIG
+cmake --install "$BUILD_DIR/SDL_ttf/build" --config $CONFIG
 
 # Build and install utf8proc (static)
-cmake -S "$SRC_DIR/utf8proc" -B "$SRC_DIR/utf8proc/build" \
-    -DCMAKE_BUILD_TYPE=Release "$@" \
+cmake -S "$SRC_DIR/utf8proc" -B "$BUILD_DIR/utf8proc/build" \
+    -G"Ninja Multi-Config" "$@" \
+    --toolchain "$(pwd)/cmake/MinGW.cmake" \
     -DBUILD_SHARED_LIBS=OFF -DUTF8PROC_ENABLE_TESTING=OFF
-cmake --build "$SRC_DIR/utf8proc/build" -j
-cmake --install "$SRC_DIR/utf8proc/build"
+cmake --build "$BUILD_DIR/utf8proc/build" -j --config $CONFIG
+cmake --install "$BUILD_DIR/utf8proc/build" --config $CONFIG
