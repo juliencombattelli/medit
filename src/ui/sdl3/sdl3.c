@@ -3,6 +3,7 @@
 #include "font.h"
 #include "keybind.h"
 #include "meditor.h"
+#include "perf_counter.h"
 #include "safeint.h"
 #include "sdl3_utils.h"
 #include "unicode.h"
@@ -46,7 +47,7 @@ typedef struct {
     Font font_editor;
     PixelSize window_size;
     CursorBlinker cursor_blinker;
-    Uint64 t_frame_start;
+    PerfCounter perf_counter;
     int line_nr_padding;
     int line_nr_max_digits;
     int editor_font_size;
@@ -86,6 +87,7 @@ enum {
 
 enum {
     WAIT_FOR_EVENT_TIMEOUT_MS = 100,
+    PERF_COUNTER_REPORT_PERIOD_MS = 1000,
 };
 
 enum UserEvents {
@@ -359,8 +361,7 @@ static void ui_sdl3_handle_event(SDL3Ui* ui)
     // Block until an event arrives or a timeout, saving CPU.
     // Pass NULL to avoid consuming the first event, so PollEvent drains everything uniformly.
     if (SDL_WaitEventTimeout(NULL, WAIT_FOR_EVENT_TIMEOUT_MS)) {
-        // Record when we woke up with real work to do — used to measure input-to-display latency.
-        ui->t_frame_start = SDL_GetTicksNS();
+        perf_counter_frame_begin(&ui->perf_counter);
         SDL_Event event = { 0 };
         while (SDL_PollEvent(&event)) {
             ui_sdl3_reset_cursor_blinking_timer_on_input(ui, &event);
@@ -368,7 +369,7 @@ static void ui_sdl3_handle_event(SDL3Ui* ui)
         }
     } else {
         // Timeout (cursor blink tick, no real input): not a frame, don't measure.
-        ui->t_frame_start = 0;
+        perf_counter_frame_discard(&ui->perf_counter);
     }
 }
 
@@ -714,6 +715,16 @@ void temp_ui_sdl3_setup_layout(SDL3Ui* ui)
     temp_ui_sdl3_update_file_view_groups_size(ui);
 }
 
+void report_perf_counter(PerfCounter* perf_counter, void* userdata)
+{
+    MEDIT_UNUSED(userdata);
+
+    SDL_Log(
+        "Active frames: %llu | Avg frame time: %.2fms",
+        (unsigned long long)perf_counter->frame_count,
+        SDL_NS_TO_MS((double)perf_counter->accumulated_ns) / (double)perf_counter->frame_count);
+}
+
 void medit_ui_sdl3_run(Meditor* medit)
 {
     SDL3Ui ui = { 0 };
@@ -739,9 +750,13 @@ void medit_ui_sdl3_run(Meditor* medit)
         }
     }
 
-    Uint64 frame_count = 0;
-    Uint64 last_fps_elapsed_ns = 0;
-    Uint64 last_fps_time = SDL_GetTicksNS();
+    ui_sdl3_enable_cursor_blink(&ui);
+
+    perf_counter_start_periodic_report(
+        &ui.perf_counter,
+        PERF_COUNTER_REPORT_PERIOD_MS,
+        report_perf_counter,
+        NULL);
 
     medit->running = true;
     while (medit->running) {
@@ -767,23 +782,7 @@ void medit_ui_sdl3_run(Meditor* medit)
         }
         ui_sdl3_render(&ui);
 
-        // Measure input-to-display latency: only for active frames (not idle cursor-blink ticks).
-        if (ui.t_frame_start != 0) {
-            frame_count++;
-            Uint64 frame_ns = SDL_GetTicksNS() - ui.t_frame_start;
-            Uint64 now = SDL_GetTicksNS();
-            Uint64 elapsed = now - last_fps_time;
-            last_fps_elapsed_ns += frame_ns;
-            if (elapsed >= 1000000000ULL) {
-                SDL_Log(
-                    "Active frames: %llu | Avg frame time: %.2fms",
-                    (unsigned long long)frame_count,
-                    (double)last_fps_elapsed_ns / 1e6 / (double)frame_count);
-                frame_count = 0;
-                last_fps_elapsed_ns = 0;
-                last_fps_time = now;
-            }
-        }
+        perf_counter_frame_end(&ui.perf_counter);
     }
 
     ui_sdl3_unload_editor_font(&ui);

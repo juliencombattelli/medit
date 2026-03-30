@@ -27,7 +27,7 @@ endif()
 add_executable(medit
     src/main.c src/meditor.c src/keybind.c src/unicode.c
     # SDL3 UI
-    src/ui/sdl3/sdl3.c src/ui/sdl3/font.c src/ui/sdl3/keybind_sdl3.c
+    src/ui/sdl3/sdl3.c src/ui/sdl3/font.c src/ui/sdl3/keybind_sdl3.c src/ui/sdl3/perf_counter.c
 )
 target_compile_options(medit PRIVATE ${COMPILE_OPTIONS})
 target_link_options(medit PRIVATE ${LINK_OPTIONS})
