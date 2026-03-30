@@ -16,10 +16,11 @@ elseif(CMAKE_C_COMPILER_ID MATCHES ".*Clang" OR CMAKE_C_COMPILER_ID STREQUAL "GN
     set(COMPILE_OPTIONS
         -Wall -Wextra -Wshadow -Wconversion -pedantic
         -Wno-missing-braces
-        -fsanitize=address,undefined -fno-omit-frame-pointer
+        $<$<NOT:$<BOOL:${MINGW}>>:-fsanitize=address,undefined>
+        $<$<NOT:$<BOOL:${MINGW}>>:-fno-omit-frame-pointer>
     )
     set(LINK_OPTIONS
-        -fsanitize=address,undefined
+        $<$<NOT:$<BOOL:${MINGW}>>:-fsanitize=address,undefined>
     )
 endif()
 
