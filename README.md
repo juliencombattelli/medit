@@ -31,10 +31,14 @@ For SDL libraries:
 
 Doc for other platforms at https://github.com/libsdl-org/SDL/blob/release-3.4.2/docs
 
-### Easy native build
+### Convenience scripts
 
-Medit provides the script `./scripts/build.sh` to easily build the project along
-with its dependencies.
+Medit provides the scripts `./scripts/<target>/build.sh` to easily build the
+project for a specific target, along with its dependencies.
 
 Note that as SDL will be built from source, you may have to follow the
 instructions to install [its own build dependencies](#sdl-dependencies).
+
+The following targets are currently supported by those scripts:
+- Linux (native)
+- MinGW (from Windows or Linux)
