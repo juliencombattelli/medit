@@ -412,7 +412,7 @@ void medit_load_file(Meditor* medit, const char* filepath)
     dynarray_append(&medit->opened_files, new_file);
     File* file = &dynarray_last(&medit->opened_files);
 
-    FILE* f = fopen(filepath, "re");
+    FILE* f = fopen(filepath, "r");
     if (f == NULL) {
         printf("Error: cannot open file %s\n", filepath);
         // Fall back to a single empty line
