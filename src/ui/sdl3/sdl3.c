@@ -40,6 +40,8 @@ typedef struct {
     Meditor* medit;
     SDL_Window* window;
     SDL_Renderer* renderer;
+    TTF_TextEngine* text_engine;
+    TTF_Text* text_cache;
     Font font_ui;
     Font font_editor;
     PixelSize window_size;
@@ -102,8 +104,12 @@ static bool ui_sdl3_create(SDL3Ui* ui, Meditor* medit)
     // try(SDL_SetRenderVSync(renderer, 1));
     try(SDL_SetRenderVSync(renderer, SDL_RENDERER_VSYNC_DISABLED));
 
+    TTF_TextEngine* text_engine = TTF_CreateRendererTextEngine(renderer);
+    try(text_engine);
+
     ui->window = window;
     ui->renderer = renderer;
+    ui->text_engine = text_engine;
 
     try(SDL_ShowWindow(ui->window));
 
@@ -120,6 +126,7 @@ static void ui_sdl3_destroy(SDL3Ui* ui)
 {
     SDL_StopTextInput(ui->window);
 
+    TTF_DestroyRendererTextEngine(ui->text_engine);
     SDL_DestroyRenderer(ui->renderer);
     SDL_DestroyWindow(ui->window);
 
@@ -199,6 +206,9 @@ static void ui_sdl3_load_editor_font(SDL3Ui* ui)
 
     ui_sdl3_resize_window(ui);
 
+    ui->text_cache = TTF_CreateText(ui->text_engine, ui->font_editor.main, "", 0);
+    assert(ui->text_cache != NULL);
+
     ui->font_editor.emoji = load_emoji_font_aligned_to(
         ui->font_editor.main,
         "asset/font/NotoColorEmoji-Regular.ttf",
@@ -220,6 +230,9 @@ static void ui_sdl3_load_editor_font(SDL3Ui* ui)
 
 static void ui_sdl3_unload_editor_font(SDL3Ui* ui)
 {
+    TTF_DestroyText(ui->text_cache);
+    ui->text_cache = NULL;
+
     TTF_ClearFallbackFonts(ui->font_editor.main);
     TTF_CloseFont(ui->font_editor.main);
     TTF_CloseFont(ui->font_editor.emoji);
@@ -354,50 +367,19 @@ static void ui_sdl3_draw_text(
         return;
     }
 
-    // Take a 10% margin to allow display partial chars
-    int max_string_width = (int)((float)ui->window_size.width * 1.1f);
+    TTF_Text* text_obj = ui->text_cache;
 
-    int text_width = 0;
-    size_t text_bytes_max = 0;
-    bool res = TTF_MeasureString(
-        font->main,
-        text,
-        len,
-        max_string_width,
-        &text_width,
-        &text_bytes_max);
-    assert(res == true);
+    TTF_SetTextFont(text_obj, font->main);
+    TTF_SetTextString(text_obj, text, len);
+    TTF_SetTextColor(text_obj, color_to_RGBA_args(color));
 
-    size_t printed_bytes = SDL_min(len, text_bytes_max);
-
-    if (text_width == 0) {
-        return;
-    }
-
-    SDL_Surface* surface = TTF_RenderText_Blended(
-        font->main,
-        text,
-        printed_bytes,
-        color_to_sdl3(color));
-    assert(surface != NULL);
-
-    SDL_Texture* texture = SDL_CreateTextureFromSurface(ui->renderer, surface);
-    assert(texture != NULL);
+    int text_h = 0;
+    TTF_GetTextSize(text_obj, NULL, &text_h);
 
     // +1 to round up the result
-    int line_centering_offset = (size_to_int(ui->font_editor.line_spacing) - surface->h + 1) / 2;
+    int line_centering_offset = (size_to_int(ui->font_editor.line_spacing) - text_h + 1) / 2;
 
-    const SDL_FRect glyph_rect = {
-        .x = (float)pos.x,
-        .y = (float)pos.y + (float)line_centering_offset,
-        .w = (float)surface->w,
-        .h = (float)surface->h,
-    };
-
-    SDL_RenderTexture(ui->renderer, texture, NULL, &glyph_rect);
-
-    SDL_DestroySurface(surface);
-    SDL_DestroyTexture(texture);
+    TTF_DrawRendererText(text_obj, (float)pos.x, (float)pos.y + (float)line_centering_offset);
 }
 
 static void ui_sdl3_update_cursor_position(SDL3Ui* ui, FileViewGroup* group)
