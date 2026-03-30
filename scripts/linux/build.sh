@@ -18,13 +18,15 @@ if [ ! -f asset/font/consola.ttf ]; then
     fi
 fi
 
-cmake -S . -B build-linux \
+cmake -S . -B build/linux \
     -DCMAKE_BUILD_TYPE=RelWithDebInfo -DFETCHCONTENT_QUIET=NO \
     -DSDL3_DIR=../medit-deps-linux-install/lib/cmake/SDL3 \
     -DSDL3_ttf_DIR=../medit-deps-linux-install/lib/cmake/SDL3_ttf \
     -Dutf8proc_DIR=../medit-deps-linux-install/lib/cmake/utf8proc \
 
-cmake --build build-linux -j
+ln -sf build/linux/compile_commands.json .
+
+cmake --build build/linux -j
 
 # Cross compilation to Windows MSVC using Zig (not working at the moment)
 # cmake -S . -B _build/windows-msvc -G"Ninja Multi-Config" -DFETCHCONTENT_QUIET=$FETCHCONTENT_QUIET \

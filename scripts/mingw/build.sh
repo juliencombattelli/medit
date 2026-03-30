@@ -18,11 +18,11 @@ if [ ! -f asset/font/consola.ttf ]; then
     fi
 fi
 
-cmake -S . -B build-mingw \
+cmake -S . -B build/mingw \
     --toolchain cmake/MinGW.cmake \
     -DCMAKE_BUILD_TYPE=RelWithDebInfo -DFETCHCONTENT_QUIET=NO \
     -DSDL3_DIR=../medit-deps-mingw-install/lib/cmake/SDL3 \
     -DSDL3_ttf_DIR=../medit-deps-mingw-install/lib/cmake/SDL3_ttf \
     -Dutf8proc_DIR=../medit-deps-mingw-install/lib/cmake/utf8proc \
 
-cmake --build build-mingw -j
+cmake --build build/mingw -j
