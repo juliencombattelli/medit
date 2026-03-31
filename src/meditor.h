@@ -125,6 +125,8 @@ void medit_cursor_left(Meditor* medit);
 void medit_cursor_right(Meditor* medit);
 void medit_cursor_line_begin(Meditor* medit);
 void medit_cursor_line_end(Meditor* medit);
+void medit_cursor_file_begin(Meditor* medit);
+void medit_cursor_file_end(Meditor* medit);
 
 void medit_insert_text(Meditor* medit, const char* text, size_t n);
 

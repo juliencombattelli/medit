@@ -76,6 +76,16 @@ static void action_cursor_line_end(Meditor* medit)
     medit_cursor_line_end(medit);
 }
 
+static void action_cursor_file_begin(Meditor* medit)
+{
+    medit_cursor_file_begin(medit);
+}
+
+static void action_cursor_file_end(Meditor* medit)
+{
+    medit_cursor_file_end(medit);
+}
+
 static void action_add_cursor_down(Meditor* medit)
 {
     MEDIT_UNUSED(medit);
@@ -150,6 +160,8 @@ void medit_load_default_gui_keybind(Meditor* medit)
     keybind_bind(keybind, KEY_RIGHT, MOD_NONE, action_cursor_right, medit);
     keybind_bind(keybind, KEY_HOME, MOD_NONE, action_cursor_line_begin, medit);
     keybind_bind(keybind, KEY_END, MOD_NONE, action_cursor_line_end, medit);
+    keybind_bind(keybind, KEY_HOME, MOD_CTRL, action_cursor_file_begin, medit);
+    keybind_bind(keybind, KEY_END, MOD_CTRL, action_cursor_file_end, medit);
 
     keybind_bind(keybind, KEY_ESCAPE, MOD_NONE, action_restore_cursor, medit);
     keybind_bind(keybind, KEY_DOWN, MOD_CTRL_ALT, action_add_cursor_down, medit);
@@ -351,6 +363,20 @@ void medit_cursor_line_end(Meditor* medit)
     file_view->cursors.items[0].byte = line->count;
     update_cursor_len(medit);
     update_preferred_col(medit);
+}
+
+void medit_cursor_file_begin(Meditor* medit)
+{
+    FileView* file_view = medit_get_focused_file_view(medit);
+    file_view->cursors.items[0].line = 0;
+    medit_cursor_line_begin(medit);
+}
+
+void medit_cursor_file_end(Meditor* medit)
+{
+    FileView* file_view = medit_get_focused_file_view(medit);
+    file_view->cursors.items[0].line = file_view->file->lines.count - 1;
+    medit_cursor_line_end(medit);
 }
 
 void medit_split_line_at_cursor(Meditor* medit)
