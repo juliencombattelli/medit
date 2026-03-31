@@ -141,11 +141,17 @@ static void action_focus_file_view_group_right(Meditor* medit)
     }
 }
 
+static void action_save_file(Meditor* medit)
+{
+    medit_save_file(medit);
+}
+
 void medit_load_default_gui_keybind(Meditor* medit)
 {
     Keybind* keybind = &medit->keybind;
 
     keybind_bind(keybind, KEY_Q, MOD_CTRL, action_quit, medit);
+    keybind_bind(keybind, KEY_S, MOD_CTRL, action_save_file, medit);
 
     keybind_bind(keybind, KEY_NPAD_PLUS, MOD_CTRL, action_font_zoom_in, medit);
     keybind_bind(keybind, KEY_EQUALS, MOD_SHIFT_CTRL, action_font_zoom_in, medit);
@@ -491,6 +497,52 @@ void medit_load_file(Meditor* medit, const char* filepath)
 
     dynarray_append(group, new_file_view);
     group->displayed = group->count - 1;
+
+    printf("file lines: %zu\n", new_file_view.file->lines.count);
+}
+
+void medit_save_file(Meditor* medit)
+{
+    FileView* file_view = medit_get_focused_file_view(medit);
+    if (file_view == NULL || file_view->file == NULL) {
+        printf("Error: no file to save\n");
+        return;
+    }
+
+    const char* filepath = file_view->file->name;
+    if (filepath == NULL) {
+        printf("Error: file has no name\n");
+        return;
+    }
+
+    FILE* f = fopen(filepath, "w");
+    if (f == NULL) {
+        printf("Error: cannot open file %s for writing\n", filepath);
+        return;
+    }
+
+    Lines* lines = &file_view->file->lines;
+    for (size_t i = 0; i < lines->count; ++i) {
+        Line* line = &lines->items[i];
+        if (line->count > 0) {
+            if (fwrite(line->items, 1, line->count, f) != line->count) {
+                printf("Error: failed to write to file %s\n", filepath);
+                (void)fclose(f);
+                return;
+            }
+        }
+        // Write newline after each line except the last
+        if (i < lines->count - 1) {
+            if (fputc('\n', f) == EOF) {
+                printf("Error: failed to write newline to file %s\n", filepath);
+                (void)fclose(f);
+                return;
+            }
+        }
+    }
+
+    (void)fclose(f);
+    printf("File saved: %s\n", filepath);
 }
 
 void medit_close_files(Meditor* medit)
