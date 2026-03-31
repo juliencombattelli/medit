@@ -399,11 +399,10 @@ static void ui_sdl3_draw_text(
     TTF_SetTextString(text_obj, text, len);
     TTF_SetTextColor(text_obj, color_to_RGBA_args(color));
 
-    int text_h = 0;
-    TTF_GetTextSize(text_obj, NULL, &text_h);
-
-    // +1 to round up the result
-    int line_centering_offset = (size_to_int(ui->font_editor.line_spacing) - text_h + 1) / 2;
+    // Use font height (ascent + |descent|, no leading) so the offset is stable and non-zero.
+    // TTF_GetTextSize returns the layout box height, which equals line_skip, giving offset=0.
+    int text_h = TTF_GetFontHeight(font->main);
+    int line_centering_offset = (size_to_int(font->line_spacing) - text_h + 1) / 2;
 
     TTF_DrawRendererText(text_obj, (float)pos.x, (float)pos.y + (float)line_centering_offset);
 }
