@@ -35,6 +35,7 @@ typedef struct {
     TTF_Font* emoji;
     size_t line_spacing;
     size_t default_cursor_width;
+    int line_centering_offset;
 } Font;
 
 typedef struct {
@@ -50,6 +51,7 @@ typedef struct {
     PerfCounter perf_counter;
     int line_nr_padding;
     int line_nr_max_digits;
+    int line_nr_cached_line_count;
     int editor_font_size;
 } SDL3Ui;
 
@@ -64,7 +66,7 @@ static void ui_sdl3_unload_ui_font(SDL3Ui* ui);
 static void ui_sdl3_load_editor_font(SDL3Ui* ui);
 static void ui_sdl3_unload_editor_font(SDL3Ui* ui);
 
-static void ui_sdl3_handle_event(SDL3Ui* ui);
+static bool ui_sdl3_handle_event(SDL3Ui* ui);
 
 static void ui_sdl3_clear(SDL3Ui* ui);
 static void ui_sdl3_draw_text(
@@ -207,8 +209,10 @@ static void ui_sdl3_load_editor_font(SDL3Ui* ui)
             TTF_GetFontFamilyName(ui->font_editor.main));
     }
 
-    int h = TTF_GetFontLineSkip(ui->font_editor.main);
-    ui->font_editor.line_spacing = int_to_size(h);
+    int line_spacing = TTF_GetFontLineSkip(ui->font_editor.main);
+    ui->font_editor.line_spacing = int_to_size(line_spacing);
+    int font_h = TTF_GetFontHeight(ui->font_editor.main);
+    ui->font_editor.line_centering_offset = (line_spacing - font_h + 1) / 2;
 
     int w = 0;
     assert(TTF_GetStringSize(ui->font_editor.main, "M", 0, &w, NULL));
@@ -353,7 +357,7 @@ static void ui_sdl3_dispatch_event(SDL3Ui* ui, SDL_Event* event)
     }
 }
 
-static void ui_sdl3_handle_event(SDL3Ui* ui)
+static bool ui_sdl3_handle_event(SDL3Ui* ui)
 {
     // Save current font size to monitor changes
     ui->editor_font_size = ui->medit->config.editor_font_size;
@@ -367,10 +371,11 @@ static void ui_sdl3_handle_event(SDL3Ui* ui)
             ui_sdl3_reset_cursor_blinking_timer_on_input(ui, &event);
             ui_sdl3_dispatch_event(ui, &event);
         }
-    } else {
-        // Timeout (cursor blink tick, no real input): not a frame, don't measure.
-        perf_counter_frame_discard(&ui->perf_counter);
+        return true;
     }
+    // Timeout (no events): nothing changed, skip render.
+    perf_counter_frame_discard(&ui->perf_counter);
+    return false;
 }
 
 static void ui_sdl3_clear(SDL3Ui* ui)
@@ -399,12 +404,7 @@ static void ui_sdl3_draw_text(
     TTF_SetTextString(text_obj, text, len);
     TTF_SetTextColor(text_obj, color_to_RGBA_args(color));
 
-    // Use font height (ascent + |descent|, no leading) so the offset is stable and non-zero.
-    // TTF_GetTextSize returns the layout box height, which equals line_skip, giving offset=0.
-    int text_h = TTF_GetFontHeight(font->main);
-    int line_centering_offset = (size_to_int(font->line_spacing) - text_h + 1) / 2;
-
-    TTF_DrawRendererText(text_obj, (float)pos.x, (float)pos.y + (float)line_centering_offset);
+    TTF_DrawRendererText(text_obj, (float)pos.x, (float)pos.y + (float)font->line_centering_offset);
 }
 
 static void ui_sdl3_update_cursor_position(SDL3Ui* ui, FileViewGroup* group)
@@ -539,6 +539,10 @@ static void ui_sdl3_compute_line_number_gutter_width(SDL3Ui* ui, FileViewGroup* 
     FileView* file_view = medit_get_displayed_file_view_in_group(medit, group);
 
     const int line_count = SDL_max(size_to_int(file_view->file->lines.count), 1000);
+    if (line_count == ui->line_nr_cached_line_count) {
+        return;
+    }
+    ui->line_nr_cached_line_count = line_count;
     ui->line_nr_max_digits = digits_count(line_count);
 
     char buffer[INT64_DIGITS_COUNT] = { 0 };
@@ -585,17 +589,7 @@ static void ui_sdl3_draw_line_number(SDL3Ui* ui, size_t row, FileViewGroup* grou
         row + 1);
     size_t line_number_len = int_to_size(written);
 
-    const SDL_Rect clipping_rect = {
-        .x = size_to_int(group->area.x),
-        .y = size_to_int(group->area.y),
-        .w = ui->line_nr_padding,
-        .h = size_to_int(group->area.h),
-    };
-    assert(SDL_SetRenderClipRect(ui->renderer, &clipping_rect));
-
     ui_sdl3_draw_text(ui, line_number, line_number_len, &ui->font_editor, pos, line_number_color);
-
-    assert(SDL_SetRenderClipRect(ui->renderer, NULL));
 }
 
 static void ui_sdl3_draw_line(SDL3Ui* ui, size_t row, Line* line, FileViewGroup* group)
@@ -609,14 +603,6 @@ static void ui_sdl3_draw_line(SDL3Ui* ui, size_t row, Line* line, FileViewGroup*
             - size_to_int(file_view->scrolling.y),
     };
 
-    const SDL_Rect clipping_rect = {
-        .x = size_to_int(group->area.x) + ui->line_nr_padding,
-        .y = size_to_int(group->area.y),
-        .w = size_to_int(group->area.w) - ui->line_nr_padding,
-        .h = size_to_int(group->area.h),
-    };
-    assert(SDL_SetRenderClipRect(ui->renderer, &clipping_rect));
-
     ui_sdl3_draw_text(
         ui,
         line->items,
@@ -624,8 +610,6 @@ static void ui_sdl3_draw_line(SDL3Ui* ui, size_t row, Line* line, FileViewGroup*
         &ui->font_editor,
         line_pos,
         medit->config.color_theme.editor_fg);
-
-    assert(SDL_SetRenderClipRect(ui->renderer, NULL));
 }
 
 static void ui_sdl3_draw_file_view_group(SDL3Ui* ui, FileViewGroup* group)
@@ -638,11 +622,30 @@ static void ui_sdl3_draw_file_view_group(SDL3Ui* ui, FileViewGroup* group)
     const size_t screen_lines = (int_to_size(ui->window_size.height) / ui->font_editor.line_spacing)
         + 1;
     const size_t rendered_line_count = SDL_min(lines->count, first_rendered_line + screen_lines);
+
+    const SDL_Rect gutter_clip = {
+        .x = size_to_int(group->area.x),
+        .y = size_to_int(group->area.y),
+        .w = ui->line_nr_padding,
+        .h = size_to_int(group->area.h),
+    };
+    assert(SDL_SetRenderClipRect(ui->renderer, &gutter_clip));
     for (size_t row = first_rendered_line; row < rendered_line_count; ++row) {
-        Line* line = &lines->items[row];
         ui_sdl3_draw_line_number(ui, row, group);
-        ui_sdl3_draw_line(ui, row, line, group);
     }
+
+    const SDL_Rect content_clip = {
+        .x = size_to_int(group->area.x) + ui->line_nr_padding,
+        .y = size_to_int(group->area.y),
+        .w = size_to_int(group->area.w) - ui->line_nr_padding,
+        .h = size_to_int(group->area.h),
+    };
+    assert(SDL_SetRenderClipRect(ui->renderer, &content_clip));
+    for (size_t row = first_rendered_line; row < rendered_line_count; ++row) {
+        ui_sdl3_draw_line(ui, row, &lines->items[row], group);
+    }
+
+    assert(SDL_SetRenderClipRect(ui->renderer, NULL));
 }
 
 static void ui_sdl3_draw_file_view_group_separator(SDL3Ui* ui, FileViewGroup* group)
@@ -759,10 +762,15 @@ void medit_ui_sdl3_run(Meditor* medit)
 
     medit->running = true;
     while (medit->running) {
-        ui_sdl3_handle_event(&ui);
+        bool should_render = ui_sdl3_handle_event(&ui);
         if (ui.editor_font_size != medit->config.editor_font_size) {
             ui_sdl3_unload_editor_font(&ui);
             ui_sdl3_load_editor_font(&ui);
+            should_render = true;
+        }
+
+        if (!should_render) {
+            continue;
         }
 
         ui_sdl3_clear(&ui);
