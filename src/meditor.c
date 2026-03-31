@@ -449,8 +449,8 @@ void medit_load_file(Meditor* medit, const char* filepath)
         char buf[MEDIT_LINE_DEFAULT_CAPACITY];
         Line current_line = { 0 };
         dynarray_reserve(&current_line, MEDIT_LINE_DEFAULT_CAPACITY);
+        bool last_line_ended_with_newline = false;
 
-        // TODO the last empty line of a file is not loaded somehow
         while (fgets(buf, sizeof(buf), f) != NULL) {
             size_t len = strlen(buf);
             // Strip trailing CRLF or LF
@@ -463,13 +463,18 @@ void medit_load_file(Meditor* medit, const char* filepath)
                 dynarray_append(&file->lines, current_line);
                 current_line = (Line) { 0 };
                 dynarray_reserve(&current_line, MEDIT_LINE_DEFAULT_CAPACITY);
+                last_line_ended_with_newline = true;
             } else {
                 // Buffer was too small; accumulate into the same line
                 dynarray_append_many(&current_line, buf, len);
+                last_line_ended_with_newline = false;
             }
         }
         // Trailing line with no newline, or empty file
         if (current_line.count > 0 || file->lines.count == 0) {
+            dynarray_append(&file->lines, current_line);
+        } else if (last_line_ended_with_newline) {
+            // Add empty line after final newline
             dynarray_append(&file->lines, current_line);
         } else {
             dynarray_free(current_line);
