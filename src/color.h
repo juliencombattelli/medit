@@ -27,7 +27,7 @@ static inline Color color_inverse(Color color)
         .r = 255 - color.r,
         .g = 255 - color.g,
         .b = 255 - color.b,
-        .a = 255 - color.a,
+        .a = color.a,
     };
 }
 
