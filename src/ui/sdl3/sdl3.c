@@ -407,45 +407,42 @@ static void ui_sdl3_draw_text(
     TTF_DrawRendererText(text_obj, (float)pos.x, (float)pos.y + (float)font->line_centering_offset);
 }
 
-static void ui_sdl3_update_cursor_position(SDL3Ui* ui, FileViewGroup* group)
+static Rect ui_sdl3_cursor_rect(
+    SDL3Ui* ui,
+    FileViewGroup* group,
+    const Cursor* cursor,
+    FileView* file_view)
 {
-    Meditor* medit = ui->medit;
-
-    FileView* file_view = medit_get_displayed_file_view_in_group(medit, group);
-
-    for (size_t i = 0; i < file_view->cursors.count; ++i) {
-        Cursor* cursor = &file_view->cursors.items[i];
-        Line* line = &file_view->file->lines.items[cursor->line];
-        // Compute x offset of the cursor in the line
-        int line_w = 0;
-        if (cursor->byte != 0) {
-            TTF_MeasureString(
-                ui->font_editor.main,
-                file_view->file->lines.items[cursor->line].items,
-                cursor->byte,
-                0,
-                &line_w,
-                NULL);
-        }
-        // Compute cursor width
-        int cursor_w = size_to_int(ui->font_editor.default_cursor_width);
-        if (line->count != cursor->byte) {
-            // cursor not at end of line (excludes also empty lines)
-            TTF_MeasureString(
-                ui->font_editor.main,
-                &line->items[cursor->byte],
-                cursor->len,
-                0,
-                &cursor_w,
-                NULL);
-        }
-        cursor->on_screen = (Rect) {
-            .x = group->area.x + int_to_size(line_w),
-            .y = group->area.y + (cursor->line * ui->font_editor.line_spacing),
-            .w = int_to_size(cursor_w),
-            .h = ui->font_editor.line_spacing,
-        };
+    Line* line = &file_view->file->lines.items[cursor->line];
+    // Compute x offset of the cursor in the line
+    int line_w = 0;
+    if (cursor->byte != 0) {
+        TTF_MeasureString(
+            ui->font_editor.main,
+            file_view->file->lines.items[cursor->line].items,
+            cursor->byte,
+            0,
+            &line_w,
+            NULL);
     }
+    // Compute cursor width
+    int cursor_w = size_to_int(ui->font_editor.default_cursor_width);
+    if (line->count != cursor->byte) {
+        // cursor not at end of line (excludes also empty lines)
+        TTF_MeasureString(
+            ui->font_editor.main,
+            &line->items[cursor->byte],
+            cursor->len,
+            0,
+            &cursor_w,
+            NULL);
+    }
+    return (Rect) {
+        .x = group->area.x + int_to_size(line_w),
+        .y = group->area.y + (cursor->line * ui->font_editor.line_spacing),
+        .w = int_to_size(cursor_w),
+        .h = ui->font_editor.line_spacing,
+    };
 }
 
 static void ui_sdl3_draw_cursor(SDL3Ui* ui, FileViewGroup* group)
@@ -464,13 +461,13 @@ static void ui_sdl3_draw_cursor(SDL3Ui* ui, FileViewGroup* group)
 
     for (size_t i = 0; i < file_view->cursors.count; ++i) {
         const Cursor* cursor = &file_view->cursors.items[i];
+        const Rect on_screen = ui_sdl3_cursor_rect(ui, group, cursor, file_view);
 
         SDL_FRect cursor_frect = {
-            .x = (float)(cursor->on_screen.x + int_to_size(ui->line_nr_padding)
-                         - file_view->scrolling.x),
-            .y = (float)(cursor->on_screen.y - file_view->scrolling.y),
-            .w = (float)cursor->on_screen.w,
-            .h = (float)cursor->on_screen.h,
+            .x = (float)(on_screen.x + int_to_size(ui->line_nr_padding) - file_view->scrolling.x),
+            .y = (float)(on_screen.y - file_view->scrolling.y),
+            .w = (float)on_screen.w,
+            .h = (float)on_screen.h,
         };
         SDL_SetRenderDrawColor(ui->renderer, color_to_RGBA_args(cursor_color));
         if (focused) {
@@ -484,9 +481,9 @@ static void ui_sdl3_draw_cursor(SDL3Ui* ui, FileViewGroup* group)
         if (cursor->byte < current_line->count) {
             const char* grapheme = &current_line->items[cursor->byte];
             PixelPos char_pos = {
-                .x = size_to_int(cursor->on_screen.x) + ui->line_nr_padding
+                .x = size_to_int(on_screen.x) + ui->line_nr_padding
                     - size_to_int(file_view->scrolling.x),
-                .y = size_to_int(cursor->on_screen.y - file_view->scrolling.y),
+                .y = size_to_int(on_screen.y - file_view->scrolling.y),
             };
             ui_sdl3_draw_text(
                 ui,
@@ -503,6 +500,7 @@ static void ui_sdl3_scroll_file_view(SDL3Ui* ui, FileViewGroup* group)
 {
     FileView* file_view = medit_get_displayed_file_view_in_group(ui->medit, group);
     Cursor* cursor = &file_view->cursors.items[0];
+    const Rect on_screen = ui_sdl3_cursor_rect(ui, group, cursor, file_view);
 
     const size_t margin_x = ui->font_editor.default_cursor_width * 3;
     const size_t margin_y = ui->font_editor.line_spacing * 3;
@@ -513,16 +511,16 @@ static void ui_sdl3_scroll_file_view(SDL3Ui* ui, FileViewGroup* group)
     const size_t left_border = group->area.x + margin_x;
     const size_t top_border = group->area.y + margin_y;
 
-    const size_t cursor_right = cursor->on_screen.x + cursor->on_screen.w;
-    const size_t cursor_bottom = cursor->on_screen.y + cursor->on_screen.h;
+    const size_t cursor_right = on_screen.x + on_screen.w;
+    const size_t cursor_bottom = on_screen.y + on_screen.h;
 
     // Compute the valid scroll range that keeps the cursor within both margins:
     // smallest offset that prevents the cursor from going past the right/bottom margin
     const size_t scroll_min_x = SDL_max(cursor_right, right_border) - right_border;
     const size_t scroll_min_y = SDL_max(cursor_bottom, bottom_border) - bottom_border;
     // largest offset before the cursor goes past the left/top margin
-    const size_t scroll_max_x = SDL_max(cursor->on_screen.x, left_border) - left_border;
-    const size_t scroll_max_y = SDL_max(cursor->on_screen.y, top_border) - top_border;
+    const size_t scroll_max_x = SDL_max(on_screen.x, left_border) - left_border;
+    const size_t scroll_max_y = SDL_max(on_screen.y, top_border) - top_border;
 
     file_view->scrolling.x = SDL_clamp(file_view->scrolling.x, scroll_min_x, scroll_max_x);
     file_view->scrolling.y = SDL_clamp(file_view->scrolling.y, scroll_min_y, scroll_max_y);
@@ -779,7 +777,6 @@ void medit_ui_sdl3_run(Meditor* medit)
             FileViewGroup* group = &medit->file_views.items[i];
             { // TODO consider doing this on event instead of every frame
                 ui_sdl3_compute_line_number_gutter_width(&ui, group);
-                ui_sdl3_update_cursor_position(&ui, group);
                 ui_sdl3_scroll_file_view(&ui, group);
             }
 

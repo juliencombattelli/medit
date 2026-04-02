@@ -53,9 +53,6 @@ typedef struct {
     // vertical moves so that up/down navigation lands on the correct grapheme even when lines
     // contain multi-byte clusters.
     size_t preferred_col;
-    // On screen coordinates of the cursor, excluding the ui elements around the file view
-    // So (x=0,y=0) is the top-left corner if the first text glyph in of the viewed file
-    Rect on_screen;
 } Cursor;
 
 typedef struct {
