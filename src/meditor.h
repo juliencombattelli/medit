@@ -30,6 +30,7 @@ typedef struct {
 typedef struct {
     const char* name;
     Lines lines;
+    bool dirty;
 } File;
 
 typedef struct {

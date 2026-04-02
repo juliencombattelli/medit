@@ -406,6 +406,8 @@ void medit_insert_text(Meditor* medit, const char* text, size_t n)
 
     const size_t cursor_col = file_view->cursors.items[0].byte;
 
+    file_view->file->dirty = true;
+
     Line* current_line = medit_get_current_line(medit);
 
     dynarray_insert_many(current_line, text, n, cursor_col);
@@ -539,6 +541,8 @@ void medit_save_file(Meditor* medit)
 
     (void)fclose(f);
     printf("File saved: %s\n", filepath);
+
+    file_view->file->dirty = false;
 }
 
 void medit_close_files(Meditor* medit)

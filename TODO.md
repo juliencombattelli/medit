@@ -5,10 +5,12 @@
 - [x] unicode handling
 - [x] optimize rendering for long files
 - [x] save/load file
-- [ ] monitor file changed and reload if needed
 - [x] boost text rendering performance by using a glyph atlas
+- [x] add cursor column memorization
+- [ ] rework keybind to allow defining actions in UI modules (pass the ui as void* userdata)
+- [-] show dialog box when exiting with dirty files
+- [ ] monitor file changed and reload if needed
 - [ ] add a string view library
 - [ ] reenable multi cursor
-- [x] add cursor column memorization
 - [ ] add selection
 - [ ] layout engine

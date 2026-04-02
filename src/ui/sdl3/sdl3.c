@@ -285,6 +285,75 @@ static void ui_sdl3_reset_cursor_blinking_timer_on_input(SDL3Ui* ui, SDL_Event* 
     }
 }
 
+static void ui_sdl3_handle_save_of_dirty_file(
+    SDL3Ui* ui,
+    File* file,
+    SDL_MessageBoxData* messageboxdata,
+    bool* cancel_exit)
+{
+    *cancel_exit = false;
+
+    static const char fmt[] = "Do you want to save the changes you made to %s?";
+    int message_len = snprintf(NULL, 0, fmt, file->name);
+    char msg[message_len + 1];
+    (void)snprintf(msg, sizeof msg, fmt, file->name);
+    messageboxdata->message = msg;
+
+    if (file->dirty) {
+        int buttonid = 0;
+        assert(SDL_ShowMessageBox(messageboxdata, &buttonid));
+        switch (buttonid) {
+            case 0:
+                printf("Saving changes for file %s\n", file->name);
+                medit_save_file(ui->medit);
+                break;
+            case 1: printf("Discarding changes for file %s\n", file->name); break;
+            default: printf("Cancelling exit\n"); *cancel_exit = true;
+        }
+    }
+}
+
+static void ui_sdl3_handle_save_of_dirty_files(SDL3Ui* ui)
+{
+    static const SDL_MessageBoxButtonData buttons[] = {
+        {
+            .flags = SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT,
+            .buttonID = 0,
+            .text = "Save",
+        },
+        {
+            .flags = 0,
+            .buttonID = 1,
+            .text = "Don't Save",
+        },
+        {
+            .flags = SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT,
+            .buttonID = 2,
+            .text = "Cancel",
+        },
+    };
+
+    static SDL_MessageBoxData messageboxdata = {
+        .flags = SDL_MESSAGEBOX_WARNING | SDL_MESSAGEBOX_BUTTONS_LEFT_TO_RIGHT,
+        .window = NULL,
+        .title = "Medit",
+        .message = NULL,
+        .numbuttons = SDL_arraysize(buttons),
+        .buttons = buttons,
+        .colorScheme = NULL,
+    };
+
+    for (size_t i = 0; i < ui->medit->opened_files.count; ++i) {
+        File* file = &ui->medit->opened_files.items[i];
+        bool cancel_exit = false;
+        ui_sdl3_handle_save_of_dirty_file(ui, file, &messageboxdata, &cancel_exit);
+        if (cancel_exit) {
+            break;
+        }
+        ui->medit->running = false;
+    }
+}
+
 static void ui_sdl3_on_text_input(SDL3Ui* ui, const char* text)
 {
     size_t text_len = strlen(text);
@@ -294,13 +363,18 @@ static void ui_sdl3_on_text_input(SDL3Ui* ui, const char* text)
 
 static void ui_sdl3_on_key_down(SDL3Ui* ui, SDL_Event* event)
 {
+    // TODO set dirty in medit editing function
     switch (event->key.key) {
         case SDLK_RETURN: {
             medit_split_line_at_cursor(ui->medit);
             medit_cursor_down(ui->medit);
             medit_cursor_line_begin(ui->medit);
+            medit_get_focused_file_view(ui->medit)->file->dirty = true;
         } break;
-        case SDLK_BACKSPACE: medit_erase_char(ui->medit); break;
+        case SDLK_BACKSPACE:
+            medit_erase_char(ui->medit);
+            medit_get_focused_file_view(ui->medit)->file->dirty = true;
+            break;
         default: break;
     }
 }
@@ -310,7 +384,7 @@ static void ui_sdl3_dispatch_event(SDL3Ui* ui, SDL_Event* event)
     Meditor* medit = ui->medit;
 
     switch (event->type) {
-        case SDL_EVENT_QUIT: medit->running = false; break;
+        case SDL_EVENT_QUIT: ui_sdl3_handle_save_of_dirty_files(ui); break;
         case SDL_EVENT_WINDOW_RESIZED:
             ui_sdl3_on_window_resized(ui, event->window.data1, event->window.data2);
             break;
