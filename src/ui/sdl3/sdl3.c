@@ -55,30 +55,6 @@ typedef struct {
     int editor_font_size;
 } SDL3Ui;
 
-static bool ui_sdl3_create(SDL3Ui* ui, Meditor* medit);
-static void ui_sdl3_destroy(SDL3Ui* ui);
-
-static void ui_sdl3_resize_window_with_data(SDL3Ui* ui, PixelSize window_size);
-static void ui_sdl3_resize_window(SDL3Ui* ui);
-
-static void ui_sdl3_load_ui_font(SDL3Ui* ui);
-static void ui_sdl3_unload_ui_font(SDL3Ui* ui);
-static void ui_sdl3_load_editor_font(SDL3Ui* ui);
-static void ui_sdl3_unload_editor_font(SDL3Ui* ui);
-
-static bool ui_sdl3_handle_event(SDL3Ui* ui);
-
-static void ui_sdl3_clear(SDL3Ui* ui);
-static void ui_sdl3_draw_text(
-    SDL3Ui* ui,
-    const char* text,
-    size_t len,
-    Font* font,
-    PixelPos pos,
-    Color color);
-static void ui_sdl3_draw_cursor(SDL3Ui* ui, FileViewGroup* group);
-static void ui_sdl3_render(SDL3Ui* ui);
-
 static void temp_ui_sdl3_update_file_view_groups_size(SDL3Ui* ui);
 
 enum {
