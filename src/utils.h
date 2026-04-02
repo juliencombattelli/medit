@@ -8,7 +8,7 @@
 
 #define MEDIT_UNREACHABLE(message)                                                                 \
     do {                                                                                           \
-        fprintf(stderr, "%s:%d: UNREACHABLE: %s\n", __FILE__, __LINE__, message);                  \
+        (void)fprintf(stderr, "%s:%d: UNREACHABLE: %s\n", __FILE__, __LINE__, message);            \
         abort();                                                                                   \
     } while (0)
 
