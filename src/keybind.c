@@ -60,15 +60,10 @@ bool keybind_handle_event(Keybind* keybind, const KeybindEvent* event)
 {
     printf("[DEBUG] Key: %s\n", keybind_key_to_string(event->key));
 
-    // Invoke the action callback if any
-    if (event->key < KEY_COUNT) {
-        uint32_t mod_index = event->modifiers & MOD_MASK;
-        KeybindEntry* entry = &keybind->bindings[event->key][mod_index];
-
-        if (entry->callback != NULL) {
-            entry->callback(entry->medit);
-            return true;
-        }
+    const KeybindEntry* entry = keybind_get(keybind, event->key, event->modifiers);
+    if (entry->callback != NULL) {
+        entry->callback(entry->medit);
+        return true;
     }
 
     return false;
