@@ -443,6 +443,7 @@ void medit_load_file(Meditor* medit, const char* filepath)
     File new_file = { .name = filepath };
     dynarray_append(&medit->opened_files, new_file);
     File* file = &dynarray_last(&medit->opened_files);
+    file->name = strdup(filepath);
 
     FILE* f = fopen(filepath, "r");
     if (f == NULL) {
