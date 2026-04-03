@@ -363,7 +363,6 @@ static void ui_sdl3_on_text_input(SDL3Ui* ui, const char* text)
 
 static void ui_sdl3_on_key_down(SDL3Ui* ui, SDL_Event* event)
 {
-    // TODO set dirty in medit editing function
     switch (event->key.key) {
         case SDLK_RETURN: {
             medit_split_line_at_cursor(ui->medit);

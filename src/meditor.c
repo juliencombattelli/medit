@@ -391,6 +391,8 @@ void medit_split_line_at_cursor(Meditor* medit)
     Line* current_line = medit_get_current_line(medit);
     Line* new_line = medit_new_line_at(medit, cursor_line + 1);
 
+    file_view->file->dirty = true;
+
     dynarray_insert_many(
         new_line,
         &current_line->items[cursor_byte],
@@ -573,6 +575,8 @@ Line* medit_new_line_at(Meditor* medit, size_t pos)
     FileView* file_view = medit_get_focused_file_view(medit);
     Lines* lines = &file_view->file->lines;
 
+    file_view->file->dirty = true;
+
     Line empty_line = { 0 };
     dynarray_reserve(&empty_line, MEDIT_LINE_DEFAULT_CAPACITY);
 
@@ -615,6 +619,8 @@ void medit_erase_line(Meditor* medit)
     const size_t cursor_row = file_view->cursors.items[0].line;
     Lines* lines = &file_view->file->lines;
 
+    file_view->file->dirty = true;
+
     if (lines->count > 1) {
         if (cursor_row + 1 == lines->count) {
             medit_cursor_up(medit);
@@ -644,6 +650,8 @@ void medit_erase_char(Meditor* medit)
 
     Lines* lines = &file_view->file->lines;
     Line* current_line = &lines->items[cursor_line];
+
+    file_view->file->dirty = true;
 
     medit_cursor_left(medit);
 
