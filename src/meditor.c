@@ -494,7 +494,16 @@ void medit_load_file(Meditor* medit, const char* filepath)
     FileView new_file_view = {
         .file = file,
     };
-    dynarray_append(&new_file_view.cursors, (Cursor) { 0 });
+
+    // Add the cursor to the top character
+    Cursor cursor = { 0 };
+    Line* initial_line = &file->lines.items[0];
+    UcGraphemeIter it = { 0 };
+    uc_grapheme_iter_init(&it, (uint8_t*)initial_line->items, initial_line->count, cursor.byte);
+    UcSpan out = { 0 };
+    uc_grapheme_iter_next(&it, &out);
+    cursor.len = MEDIT_MAX(out.len, 1);
+    dynarray_append(&new_file_view.cursors, cursor);
 
     dynarray_append(group, new_file_view);
     group->displayed = group->count - 1;
