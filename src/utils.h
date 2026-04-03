@@ -15,4 +15,6 @@
 #define MEDIT_MIN(a, b) (((a) < (b)) ? (a) : (b))
 #define MEDIT_MAX(a, b) (((a) > (b)) ? (a) : (b))
 
+char* medit_strdup(const char* str);
+
 #endif // MEDIT_UTILS_H_
