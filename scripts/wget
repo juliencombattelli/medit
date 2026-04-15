@@ -1,0 +1,22 @@
+#!/bin/bash
+
+set -eu
+
+URL="$1"
+FILE="$2"
+
+declare -l OS_NAME
+OS_NAME=$(uname --operating-system)
+
+case "$OS_NAME" in
+    *msys*)
+        powershell.exe -Command "Invoke-WebRequest '$URL' -UseBasicParsing -OutFile '$FILE'"
+        ;;
+    *)
+        if [[ ! -x $(command -v wget) ]]; then
+            echo "Error: wget not found or not executable. Exiting."
+            exit 1
+        fi
+        wget "$URL" --output-document="$FILE"
+        ;;
+esac

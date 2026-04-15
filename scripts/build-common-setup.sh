@@ -85,12 +85,12 @@ setup_deps() {
     echo "Downloading fonts..."
     mkdir -p asset/font
     if [ ! -f asset/font/OpenMoji-color-colr0_svg.ttf ]; then
-        wget https://github.com/hfg-gmuend/openmoji/raw/16.0.0/font/OpenMoji-color-colr0_svg/OpenMoji-color-colr0_svg.ttf \
-            --output-document=asset/font/OpenMoji-color-colr0_svg.ttf --timeout=10
+        ./scripts/wget https://github.com/hfg-gmuend/openmoji/raw/16.0.0/font/OpenMoji-color-colr0_svg/OpenMoji-color-colr0_svg.ttf \
+            asset/font/OpenMoji-color-colr0_svg.ttf
     fi
     if [ ! -f asset/font/Inconsolata-Regular.ttf ]; then
-        wget https://github.com/google/fonts/raw/refs/heads/main/ofl/inconsolata/static/Inconsolata-Regular.ttf \
-            --output-document=asset/font/Inconsolata-Regular.ttf --timeout=10
+        ./scripts/wget https://github.com/google/fonts/raw/refs/heads/main/ofl/inconsolata/static/Inconsolata-Regular.ttf \
+            asset/font/Inconsolata-Regular.ttf
     fi
     if [ ! -f asset/font/consola.ttf ]; then
         if [ -f /mnt/c/Windows/Fonts/consola.ttf ]; then
@@ -104,9 +104,7 @@ configure_and_build() {
     cmake -S . -B "$MEDIT_BUILD_DIR" \
         "$@" \
         -DCMAKE_BUILD_TYPE="RelWithDebInfo" -DFETCHCONTENT_QUIET=NO \
-        -DSDL3_DIR="$DEPS_INSTALL_DIR/lib/cmake/SDL3" \
-        -DSDL3_ttf_DIR="$DEPS_INSTALL_DIR/lib/cmake/SDL3_ttf" \
-        -Dutf8proc_DIR="$DEPS_INSTALL_DIR/lib/cmake/utf8proc" \
+        -DCMAKE_PREFIX_PATH="$DEPS_INSTALL_DIR"
 
     cmake --build "$MEDIT_BUILD_DIR" -j
 }

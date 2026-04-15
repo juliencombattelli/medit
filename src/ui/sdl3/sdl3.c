@@ -511,9 +511,9 @@ static void ui_sdl3_handle_save_of_dirty_file(
     *cancel_exit = false;
 
     static const char fmt[] = "Do you want to save the changes you made to %s?";
-    int message_len = snprintf(NULL, 0, fmt, file->name);
-    char msg[message_len + 1];
-    (void)snprintf(msg, sizeof msg, fmt, file->name);
+    int message_len = snprintf(NULL, 0, fmt, file->name) + 1; // +1 for null terminator
+    char* msg = calloc(message_len, 1);
+    (void)snprintf(msg, message_len, fmt, file->name);
     messageboxdata->message = msg;
 
     if (file->dirty) {
@@ -528,6 +528,8 @@ static void ui_sdl3_handle_save_of_dirty_file(
             default: printf("Cancelling exit\n"); *cancel_exit = true;
         }
     }
+
+    free(msg);
 }
 
 static void ui_sdl3_handle_save_of_dirty_files(SDL3Ui* ui)

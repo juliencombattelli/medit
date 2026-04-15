@@ -81,8 +81,13 @@ if(MINGW)
 endif()
 
 if(WIN32)
+    if(MSVC)
+        # Required to locate ASan DLL properly
+        set(MEDIT_TOOLCHAIN_DLL_PATH $ENV{VCToolsInstallDir}/bin/Hostx86/x64)
+    endif()
     set(MEDIT_PRE_EXCLUDE_REGEXES
         [[api-ms-.*]] [[ext-ms-.*]]
+        [[vcruntime.*]] # installed via InstallRequiredSystemLibraries
         ${MEDIT_TOOLCHAIN_PRE_EXCLUDE_REGEXES}
     )
     set(MEDIT_POST_EXCLUDE_REGEXES
@@ -118,6 +123,9 @@ install(TARGETS medit
     RUNTIME_DEPENDENCY_SET medit-deps
     RUNTIME DESTINATION .
 )
+# Install the DLLs next to the main binary
+set(CMAKE_INSTALL_SYSTEM_RUNTIME_DESTINATION ".")
+include(InstallRequiredSystemLibraries)
 install(RUNTIME_DEPENDENCY_SET medit-deps
     PRE_EXCLUDE_REGEXES
         ${MEDIT_PRE_EXCLUDE_REGEXES}
