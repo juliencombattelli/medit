@@ -1,0 +1,14 @@
+#!/bin/bash
+
+set -eu
+
+source ./scripts/build-common-setup.sh mingw
+
+TOOLCHAIN_ARGS=(--toolchain="$(realpath cmake/MinGW.cmake)")
+
+CMAKE_FLAGS=(-DCMAKE_INSTALL_PREFIX="$DEPS_INSTALL_DIR")
+CMAKE_FLAGS+=("${TOOLCHAIN_ARGS[@]}")
+
+setup_deps "$DEPS_SOURCE_DIR" "$DEPS_BUILD_DIR" "${CMAKE_FLAGS[@]}"
+
+configure_and_build "${TOOLCHAIN_ARGS[@]}"

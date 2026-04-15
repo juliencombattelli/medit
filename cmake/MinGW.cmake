@@ -1,4 +1,8 @@
-# toolchain-mingw64.cmake
+# Build for Windows using MinGW from a POSIX environment
+
+# Requires a MinGW toolchain
+# On Ubuntu: sudo apt install gcc-mingw-w64-x86-64 g++-mingw-w64-x86-64
+
 set(CMAKE_SYSTEM_NAME Windows)
 set(CMAKE_SYSTEM_PROCESSOR x86_64)
 

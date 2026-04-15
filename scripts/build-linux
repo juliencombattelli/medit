@@ -1,0 +1,11 @@
+#!/bin/bash
+
+set -eu
+
+source ./scripts/build-common-setup.sh linux
+
+CMAKE_FLAGS=(-DCMAKE_INSTALL_PREFIX="$DEPS_INSTALL_DIR")
+
+setup_deps "$DEPS_SOURCE_DIR" "$DEPS_BUILD_DIR" "${CMAKE_FLAGS[@]}"
+
+configure_and_build

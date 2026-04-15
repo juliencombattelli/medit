@@ -6,7 +6,7 @@ without any additional tooling.
 
 ### Why use these scripts over FetchContent?
 
-Quick answer: if you are a developer working on Medit.
+Short answer: if you are a developer working on Medit.
 
 Long answer:
 - **Persistent build artifacts.** Dependencies are downloaded, built and
@@ -25,10 +25,10 @@ Long answer:
 
 ### When use FetchContent only
 
-Quick answer: if you are an end-user.
+Short answer: if you are an end-user.
 
 Long-answer:
 - **Quick and easy builds.** For an end-user it may be more convenient to just
   use the idiomatic CMake commands to build the project.
-- **Minimal tool required.** The scripts require additionally a POSIX-compatible
-  shell compared to FetchContent, which may not be available on all platform.
+- **Minimal tool required.** The scripts additionally require Bash compared to
+  FetchContent, which may not be available on all platform.
