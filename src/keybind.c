@@ -17,7 +17,8 @@ bool keybind_bind(
     Key key,
     uint32_t modifiers,
     KeyActionFn* callback,
-    Meditor* medit)
+    Meditor* medit,
+    void* userdata)
 {
     if (key >= KEY_COUNT) {
         return false;
@@ -27,6 +28,7 @@ bool keybind_bind(
     keybind->bindings[key][mod_index] = (KeybindEntry) {
         .callback = callback,
         .medit = medit,
+        .userdata = userdata,
     };
     return true;
 }
@@ -38,10 +40,7 @@ void keybind_unbind(Keybind* keybind, Key key, uint32_t modifiers)
     }
 
     uint32_t mod_index = modifiers & MOD_MASK;
-    keybind->bindings[key][mod_index] = (KeybindEntry) {
-        .callback = NULL,
-        .medit = NULL,
-    };
+    keybind->bindings[key][mod_index] = (KeybindEntry) { 0 };
 }
 
 const KeybindEntry* keybind_get(const Keybind* keybind, Key key, uint32_t modifiers)
@@ -62,7 +61,7 @@ bool keybind_handle_event(Keybind* keybind, const KeybindEvent* event)
 
     const KeybindEntry* entry = keybind_get(keybind, event->key, event->modifiers);
     if (entry->callback != NULL) {
-        entry->callback(entry->medit);
+        entry->callback(entry->medit, entry->userdata);
         return true;
     }
 

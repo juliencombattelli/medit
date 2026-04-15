@@ -113,10 +113,6 @@ typedef struct Meditor {
     bool running;
 } Meditor;
 
-// TODO move into UI modules
-void medit_load_default_gui_keybind(Meditor* medit);
-void medit_load_default_tui_keybind(Meditor* medit);
-
 void medit_cursor_up(Meditor* medit);
 void medit_cursor_down(Meditor* medit);
 void medit_cursor_left(Meditor* medit);

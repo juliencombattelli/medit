@@ -87,11 +87,12 @@ typedef struct {
 
 typedef struct Meditor Meditor;
 
-typedef void(KeyActionFn)(Meditor* medit);
+typedef void(KeyActionFn)(Meditor* medit, void* userdata);
 
 typedef struct {
     KeyActionFn* callback;
     Meditor* medit;
+    void* userdata;
 } KeybindEntry;
 
 typedef struct {
@@ -105,7 +106,8 @@ bool keybind_bind(
     Key key,
     uint32_t modifiers,
     KeyActionFn* callback,
-    Meditor* medit);
+    Meditor* medit,
+    void* userdata);
 
 void keybind_unbind(Keybind* keybind, Key key, uint32_t modifiers);
 

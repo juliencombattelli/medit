@@ -1,5 +1,6 @@
 #include "sdl3.h"
 #include "assert.h"
+#include "dynarray.h"
 #include "font.h"
 #include "keybind.h"
 #include "meditor.h"
@@ -72,6 +73,223 @@ enum UserEvents {
     EVENT_CURSOR_BLINK = 42,
 };
 
+static void set_font_size_clamped(int* font, int value)
+{
+    if (value > FONT_SIZE_MAX) {
+        value = FONT_SIZE_MAX;
+    }
+    if (value < FONT_SIZE_MIN) {
+        value = FONT_SIZE_MIN;
+    }
+    *font = value;
+}
+
+static void action_quit(Meditor* medit, void* ui)
+{
+    MEDIT_UNUSED(ui);
+    medit->running = false;
+}
+
+static void action_font_zoom_out(Meditor* medit, void* ui)
+{
+    MEDIT_UNUSED(ui);
+    set_font_size_clamped(&medit->config.editor_font_size, medit->config.editor_font_size - 2);
+}
+
+static void action_font_zoom_in(Meditor* medit, void* ui)
+{
+    MEDIT_UNUSED(ui);
+    set_font_size_clamped(&medit->config.editor_font_size, medit->config.editor_font_size + 2);
+}
+
+static void action_font_zoom_default(Meditor* medit, void* ui)
+{
+    MEDIT_UNUSED(ui);
+    set_font_size_clamped(&medit->config.editor_font_size, FONT_SIZE_DEFAULT);
+}
+
+static void action_cursor_up(Meditor* medit, void* ui)
+{
+    MEDIT_UNUSED(ui);
+    medit_cursor_up(medit);
+}
+
+static void action_cursor_down(Meditor* medit, void* ui)
+{
+    MEDIT_UNUSED(ui);
+    medit_cursor_down(medit);
+}
+
+static void action_cursor_left(Meditor* medit, void* ui)
+{
+    MEDIT_UNUSED(ui);
+    medit_cursor_left(medit);
+}
+
+static void action_cursor_right(Meditor* medit, void* ui)
+{
+    MEDIT_UNUSED(ui);
+    medit_cursor_right(medit);
+}
+
+static void action_restore_cursor(Meditor* medit, void* ui)
+{
+    MEDIT_UNUSED(ui);
+    FileView* file_view = medit_get_focused_file_view(medit);
+    file_view->cursors.count = 1;
+    // TODO memset other cursors
+}
+
+static void action_cursor_line_begin(Meditor* medit, void* ui)
+{
+    MEDIT_UNUSED(ui);
+    medit_cursor_line_begin(medit);
+}
+
+static void action_cursor_line_end(Meditor* medit, void* ui)
+{
+    MEDIT_UNUSED(ui);
+    medit_cursor_line_end(medit);
+}
+
+static void action_cursor_file_begin(Meditor* medit, void* ui)
+{
+    MEDIT_UNUSED(ui);
+    medit_cursor_file_begin(medit);
+}
+
+static void action_cursor_file_end(Meditor* medit, void* ui)
+{
+    MEDIT_UNUSED(ui);
+    medit_cursor_file_end(medit);
+}
+
+static void action_add_cursor_down(Meditor* medit, void* ui)
+{
+    MEDIT_UNUSED(medit);
+    MEDIT_UNUSED(ui);
+    // Vec2* prev_cursor = &medit->cursor_pos[medit->cursor_index];
+    // Vec2* new_cursor = &medit->cursor_pos[++medit->cursor_index];
+    // *new_cursor = vec2(prev_cursor->x, prev_cursor->y + 1);
+}
+
+static void action_dump_state(Meditor* medit, void* ui)
+{
+    MEDIT_UNUSED(ui);
+    FileView* file_view = medit_get_focused_file_view(medit);
+
+    printf("Dump state:\n");
+    printf(
+        "  cursor: byte=%zu, line=%zu; lines:%zu\n  lines:\n",
+        file_view->cursors.items[0].byte,
+        file_view->cursors.items[0].line,
+        file_view->file->lines.count);
+    Lines* lines = &file_view->file->lines;
+    int row = 0;
+    dynarray_foreach(Line, line, lines)
+    {
+        if (line->count != 0) {
+            printf("    #%d:`%.*s`\n", row++, (int)line->count, line->items);
+        } else {
+            printf("    #%d:``\n", row++);
+        }
+    }
+}
+
+static void action_erase_line(Meditor* medit, void* ui)
+{
+    MEDIT_UNUSED(ui);
+    medit_erase_line(medit);
+}
+
+static void action_focus_file_view_group_left(Meditor* medit, void* ui)
+{
+    MEDIT_UNUSED(ui);
+    size_t* focused = &medit->file_views.focused;
+    if (*focused > 0) {
+        *focused -= 1;
+    }
+}
+
+static void action_focus_file_view_group_right(Meditor* medit, void* ui)
+{
+    MEDIT_UNUSED(ui);
+    size_t* focused = &medit->file_views.focused;
+    if (*focused < medit->file_views.count - 1) {
+        *focused += 1;
+    }
+}
+
+static void action_save_file(Meditor* medit, void* ui)
+{
+    MEDIT_UNUSED(ui);
+    medit_save_file(medit);
+}
+
+static void ui_sdl3_open_file_dialog_cb(void* userdata, const char* const* filelist, int filter)
+{
+    MEDIT_UNUSED(filter);
+
+    SDL3Ui* ui = userdata;
+
+    if (!filelist) {
+        (void)fprintf(stderr, "Error: %s\n", SDL_GetError());
+        return;
+    }
+    if (!*filelist) {
+        printf("The user did not select any file.\n");
+        return;
+    }
+    while (*filelist) {
+        medit_load_file(ui->medit, *filelist);
+        filelist++;
+    }
+}
+
+static void action_open_file_dialog(Meditor* medit, void* ui_)
+{
+    MEDIT_UNUSED(medit);
+
+    SDL3Ui* ui = ui_;
+    SDL_ShowOpenFileDialog(ui_sdl3_open_file_dialog_cb, ui, NULL, NULL, 0, NULL, 1);
+}
+
+static void ui_sdl3_load_default_keybind(SDL3Ui* ui)
+{
+    Keybind* keybind = &ui->medit->keybind;
+
+    keybind_bind(keybind, KEY_Q, MOD_CTRL, action_quit, ui->medit, ui);
+    keybind_bind(keybind, KEY_S, MOD_CTRL, action_save_file, ui->medit, ui);
+
+    keybind_bind(keybind, KEY_NPAD_PLUS, MOD_CTRL, action_font_zoom_in, ui->medit, ui);
+    keybind_bind(keybind, KEY_EQUALS, MOD_SHIFT_CTRL, action_font_zoom_in, ui->medit, ui);
+    keybind_bind(keybind, KEY_EQUALS, MOD_CTRL, action_font_zoom_default, ui->medit, ui);
+
+    keybind_bind(keybind, KEY_NPAD_MINUS, MOD_CTRL, action_font_zoom_out, ui->medit, ui);
+    keybind_bind(keybind, KEY_6, MOD_CTRL, action_font_zoom_out, ui->medit, ui);
+
+    keybind_bind(keybind, KEY_UP, MOD_NONE, action_cursor_up, ui->medit, ui);
+    keybind_bind(keybind, KEY_DOWN, MOD_NONE, action_cursor_down, ui->medit, ui);
+    keybind_bind(keybind, KEY_LEFT, MOD_NONE, action_cursor_left, ui->medit, ui);
+    keybind_bind(keybind, KEY_RIGHT, MOD_NONE, action_cursor_right, ui->medit, ui);
+    keybind_bind(keybind, KEY_HOME, MOD_NONE, action_cursor_line_begin, ui->medit, ui);
+    keybind_bind(keybind, KEY_END, MOD_NONE, action_cursor_line_end, ui->medit, ui);
+    keybind_bind(keybind, KEY_HOME, MOD_CTRL, action_cursor_file_begin, ui->medit, ui);
+    keybind_bind(keybind, KEY_END, MOD_CTRL, action_cursor_file_end, ui->medit, ui);
+
+    keybind_bind(keybind, KEY_ESCAPE, MOD_NONE, action_restore_cursor, ui->medit, ui);
+    keybind_bind(keybind, KEY_DOWN, MOD_CTRL_ALT, action_add_cursor_down, ui->medit, ui);
+
+    keybind_bind(keybind, KEY_D, MOD_CTRL, action_dump_state, ui->medit, ui);
+
+    keybind_bind(keybind, KEY_K, MOD_SHIFT_CTRL, action_erase_line, ui->medit, ui);
+
+    keybind_bind(keybind, KEY_LEFT, MOD_ALT, action_focus_file_view_group_left, ui->medit, ui);
+    keybind_bind(keybind, KEY_RIGHT, MOD_ALT, action_focus_file_view_group_right, ui->medit, ui);
+
+    keybind_bind(keybind, KEY_O, MOD_CTRL, action_open_file_dialog, ui->medit, ui);
+}
+
 static bool ui_sdl3_create(SDL3Ui* ui, Meditor* medit)
 {
     try(SDL_Init(SDL_INIT_VIDEO));
@@ -95,6 +313,7 @@ static bool ui_sdl3_create(SDL3Ui* ui, Meditor* medit)
     TTF_TextEngine* text_engine = TTF_CreateRendererTextEngine(renderer);
     try(text_engine);
 
+    ui->medit = medit;
     ui->window = window;
     ui->renderer = renderer;
     ui->text_engine = text_engine;
@@ -103,9 +322,7 @@ static bool ui_sdl3_create(SDL3Ui* ui, Meditor* medit)
 
     try(SDL_StartTextInput(ui->window));
 
-    medit_load_default_gui_keybind(medit);
-
-    ui->medit = medit;
+    ui_sdl3_load_default_keybind(ui);
 
     return true;
 }
@@ -361,26 +578,6 @@ static void ui_sdl3_on_text_input(SDL3Ui* ui, const char* text)
     medit_cursor_right(ui->medit);
 }
 
-static void ui_sdl3_open_file_dialog_cb(void* userdata, const char* const* filelist, int filter)
-{
-    MEDIT_UNUSED(filter);
-
-    SDL3Ui* ui = userdata;
-
-    if (!filelist) {
-        (void)fprintf(stderr, "Error: %s\n", SDL_GetError());
-        return;
-    }
-    if (!*filelist) {
-        printf("The user did not select any file.\n");
-        return;
-    }
-    while (*filelist) {
-        medit_load_file(ui->medit, *filelist);
-        filelist++;
-    }
-}
-
 static void ui_sdl3_on_key_down(SDL3Ui* ui, SDL_Event* event)
 {
     switch (event->key.key) {
@@ -394,10 +591,6 @@ static void ui_sdl3_on_key_down(SDL3Ui* ui, SDL_Event* event)
             medit_erase_char(ui->medit);
             medit_get_focused_file_view(ui->medit)->file->dirty = true;
             break;
-        case SDLK_O:
-            if (event->key.mod & SDL_KMOD_CTRL) {
-                SDL_ShowOpenFileDialog(ui_sdl3_open_file_dialog_cb, ui, NULL, NULL, 0, NULL, 1);
-            }
         default: break;
     }
 }
@@ -424,7 +617,7 @@ static void ui_sdl3_dispatch_event(SDL3Ui* ui, SDL_Event* event)
         case SDL_EVENT_KEYMAP_CHANGED: {
             printf("Reloading keymapping\n");
             keybind_reinit(&medit->keybind);
-            medit_load_default_gui_keybind(medit);
+            ui_sdl3_load_default_keybind(ui);
         } break;
         default: break;
     }
