@@ -1,6 +1,17 @@
 cmake_minimum_required(VERSION 3.21)
 project(Medit C)
 
+################################################################################
+### Options
+################################################################################
+
+# Address sanitizer
+# AUTO enable ASan only in Debug and RelWithDebInfo
+set(MEDIT_ENABLE_ASAN "AUTO" CACHE STRING "Enable sanitizers (AUTO, ON, OFF)")
+set_property(CACHE MEDIT_ENABLE_ASAN PROPERTY STRINGS AUTO ON OFF)
+
+################################################################################
+
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
@@ -11,26 +22,11 @@ include(cmake/FindPackageOrFetch/utf8proc.cmake)
 
 if(MSVC)
     set(COMPILE_OPTIONS /W4)
-    set(LINK_OPTIONS)
 elseif(CMAKE_C_COMPILER_ID MATCHES ".*Clang" OR CMAKE_C_COMPILER_ID STREQUAL "GNU")
     set(COMPILE_OPTIONS
         -Wall -Wextra -Wshadow -Wconversion -pedantic
         -Wno-missing-braces
     )
-    set(LINK_OPTIONS)
-
-    # Sanitizers are not supported by all toolchains (especially MinGW), so check if it works.
-    # TODO add an option to disable it, and enable it automatically for Debug and ReleaseWithDebInfo builds
-    include(CheckSourceCompiles)
-    set(_sanitizer_flags -fsanitize=address,undefined -fno-omit-frame-pointer)
-    set(CMAKE_REQUIRED_FLAGS ${_sanitizer_flags})
-    set(CMAKE_REQUIRED_LINK_OPTIONS ${_sanitizer_flags})
-    check_source_compiles(C "int main(void) { return 0; }" HAVE_ASAN_UBSAN)
-    if(HAVE_ASAN_UBSAN)
-        set(COMPILE_OPTIONS ${COMPILE_OPTIONS} ${_sanitizer_flags})
-        set(LINK_OPTIONS ${LINK_OPTIONS} ${_sanitizer_flags})
-    endif()
-    unset(_sanitizer_flags)
 endif()
 
 add_executable(medit
@@ -39,7 +35,6 @@ add_executable(medit
     src/ui/sdl3/sdl3.c src/ui/sdl3/font.c src/ui/sdl3/keybind_sdl3.c src/ui/sdl3/perf_counter.c
 )
 target_compile_options(medit PRIVATE ${COMPILE_OPTIONS})
-target_link_options(medit PRIVATE ${LINK_OPTIONS})
 target_include_directories(medit PRIVATE src)
 target_link_libraries(medit PRIVATE SDL3::SDL3 SDL3_ttf::SDL3_ttf utf8proc::utf8proc)
 
@@ -63,6 +58,7 @@ if(MINGW)
         set(MEDIT_TOOLCHAIN_DLL_PATH ${LLVM_MINGW_UCRT_DIR}/x86_64-w64-mingw32/bin)
     endif()
 
+    # TODO check how installation goes with MSVC
     set(MEDIT_TOOLCHAIN_PRE_EXCLUDE_REGEXES
         # The following DLLs are not included in the LLVM-MinGW toolchain, so we exclude them
         # before resolution as they will therefore never be resolved to proper system32 DLLs and
@@ -131,7 +127,7 @@ install(RUNTIME_DEPENDENCY_SET medit-deps
     DIRECTORIES ${MEDIT_TOOLCHAIN_DLL_PATH}
 )
 install(DIRECTORY asset DESTINATION .)
-# Install sources as well just to be able to open them on Windows
+# Install sources as well just to be able to open them on Windows for playing around
 install(DIRECTORY src DESTINATION .)
 
 add_executable(test_dynarray test/dynarray.c)
@@ -149,3 +145,33 @@ target_compile_options(test_unicode PRIVATE ${COMPILE_OPTIONS})
 target_link_options(test_unicode PRIVATE ${LINK_OPTIONS})
 target_include_directories(test_unicode PRIVATE src)
 target_link_libraries(test_unicode PRIVATE utf8proc::utf8proc)
+
+# Sanitizers are not supported by all toolchains (especially MinGW), so check if it works.
+include(cmake/CheckAddressSanitizerSupported.cmake)
+check_asan_supported(
+    RESULT HAVE_ASAN
+    COMPILE_OPTIONS ASAN_COMPILE_OPTIONS
+    LINK_OPTIONS ASAN_LINK_OPTIONS
+)
+if(MEDIT_ENABLE_ASAN STREQUAL ON AND NOT HAVE_ASAN)
+    message(WARNING
+        "MEDIT_ENABLE_ASAN is set to ON but the current compiler/linker does not support AddressSanitizer "
+        "(${CMAKE_C_COMPILER_ID} ${CMAKE_C_COMPILER_VERSION}, ${CMAKE_C_COMPILER}). "
+        "AddressSanitizer will not be enabled."
+    )
+elseif(HAVE_ASAN)
+    # Enable AddressSanitizer for all targets built if requested
+    foreach(_target medit test_dynarray test_layout test_unicode)
+        if(MEDIT_ENABLE_ASAN STREQUAL "ON")
+            target_compile_options(${_target} PRIVATE ${ASAN_COMPILE_OPTIONS})
+            target_link_options(${_target} PRIVATE ${ASAN_LINK_OPTIONS})
+        elseif(MEDIT_ENABLE_ASAN STREQUAL "AUTO")
+            target_compile_options(${_target} PRIVATE
+                $<$<CONFIG:Debug,RelWithDebInfo>:${ASAN_COMPILE_OPTIONS}>
+            )
+            target_link_options(${_target} PRIVATE
+                $<$<CONFIG:Debug,RelWithDebInfo>:${ASAN_LINK_OPTIONS}>
+            )
+        endif()
+    endforeach()
+endif()
