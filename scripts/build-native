@@ -1,8 +1,10 @@
 #!/bin/bash
 
+# Setup an environment to build natively (supports Linux and Windows)
+
 set -eu
 
-source ./scripts/build-common-setup.sh linux
+source ./scripts/build-common-setup.sh native
 
 CMAKE_FLAGS=(-DCMAKE_INSTALL_PREFIX="$DEPS_INSTALL_DIR")
 
