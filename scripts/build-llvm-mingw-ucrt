@@ -17,7 +17,7 @@ if [ ! -d "$DEPS_SOURCE_DIR/llvm-mingw" ]; then
 fi
 
 TOOLCHAIN_ARGS=(
-    --toolchain="$(realpath cmake/LLVM-MinGW-UCRT.cmake)"
+    --toolchain="$(realpath cmake/Toolchains/LLVM-MinGW-UCRT.cmake)"
     -DLLVM_MINGW_UCRT_DIR="$(realpath $DEPS_SOURCE_DIR/llvm-mingw)"
 )
 

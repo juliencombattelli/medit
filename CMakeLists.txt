@@ -16,9 +16,9 @@ set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
 
-include(cmake/FindPackageOrFetch/SDL3.cmake)
-include(cmake/FindPackageOrFetch/SDL3_ttf.cmake)
-include(cmake/FindPackageOrFetch/utf8proc.cmake)
+include(cmake/Modules/FindPackageOrFetch/SDL3.cmake)
+include(cmake/Modules/FindPackageOrFetch/SDL3_ttf.cmake)
+include(cmake/Modules/FindPackageOrFetch/utf8proc.cmake)
 
 if(MSVC)
     set(COMPILE_OPTIONS /W4)
@@ -147,7 +147,7 @@ target_include_directories(test_unicode PRIVATE src)
 target_link_libraries(test_unicode PRIVATE utf8proc::utf8proc)
 
 # Sanitizers are not supported by all toolchains (especially MinGW), so check if it works.
-include(cmake/CheckAddressSanitizerSupported.cmake)
+include(cmake/Modules/CheckAddressSanitizerSupported.cmake)
 check_asan_supported(
     RESULT HAVE_ASAN
     COMPILE_OPTIONS ASAN_COMPILE_OPTIONS
