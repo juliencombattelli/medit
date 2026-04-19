@@ -5,6 +5,7 @@
 #include "keybind.h"
 #include "meditor.h"
 #include "perf_counter.h"
+#include "rect.h"
 #include "safeint.h"
 #include "sdl3_utils.h"
 #include "unicode.h"
@@ -25,6 +26,16 @@ typedef struct {
     int y;
 } PixelPos;
 
+static inline SDL_Rect rect_to_sdl(Rect r)
+{
+    return (SDL_Rect) {
+        .x = size_to_int(r.x),
+        .y = size_to_int(r.y),
+        .w = size_to_int(r.w),
+        .h = size_to_int(r.h),
+    };
+}
+
 typedef struct {
     SDL_TimerID timer;
     bool show;
@@ -39,6 +50,27 @@ typedef struct {
     int line_centering_offset;
 } Font;
 
+enum {
+    LAYOUT_SHOW_MENU_BAR = 1ull << 0ull,
+    LAYOUT_SHOW_TAB_BAR = 1ull << 1ull,
+    LAYOUT_SHOW_SIDE_PANEL = 1ull << 2ull,
+    LAYOUT_SHOW_BOTTOM_PANEL = 1ull << 3ull,
+};
+
+typedef struct {
+    Rect menu_bar;
+    Rect tab_bar;
+    Rect side_panel;
+    Rect bottom_panel;
+    Rect editor_area;
+    uint32_t elements_shown;
+} Layout;
+
+bool layout_elements_shown(Layout* layout, uint32_t mask)
+{
+    return (layout->elements_shown & mask) == mask;
+}
+
 typedef struct {
     Meditor* medit;
     SDL_Window* window;
@@ -50,6 +82,7 @@ typedef struct {
     PixelSize window_size;
     CursorBlinker cursor_blinker;
     PerfCounter perf_counter;
+    Layout layout;
     int line_nr_padding;
     int line_nr_max_digits;
     int line_nr_cached_line_count;
@@ -254,6 +287,55 @@ static void action_open_file_dialog(Meditor* medit, void* ui_)
     SDL_ShowOpenFileDialog(ui_sdl3_open_file_dialog_cb, ui, NULL, NULL, 0, NULL, 1);
 }
 
+static void action_toggle_side_panel(Meditor* medit, void* ui_)
+{
+    MEDIT_UNUSED(medit);
+
+    SDL3Ui* ui = ui_;
+    ui->layout.elements_shown ^= LAYOUT_SHOW_SIDE_PANEL;
+
+    FileViewGroups* groups = &ui->medit->file_views;
+
+    assert(groups->count > 0 && "You forgot to create some demo group");
+
+    Rect window = { 0, 0, int_to_size(ui->window_size.width), int_to_size(ui->window_size.height) };
+
+    if (layout_elements_shown(&ui->layout, LAYOUT_SHOW_MENU_BAR)) {
+        ui->layout.menu_bar = rect_cut_top(&window, ui->layout.menu_bar.h);
+    }
+    if (layout_elements_shown(&ui->layout, LAYOUT_SHOW_SIDE_PANEL)) {
+        ui->layout.side_panel = rect_cut_left(&window, ui->layout.side_panel.w);
+    }
+    if (layout_elements_shown(&ui->layout, LAYOUT_SHOW_TAB_BAR)) {
+        ui->layout.tab_bar = rect_cut_top(&window, ui->layout.tab_bar.h);
+    }
+    if (layout_elements_shown(&ui->layout, LAYOUT_SHOW_BOTTOM_PANEL)) {
+        ui->layout.bottom_panel = rect_cut_bottom(&window, ui->layout.bottom_panel.h);
+    }
+    ui->layout.editor_area = window;
+
+    size_t cols = 1;
+    while (cols * cols < groups->count) {
+        cols++;
+    }
+    size_t rows = (groups->count + cols - 1) / cols;
+    size_t row_height = window.h / rows;
+    size_t col_width = window.w / cols;
+
+    Rect editor = ui->layout.editor_area;
+
+    for (size_t r = 0; r < rows; ++r) {
+        Rect row_rect = rect_cut_top(&editor, row_height);
+        for (size_t c = 0; c < cols; ++c) {
+            size_t idx = (r * cols) + c;
+            if (idx >= groups->count) {
+                break;
+            }
+            groups->items[idx].area = rect_cut_left(&row_rect, col_width);
+        }
+    }
+}
+
 static void ui_sdl3_load_default_keybind(SDL3Ui* ui)
 {
     Keybind* keybind = &ui->medit->keybind;
@@ -288,6 +370,8 @@ static void ui_sdl3_load_default_keybind(SDL3Ui* ui)
     keybind_bind(keybind, KEY_RIGHT, MOD_ALT, action_focus_file_view_group_right, ui->medit, ui);
 
     keybind_bind(keybind, KEY_O, MOD_CTRL, action_open_file_dialog, ui->medit, ui);
+
+    keybind_bind(keybind, KEY_B, MOD_CTRL, action_toggle_side_panel, ui->medit, ui);
 }
 
 static bool ui_sdl3_create(SDL3Ui* ui, Meditor* medit)
@@ -654,6 +738,36 @@ static void ui_sdl3_clear(SDL3Ui* ui)
     SDL_RenderClear(ui->renderer);
 }
 
+static void ui_sdl3_fill_rect(SDL3Ui* ui, Rect rect, Color color)
+{
+    SDL_FRect frect = {
+        .x = (float)rect.x,
+        .y = (float)rect.y,
+        .w = (float)rect.w,
+        .h = (float)rect.h,
+    };
+    SDL_SetRenderDrawColor(ui->renderer, color_to_RGBA_args(color));
+    SDL_RenderFillRect(ui->renderer, &frect);
+}
+
+static void ui_sdl3_draw_panels(SDL3Ui* ui)
+{
+    const ColorTheme* theme = &ui->medit->config.color_theme;
+
+    if (layout_elements_shown(&ui->layout, LAYOUT_SHOW_MENU_BAR)) {
+        ui_sdl3_fill_rect(ui, ui->layout.menu_bar, theme->menu_bar_bg);
+    }
+    if (layout_elements_shown(&ui->layout, LAYOUT_SHOW_SIDE_PANEL)) {
+        ui_sdl3_fill_rect(ui, ui->layout.side_panel, theme->sidebar_bg);
+    }
+    if (layout_elements_shown(&ui->layout, LAYOUT_SHOW_TAB_BAR)) {
+        ui_sdl3_fill_rect(ui, ui->layout.tab_bar, theme->tab_bar_bg);
+    }
+    if (layout_elements_shown(&ui->layout, LAYOUT_SHOW_BOTTOM_PANEL)) {
+        ui_sdl3_fill_rect(ui, ui->layout.bottom_panel, theme->bottom_panel_bg);
+    }
+}
+
 static void ui_sdl3_draw_text(
     SDL3Ui* ui,
     const char* text,
@@ -889,23 +1003,17 @@ static void ui_sdl3_draw_file_view_group(SDL3Ui* ui, FileViewGroup* group)
         + 1;
     const size_t rendered_line_count = SDL_min(lines->count, first_rendered_line + screen_lines);
 
-    const SDL_Rect gutter_clip = {
-        .x = size_to_int(group->area.x),
-        .y = size_to_int(group->area.y),
-        .w = ui->line_nr_padding,
-        .h = size_to_int(group->area.h),
-    };
+    Rect area = group->area;
+    Rect gutter = rect_cut_left(&area, int_to_size(ui->line_nr_padding));
+    Rect content = area;
+
+    const SDL_Rect gutter_clip = rect_to_sdl(gutter);
     assert(SDL_SetRenderClipRect(ui->renderer, &gutter_clip));
     for (size_t row = first_rendered_line; row < rendered_line_count; ++row) {
         ui_sdl3_draw_line_number(ui, row, group);
     }
 
-    const SDL_Rect content_clip = {
-        .x = size_to_int(group->area.x) + ui->line_nr_padding,
-        .y = size_to_int(group->area.y),
-        .w = size_to_int(group->area.w) - ui->line_nr_padding,
-        .h = size_to_int(group->area.h),
-    };
+    const SDL_Rect content_clip = rect_to_sdl(content);
     assert(SDL_SetRenderClipRect(ui->renderer, &content_clip));
     for (size_t row = first_rendered_line; row < rendered_line_count; ++row) {
         ui_sdl3_draw_line(ui, row, &lines->items[row], group);
@@ -928,6 +1036,13 @@ static void ui_sdl3_draw_file_view_group_separator(SDL3Ui* ui, FileViewGroup* gr
     SDL_RenderRect(ui->renderer, &vertical_line);
 }
 
+enum {
+    MENU_BAR_HEIGHT = 30,
+    TAB_BAR_HEIGHT = 35,
+    SIDE_PANEL_WIDTH = 200,
+    BOTTOM_PANEL_HEIGHT = 200,
+};
+
 // TODO temporary function placing groups on screen till we have a proper layout engine
 static void temp_ui_sdl3_update_file_view_groups_size(SDL3Ui* ui)
 {
@@ -935,30 +1050,42 @@ static void temp_ui_sdl3_update_file_view_groups_size(SDL3Ui* ui)
 
     assert(groups->count > 0 && "You forgot to create some demo group");
 
+    Rect window = { 0, 0, int_to_size(ui->window_size.width), int_to_size(ui->window_size.height) };
+
+    ui->layout.elements_shown = LAYOUT_SHOW_MENU_BAR | LAYOUT_SHOW_TAB_BAR | LAYOUT_SHOW_SIDE_PANEL;
+    if (layout_elements_shown(&ui->layout, LAYOUT_SHOW_MENU_BAR)) {
+        ui->layout.menu_bar = rect_cut_top(&window, MENU_BAR_HEIGHT);
+    }
+    if (layout_elements_shown(&ui->layout, LAYOUT_SHOW_SIDE_PANEL)) {
+        ui->layout.side_panel = rect_cut_left(&window, SIDE_PANEL_WIDTH);
+    }
+    if (layout_elements_shown(&ui->layout, LAYOUT_SHOW_TAB_BAR)) {
+        ui->layout.tab_bar = rect_cut_top(&window, TAB_BAR_HEIGHT);
+    }
+    if (layout_elements_shown(&ui->layout, LAYOUT_SHOW_BOTTOM_PANEL)) {
+        ui->layout.bottom_panel = rect_cut_bottom(&window, BOTTOM_PANEL_HEIGHT);
+    }
+    ui->layout.editor_area = window;
+
     size_t cols = 1;
     while (cols * cols < groups->count) {
         cols++;
     }
     size_t rows = (groups->count + cols - 1) / cols;
-    size_t group_width = int_to_size(ui->window_size.width) / cols;
-    size_t group_height = int_to_size(ui->window_size.height) / rows;
+    size_t row_height = window.h / rows;
+    size_t col_width = window.w / cols;
 
-    for (size_t i = 0; i < groups->count; ++i) {
-        size_t col = i % cols;
-        size_t row = i / cols;
-        groups->items[i].area = (Rect) {
-            .x = col * group_width,
-            .y = row * group_height,
-            .w = group_width,
-            .h = group_height,
-        };
-        printf(
-            "[DEBUG] group %zu: x=%zu, y=%zu, w=%zu, h=%zu\n",
-            i,
-            groups->items[i].area.x,
-            groups->items[i].area.y,
-            groups->items[i].area.w,
-            groups->items[i].area.h);
+    Rect editor = ui->layout.editor_area;
+
+    for (size_t r = 0; r < rows; ++r) {
+        Rect row_rect = rect_cut_top(&editor, row_height);
+        for (size_t c = 0; c < cols; ++c) {
+            size_t idx = (r * cols) + c;
+            if (idx >= groups->count) {
+                break;
+            }
+            groups->items[idx].area = rect_cut_left(&row_rect, col_width);
+        }
     }
 }
 
@@ -1040,6 +1167,7 @@ void medit_ui_sdl3_run(Meditor* medit)
         }
 
         ui_sdl3_clear(&ui);
+        ui_sdl3_draw_panels(&ui);
 
         for (size_t i = 0; i < medit->file_views.count; ++i) {
             FileViewGroup* group = &medit->file_views.items[i];
@@ -1048,7 +1176,8 @@ void medit_ui_sdl3_run(Meditor* medit)
                 ui_sdl3_scroll_file_view(&ui, group);
             }
 
-            ui_sdl3_draw_file_view_group_separator(&ui, group);
+            // TODO broken since rect cuttin was added, move into ui_sdl3_draw_file_view_group
+            // ui_sdl3_draw_file_view_group_separator(&ui, group);
             ui_sdl3_draw_file_view_group(&ui, group);
             ui_sdl3_draw_cursor(&ui, group);
         }

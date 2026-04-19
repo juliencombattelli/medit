@@ -11,6 +11,9 @@ int main(int argc, char** argv)
         .line_number_current = color_from_u32(0xD4D4D4FF),
         .sidebar_bg = color_from_u32(0x181818FF),
         .cursor = color_from_u32(0xD4D4D4FF),
+        .menu_bar_bg = color_from_u32(0x2D2D2DFF),
+        .tab_bar_bg = color_from_u32(0x252526FF),
+        .bottom_panel_bg = color_from_u32(0x181818FF),
     };
 
     MEDIT_UNUSED(argc), MEDIT_UNUSED(argv);

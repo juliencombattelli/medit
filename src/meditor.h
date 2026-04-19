@@ -3,6 +3,7 @@
 
 #include "color.h"
 #include "keybind.h"
+#include "rect.h"
 
 #include <stdbool.h>
 
@@ -38,13 +39,6 @@ typedef struct {
     size_t count;
     size_t capacity;
 } Files;
-
-typedef struct {
-    size_t x;
-    size_t y;
-    size_t w;
-    size_t h;
-} Rect;
 
 typedef struct {
     size_t line;
@@ -95,6 +89,9 @@ typedef struct {
     Color line_number_current;
     Color sidebar_bg;
     Color cursor;
+    Color menu_bar_bg;
+    Color tab_bar_bg;
+    Color bottom_panel_bg;
 } ColorTheme;
 
 typedef struct {
