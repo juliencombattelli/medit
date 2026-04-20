@@ -383,7 +383,7 @@ static bool ui_sdl3_create(SDL3Ui* ui, Meditor* medit)
         "Medit",
         DEFAULT_WINDOW_WIDTH,
         DEFAULT_WINDOW_HEIGHT,
-        SDL_WINDOW_HIDDEN);
+        SDL_WINDOW_HIDDEN | SDL_WINDOW_RESIZABLE);
     try(window);
 
     SDL_Renderer* renderer = SDL_CreateRenderer(window, NULL);
