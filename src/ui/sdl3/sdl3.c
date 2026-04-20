@@ -50,12 +50,6 @@ typedef struct {
     int line_centering_offset;
 } Font;
 
-#define LAYOUT_MENU_BAR (1ull << 0ull)
-#define LAYOUT_TAB_BAR (1ull << 1ull)
-#define LAYOUT_SIDE_PANEL (1ull << 2ull)
-#define LAYOUT_BOTTOM_PANEL (1ull << 3ull)
-#define LAYOUT_STATUS_BAR (1ull << 4ull)
-
 enum {
     MENU_BAR_HEIGHT = 30,
     TAB_BAR_HEIGHT = 35,
@@ -64,50 +58,6 @@ enum {
     STATUS_BAR_HEIGHT = 30,
     SEPARATOR_SIZE = 1,
 };
-
-typedef struct {
-    Rect area;
-    Rect separator;
-} Panel;
-
-Panel panel_cut_top(Rect* r, size_t height, size_t sep)
-{
-    return (Panel) { .area = rect_cut_top(r, height), .separator = rect_cut_top(r, sep) };
-}
-
-Panel panel_cut_bottom(Rect* r, size_t height, size_t sep)
-{
-    return (Panel) { .area = rect_cut_bottom(r, height), .separator = rect_cut_bottom(r, sep) };
-}
-
-Panel panel_cut_left(Rect* r, size_t width, size_t sep)
-{
-    return (Panel) { .area = rect_cut_left(r, width), .separator = rect_cut_left(r, sep) };
-}
-
-Panel panel_cut_right(Rect* r, size_t width, size_t sep)
-{
-    return (Panel) { .area = rect_cut_right(r, width), .separator = rect_cut_right(r, sep) };
-}
-
-typedef struct {
-    Panel menu_bar;
-    Panel side_panel;
-    Panel bottom_panel;
-    Panel status_bar;
-    Rect editor_area;
-    uint32_t elements_shown;
-} Layout;
-
-bool layout_is_element_shown(Layout* layout, uint32_t mask)
-{
-    return (layout->elements_shown & mask) == mask;
-}
-
-void layout_toggle_shown_element(Layout* layout, uint32_t mask)
-{
-    layout->elements_shown ^= mask;
-}
 
 typedef struct {
     Meditor* medit;
@@ -1105,16 +1055,16 @@ static void temp_ui_sdl3_setup_layout(SDL3Ui* ui)
 
     medit_load_file(medit, "./src/ui/sdl3/sdl3.c");
 
-    // // Create an empty file in some file view groups
-    // for (size_t i = 0; i < 9; ++i) {
-    //     dynarray_append(&medit->file_views, (FileViewGroup) { 0 });
-    //     medit->file_views.focused = medit->file_views.count - 1;
-    //     medit_new_empty_file(medit, &dynarray_last(&medit->file_views));
-    // }
+    // Create an empty file in some file view groups
+    for (size_t i = 0; i < 2; ++i) {
+        dynarray_append(&medit->file_views, (FileViewGroup) { 0 });
+        medit->file_views.focused = medit->file_views.count - 1;
+        medit_new_empty_file(medit, &dynarray_last(&medit->file_views));
+    }
 
-    // // Insert some text in the focused latest created group
-    // const char text[] = "😊😊😊😊😊😊ùùùù😊";
-    // medit_insert_text(medit, text, strlen(text));
+    // Insert some text in the focused latest created group
+    const char text[] = "😊😊😊😊😊😊ùùùù😊";
+    medit_insert_text(medit, text, strlen(text));
 
     // Update the layout of the groups in a grid fashion
     temp_ui_sdl3_update_file_view_groups_size(ui);

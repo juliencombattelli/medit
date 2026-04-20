@@ -59,3 +59,23 @@ Rect rect_cut_right(Rect* r, size_t amount)
         .h = r->h,
     };
 }
+
+Panel panel_cut_top(Rect* r, size_t height, size_t sep)
+{
+    return (Panel) { .area = rect_cut_top(r, height), .separator = rect_cut_top(r, sep) };
+}
+
+Panel panel_cut_bottom(Rect* r, size_t height, size_t sep)
+{
+    return (Panel) { .area = rect_cut_bottom(r, height), .separator = rect_cut_bottom(r, sep) };
+}
+
+Panel panel_cut_left(Rect* r, size_t width, size_t sep)
+{
+    return (Panel) { .area = rect_cut_left(r, width), .separator = rect_cut_left(r, sep) };
+}
+
+Panel panel_cut_right(Rect* r, size_t width, size_t sep)
+{
+    return (Panel) { .area = rect_cut_right(r, width), .separator = rect_cut_right(r, sep) };
+}

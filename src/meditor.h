@@ -83,6 +83,31 @@ typedef struct {
     size_t focused;
 } FileViewGroups;
 
+#define LAYOUT_MENU_BAR (1ull << 0ull)
+#define LAYOUT_TAB_BAR (1ull << 1ull)
+#define LAYOUT_SIDE_PANEL (1ull << 2ull)
+#define LAYOUT_BOTTOM_PANEL (1ull << 3ull)
+#define LAYOUT_STATUS_BAR (1ull << 4ull)
+
+typedef struct {
+    Panel menu_bar;
+    Panel side_panel;
+    Panel bottom_panel;
+    Panel status_bar;
+    Rect editor_area;
+    uint32_t elements_shown;
+} Layout;
+
+static inline bool layout_is_element_shown(Layout* layout, uint32_t mask)
+{
+    return (layout->elements_shown & mask) == mask;
+}
+
+static inline void layout_toggle_shown_element(Layout* layout, uint32_t mask)
+{
+    layout->elements_shown ^= mask;
+}
+
 typedef struct {
     Color editor_fg;
     Color editor_bg;

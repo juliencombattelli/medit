@@ -15,4 +15,14 @@ Rect rect_cut_bottom(Rect* r, size_t amount);
 Rect rect_cut_left(Rect* r, size_t amount);
 Rect rect_cut_right(Rect* r, size_t amount);
 
+typedef struct {
+    Rect area;
+    Rect separator;
+} Panel;
+
+Panel panel_cut_top(Rect* r, size_t height, size_t sep);
+Panel panel_cut_bottom(Rect* r, size_t height, size_t sep);
+Panel panel_cut_left(Rect* r, size_t width, size_t sep);
+Panel panel_cut_right(Rect* r, size_t width, size_t sep);
+
 #endif // MEDIT_RECT_H_
