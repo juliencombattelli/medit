@@ -561,8 +561,14 @@ static void ui_sdl3_recompute_layout(SDL3Ui* ui)
     Rect editor = ui->layout.editor_area;
 
     for (size_t r = 0; r < rows; ++r) {
+        if (r > 0) {
+            rect_cut_top(&editor, SEPARATOR_SIZE);
+        }
         Rect row_rect = rect_cut_top(&editor, row_height);
         for (size_t c = 0; c < cols; ++c) {
+            if (c > 0) {
+                rect_cut_left(&row_rect, SEPARATOR_SIZE);
+            }
             size_t idx = (r * cols) + c;
             if (idx >= groups->count) {
                 break;
@@ -1050,6 +1056,8 @@ static void ui_sdl3_draw_file_view_group(SDL3Ui* ui, FileViewGroup* group)
     FileView* file_view = medit_get_displayed_file_view_in_group(medit, group);
     Lines* lines = &file_view->file->lines;
 
+    ui_sdl3_fill_rect(ui, group->area, medit->config.color_theme.editor_bg);
+
     const size_t first_rendered_line = file_view->scrolling.y / ui->font_editor.line_spacing;
     const size_t screen_lines = (int_to_size(ui->window_size.height) / ui->font_editor.line_spacing)
         + 1;
@@ -1072,20 +1080,6 @@ static void ui_sdl3_draw_file_view_group(SDL3Ui* ui, FileViewGroup* group)
     }
 
     assert(SDL_SetRenderClipRect(ui->renderer, NULL));
-}
-
-static void ui_sdl3_draw_file_view_group_separator(SDL3Ui* ui, FileViewGroup* group)
-{
-    const SDL_FRect vertical_line = {
-        .x = (float)group->area.x,
-        .y = (float)group->area.y,
-        .w = (float)group->area.w,
-        .h = (float)group->area.h,
-    };
-    SDL_SetRenderDrawColor(
-        ui->renderer,
-        color_to_RGBA_args(ui->medit->config.color_theme.line_number));
-    SDL_RenderRect(ui->renderer, &vertical_line);
 }
 
 // TODO temporary function placing groups on screen till we have a proper layout engine
@@ -1175,6 +1169,7 @@ void medit_ui_sdl3_run(Meditor* medit)
 
         ui_sdl3_clear(&ui);
         ui_sdl3_draw_panels(&ui);
+        ui_sdl3_fill_rect(&ui, ui.layout.editor_area, medit->config.color_theme.panel_border);
 
         for (size_t i = 0; i < medit->file_views.count; ++i) {
             FileViewGroup* group = &medit->file_views.items[i];
@@ -1183,8 +1178,6 @@ void medit_ui_sdl3_run(Meditor* medit)
                 ui_sdl3_scroll_file_view(&ui, group);
             }
 
-            // TODO broken since rect cuttin was added, move into ui_sdl3_draw_file_view_group
-            // ui_sdl3_draw_file_view_group_separator(&ui, group);
             ui_sdl3_draw_file_view_group(&ui, group);
             ui_sdl3_draw_cursor(&ui, group);
         }
