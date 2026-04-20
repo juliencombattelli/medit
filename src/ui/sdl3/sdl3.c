@@ -55,13 +55,49 @@ enum {
     LAYOUT_SHOW_TAB_BAR = 1ull << 1ull,
     LAYOUT_SHOW_SIDE_PANEL = 1ull << 2ull,
     LAYOUT_SHOW_BOTTOM_PANEL = 1ull << 3ull,
+    LAYOUT_SHOW_STATUS_BAR = 1ull << 4ull,
+};
+
+enum {
+    MENU_BAR_HEIGHT = 30,
+    TAB_BAR_HEIGHT = 35,
+    SIDE_PANEL_WIDTH = 200,
+    BOTTOM_PANEL_HEIGHT = 200,
+    STATUS_BAR_HEIGHT = 30,
+    SEPARATOR_SIZE = 1,
 };
 
 typedef struct {
-    Rect menu_bar;
-    Rect tab_bar;
-    Rect side_panel;
-    Rect bottom_panel;
+    Rect area;
+    Rect separator;
+} Panel;
+
+Panel panel_cut_top(Rect* r, size_t height, size_t sep)
+{
+    return (Panel) { .area = rect_cut_top(r, height), .separator = rect_cut_top(r, sep) };
+}
+
+Panel panel_cut_bottom(Rect* r, size_t height, size_t sep)
+{
+    return (Panel) { .area = rect_cut_bottom(r, height), .separator = rect_cut_bottom(r, sep) };
+}
+
+Panel panel_cut_left(Rect* r, size_t width, size_t sep)
+{
+    return (Panel) { .area = rect_cut_left(r, width), .separator = rect_cut_left(r, sep) };
+}
+
+Panel panel_cut_right(Rect* r, size_t width, size_t sep)
+{
+    return (Panel) { .area = rect_cut_right(r, width), .separator = rect_cut_right(r, sep) };
+}
+
+typedef struct {
+    Panel menu_bar;
+    Panel tab_bar;
+    Panel side_panel;
+    Panel bottom_panel;
+    Panel status_bar;
     Rect editor_area;
     uint32_t elements_shown;
 } Layout;
@@ -89,8 +125,6 @@ typedef struct {
     int editor_font_size;
 } SDL3Ui;
 
-static void temp_ui_sdl3_update_file_view_groups_size(SDL3Ui* ui);
-
 enum {
     DEFAULT_WINDOW_WIDTH = 1280,
     DEFAULT_WINDOW_HEIGHT = 720,
@@ -105,6 +139,8 @@ enum {
 enum UserEvents {
     EVENT_CURSOR_BLINK = 42,
 };
+
+static void ui_sdl3_recompute_layout(SDL3Ui* ui);
 
 static void set_font_size_clamped(int* font, int value)
 {
@@ -293,47 +329,7 @@ static void action_toggle_side_panel(Meditor* medit, void* ui_)
 
     SDL3Ui* ui = ui_;
     ui->layout.elements_shown ^= LAYOUT_SHOW_SIDE_PANEL;
-
-    FileViewGroups* groups = &ui->medit->file_views;
-
-    assert(groups->count > 0 && "You forgot to create some demo group");
-
-    Rect window = { 0, 0, int_to_size(ui->window_size.width), int_to_size(ui->window_size.height) };
-
-    if (layout_elements_shown(&ui->layout, LAYOUT_SHOW_MENU_BAR)) {
-        ui->layout.menu_bar = rect_cut_top(&window, ui->layout.menu_bar.h);
-    }
-    if (layout_elements_shown(&ui->layout, LAYOUT_SHOW_SIDE_PANEL)) {
-        ui->layout.side_panel = rect_cut_left(&window, ui->layout.side_panel.w);
-    }
-    if (layout_elements_shown(&ui->layout, LAYOUT_SHOW_TAB_BAR)) {
-        ui->layout.tab_bar = rect_cut_top(&window, ui->layout.tab_bar.h);
-    }
-    if (layout_elements_shown(&ui->layout, LAYOUT_SHOW_BOTTOM_PANEL)) {
-        ui->layout.bottom_panel = rect_cut_bottom(&window, ui->layout.bottom_panel.h);
-    }
-    ui->layout.editor_area = window;
-
-    size_t cols = 1;
-    while (cols * cols < groups->count) {
-        cols++;
-    }
-    size_t rows = (groups->count + cols - 1) / cols;
-    size_t row_height = window.h / rows;
-    size_t col_width = window.w / cols;
-
-    Rect editor = ui->layout.editor_area;
-
-    for (size_t r = 0; r < rows; ++r) {
-        Rect row_rect = rect_cut_top(&editor, row_height);
-        for (size_t c = 0; c < cols; ++c) {
-            size_t idx = (r * cols) + c;
-            if (idx >= groups->count) {
-                break;
-            }
-            groups->items[idx].area = rect_cut_left(&row_rect, col_width);
-        }
-    }
+    ui_sdl3_recompute_layout(ui);
 }
 
 static void ui_sdl3_load_default_keybind(SDL3Ui* ui)
@@ -529,6 +525,53 @@ static void ui_sdl3_unload_editor_font(SDL3Ui* ui)
     ui->font_editor = (Font) { 0 };
 }
 
+static void ui_sdl3_recompute_layout(SDL3Ui* ui)
+{
+    FileViewGroups* groups = &ui->medit->file_views;
+
+    assert(groups->count > 0 && "You forgot to create some demo group");
+
+    Rect window = { 0, 0, int_to_size(ui->window_size.width), int_to_size(ui->window_size.height) };
+
+    if (layout_elements_shown(&ui->layout, LAYOUT_SHOW_MENU_BAR)) {
+        ui->layout.menu_bar = panel_cut_top(&window, MENU_BAR_HEIGHT, SEPARATOR_SIZE);
+    }
+    if (layout_elements_shown(&ui->layout, LAYOUT_SHOW_STATUS_BAR)) {
+        ui->layout.status_bar = panel_cut_bottom(&window, STATUS_BAR_HEIGHT, SEPARATOR_SIZE);
+    }
+    if (layout_elements_shown(&ui->layout, LAYOUT_SHOW_SIDE_PANEL)) {
+        ui->layout.side_panel = panel_cut_left(&window, SIDE_PANEL_WIDTH, SEPARATOR_SIZE);
+    }
+    if (layout_elements_shown(&ui->layout, LAYOUT_SHOW_TAB_BAR)) {
+        ui->layout.tab_bar = panel_cut_top(&window, TAB_BAR_HEIGHT, SEPARATOR_SIZE);
+    }
+    if (layout_elements_shown(&ui->layout, LAYOUT_SHOW_BOTTOM_PANEL)) {
+        ui->layout.bottom_panel = panel_cut_bottom(&window, BOTTOM_PANEL_HEIGHT, SEPARATOR_SIZE);
+    }
+    ui->layout.editor_area = window;
+
+    size_t cols = 1;
+    while (cols * cols < groups->count) {
+        cols++;
+    }
+    size_t rows = (groups->count + cols - 1) / cols;
+    size_t row_height = window.h / rows;
+    size_t col_width = window.w / cols;
+
+    Rect editor = ui->layout.editor_area;
+
+    for (size_t r = 0; r < rows; ++r) {
+        Rect row_rect = rect_cut_top(&editor, row_height);
+        for (size_t c = 0; c < cols; ++c) {
+            size_t idx = (r * cols) + c;
+            if (idx >= groups->count) {
+                break;
+            }
+            groups->items[idx].area = rect_cut_left(&row_rect, col_width);
+        }
+    }
+}
+
 static void ui_sdl3_on_window_resized(SDL3Ui* ui, int w, int h)
 {
     ui_sdl3_resize_window_with_data(
@@ -538,7 +581,7 @@ static void ui_sdl3_on_window_resized(SDL3Ui* ui, int w, int h)
             .height = h,
         });
 
-    temp_ui_sdl3_update_file_view_groups_size(ui);
+    ui_sdl3_recompute_layout(ui);
 }
 
 static Uint32 ui_sdl3_on_cursor_should_blink(void* userdata, SDL_TimerID timer_id, Uint32 interval)
@@ -749,21 +792,31 @@ static void ui_sdl3_fill_rect(SDL3Ui* ui, Rect rect, Color color)
     SDL_RenderFillRect(ui->renderer, &frect);
 }
 
+static void ui_sdl3_draw_panel(SDL3Ui* ui, Panel panel, Color bg)
+{
+    Color border = ui->medit->config.color_theme.panel_border;
+    ui_sdl3_fill_rect(ui, panel.area, bg);
+    ui_sdl3_fill_rect(ui, panel.separator, border);
+}
+
 static void ui_sdl3_draw_panels(SDL3Ui* ui)
 {
     const ColorTheme* theme = &ui->medit->config.color_theme;
 
     if (layout_elements_shown(&ui->layout, LAYOUT_SHOW_MENU_BAR)) {
-        ui_sdl3_fill_rect(ui, ui->layout.menu_bar, theme->menu_bar_bg);
+        ui_sdl3_draw_panel(ui, ui->layout.menu_bar, theme->menu_bar_bg);
+    }
+    if (layout_elements_shown(&ui->layout, LAYOUT_SHOW_STATUS_BAR)) {
+        ui_sdl3_draw_panel(ui, ui->layout.status_bar, theme->status_bar_bg);
     }
     if (layout_elements_shown(&ui->layout, LAYOUT_SHOW_SIDE_PANEL)) {
-        ui_sdl3_fill_rect(ui, ui->layout.side_panel, theme->sidebar_bg);
+        ui_sdl3_draw_panel(ui, ui->layout.side_panel, theme->sidebar_bg);
     }
     if (layout_elements_shown(&ui->layout, LAYOUT_SHOW_TAB_BAR)) {
-        ui_sdl3_fill_rect(ui, ui->layout.tab_bar, theme->tab_bar_bg);
+        ui_sdl3_draw_panel(ui, ui->layout.tab_bar, theme->tab_bar_bg);
     }
     if (layout_elements_shown(&ui->layout, LAYOUT_SHOW_BOTTOM_PANEL)) {
-        ui_sdl3_fill_rect(ui, ui->layout.bottom_panel, theme->bottom_panel_bg);
+        ui_sdl3_draw_panel(ui, ui->layout.bottom_panel, theme->bottom_panel_bg);
     }
 }
 
@@ -1035,57 +1088,12 @@ static void ui_sdl3_draw_file_view_group_separator(SDL3Ui* ui, FileViewGroup* gr
     SDL_RenderRect(ui->renderer, &vertical_line);
 }
 
-enum {
-    MENU_BAR_HEIGHT = 30,
-    TAB_BAR_HEIGHT = 35,
-    SIDE_PANEL_WIDTH = 200,
-    BOTTOM_PANEL_HEIGHT = 200,
-};
-
 // TODO temporary function placing groups on screen till we have a proper layout engine
 static void temp_ui_sdl3_update_file_view_groups_size(SDL3Ui* ui)
 {
-    FileViewGroups* groups = &ui->medit->file_views;
-
-    assert(groups->count > 0 && "You forgot to create some demo group");
-
-    Rect window = { 0, 0, int_to_size(ui->window_size.width), int_to_size(ui->window_size.height) };
-
-    ui->layout.elements_shown = LAYOUT_SHOW_MENU_BAR | LAYOUT_SHOW_TAB_BAR | LAYOUT_SHOW_SIDE_PANEL;
-    if (layout_elements_shown(&ui->layout, LAYOUT_SHOW_MENU_BAR)) {
-        ui->layout.menu_bar = rect_cut_top(&window, MENU_BAR_HEIGHT);
-    }
-    if (layout_elements_shown(&ui->layout, LAYOUT_SHOW_SIDE_PANEL)) {
-        ui->layout.side_panel = rect_cut_left(&window, SIDE_PANEL_WIDTH);
-    }
-    if (layout_elements_shown(&ui->layout, LAYOUT_SHOW_TAB_BAR)) {
-        ui->layout.tab_bar = rect_cut_top(&window, TAB_BAR_HEIGHT);
-    }
-    if (layout_elements_shown(&ui->layout, LAYOUT_SHOW_BOTTOM_PANEL)) {
-        ui->layout.bottom_panel = rect_cut_bottom(&window, BOTTOM_PANEL_HEIGHT);
-    }
-    ui->layout.editor_area = window;
-
-    size_t cols = 1;
-    while (cols * cols < groups->count) {
-        cols++;
-    }
-    size_t rows = (groups->count + cols - 1) / cols;
-    size_t row_height = window.h / rows;
-    size_t col_width = window.w / cols;
-
-    Rect editor = ui->layout.editor_area;
-
-    for (size_t r = 0; r < rows; ++r) {
-        Rect row_rect = rect_cut_top(&editor, row_height);
-        for (size_t c = 0; c < cols; ++c) {
-            size_t idx = (r * cols) + c;
-            if (idx >= groups->count) {
-                break;
-            }
-            groups->items[idx].area = rect_cut_left(&row_rect, col_width);
-        }
-    }
+    ui->layout.elements_shown = LAYOUT_SHOW_MENU_BAR | LAYOUT_SHOW_STATUS_BAR | LAYOUT_SHOW_TAB_BAR
+        | LAYOUT_SHOW_SIDE_PANEL;
+    ui_sdl3_recompute_layout(ui);
 }
 
 static void temp_ui_sdl3_setup_layout(SDL3Ui* ui)

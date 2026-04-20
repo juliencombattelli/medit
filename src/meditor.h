@@ -90,8 +90,10 @@ typedef struct {
     Color sidebar_bg;
     Color cursor;
     Color menu_bar_bg;
+    Color status_bar_bg;
     Color tab_bar_bg;
     Color bottom_panel_bg;
+    Color panel_border;
 } ColorTheme;
 
 typedef struct {
