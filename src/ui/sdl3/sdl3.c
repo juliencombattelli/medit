@@ -910,9 +910,13 @@ static void ui_sdl3_draw_cursor(SDL3Ui* ui, FileViewGroup* group)
             .h = (float)on_screen.h,
         };
         SDL_SetRenderDrawColor(ui->renderer, color_to_RGBA_args(cursor_color));
+        Color glyph_color = { 0 };
         if (focused) {
+            glyph_color = color_inverse(cursor_color);
             SDL_RenderFillRect(ui->renderer, &cursor_frect);
         } else {
+            // TODO should be the real color of the glyph instead of cursor color
+            glyph_color = cursor_color;
             SDL_RenderRect(ui->renderer, &cursor_frect);
         }
 
@@ -925,13 +929,7 @@ static void ui_sdl3_draw_cursor(SDL3Ui* ui, FileViewGroup* group)
                     - size_to_int(file_view->scrolling.x),
                 .y = size_to_int(on_screen.y - file_view->scrolling.y),
             };
-            ui_sdl3_draw_text(
-                ui,
-                grapheme,
-                cursor->len,
-                &ui->font_editor,
-                char_pos,
-                color_inverse(cursor_color));
+            ui_sdl3_draw_text(ui, grapheme, cursor->len, &ui->font_editor, char_pos, glyph_color);
         }
     }
 }
