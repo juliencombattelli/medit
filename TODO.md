@@ -7,10 +7,10 @@
 - [x] save/load file
 - [x] boost text rendering performance by using a glyph atlas
 - [x] add cursor column memorization
-- [ ] rework keybind to allow defining actions in UI modules (pass the ui as void* userdata)
+- [x] rework keybind to allow defining actions in UI modules (pass the ui as void* userdata)
 - [-] show dialog box when exiting with dirty files
 - [ ] monitor file changed and reload if needed
-- [ ] add a string view library
+- [ ] add a string view library (would probably switch to C++ at this point)
 - [ ] reenable multi cursor
 - [ ] add selection
 - [ ] layout engine
