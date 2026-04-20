@@ -500,17 +500,16 @@ static void ui_sdl3_load_editor_font(SDL3Ui* ui)
     ui->text_cache = TTF_CreateText(ui->text_engine, ui->font_editor.main, "", 0);
     assert(ui->text_cache != NULL);
 
+    const int width_factor = 0; // Do not align the emoji font width to the main font width
     ui->font_editor.emoji = load_emoji_font_aligned_to(
         ui->font_editor.main,
-        "asset/font/NotoColorEmoji-Regular.ttf",
-        // "asset/font/OpenMoji-color-colr0_svg.ttf",
+        // "asset/font/NotoColorEmoji-Regular.ttf",
+        "asset/font/OpenMoji-color-colr0_svg.ttf",
         // "asset/font/seguiemj.ttf",
         medit->config.editor_font_size,
-        0); // Do not align the emoji font width to the main font width
+        width_factor);
     if (!ui->font_editor.emoji) {
-        printf(
-            "Warning: failed to find a size aligned to the grid for emoji "
-            "font\n");
+        printf("Warning: failed to load fallback emoji font: %s\n", SDL_GetError());
     } else {
         if (!TTF_AddFallbackFont(ui->font_editor.main, ui->font_editor.emoji)) {
             printf("Warning: failed to load fallback emoji font: %s\n", SDL_GetError());

@@ -50,6 +50,10 @@ static int glyph_width(TTF_Font* font, const char* s)
     return w / FONT_TEST_CHAR_COUNT;
 }
 
+enum {
+    FORCE_MONOSPACE_FONTS_MAX_ITER = 128,
+};
+
 TTF_Font* load_emoji_font_aligned_to(TTF_Font* font, const char* path, int size, int width_factor)
 {
     if (width_factor == 0) {
@@ -58,7 +62,6 @@ TTF_Font* load_emoji_font_aligned_to(TTF_Font* font, const char* path, int size,
 
     const int main_font_w = glyph_width(font, editor_font_test_string);
     float factor = 1.0f;
-#define FORCE_MONOSPACE_FONTS_MAX_ITER 128
     int iter = FORCE_MONOSPACE_FONTS_MAX_ITER;
     while (--iter) {
         TTF_Font* emoji_font = TTF_OpenFont(path, (float)size * factor);
@@ -72,5 +75,6 @@ TTF_Font* load_emoji_font_aligned_to(TTF_Font* font, const char* path, int size,
         }
         TTF_CloseFont(emoji_font);
     }
+    (void)SDL_SetError("cannot find a size aligned to the requested width factor");
     return NULL;
 }
