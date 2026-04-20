@@ -50,13 +50,11 @@ typedef struct {
     int line_centering_offset;
 } Font;
 
-enum {
-    LAYOUT_SHOW_MENU_BAR = 1ull << 0ull,
-    LAYOUT_SHOW_TAB_BAR = 1ull << 1ull,
-    LAYOUT_SHOW_SIDE_PANEL = 1ull << 2ull,
-    LAYOUT_SHOW_BOTTOM_PANEL = 1ull << 3ull,
-    LAYOUT_SHOW_STATUS_BAR = 1ull << 4ull,
-};
+#define LAYOUT_MENU_BAR (1ull << 0ull)
+#define LAYOUT_TAB_BAR (1ull << 1ull)
+#define LAYOUT_SIDE_PANEL (1ull << 2ull)
+#define LAYOUT_BOTTOM_PANEL (1ull << 3ull)
+#define LAYOUT_STATUS_BAR (1ull << 4ull)
 
 enum {
     MENU_BAR_HEIGHT = 30,
@@ -102,9 +100,14 @@ typedef struct {
     uint32_t elements_shown;
 } Layout;
 
-bool layout_elements_shown(Layout* layout, uint32_t mask)
+bool layout_is_element_shown(Layout* layout, uint32_t mask)
 {
     return (layout->elements_shown & mask) == mask;
+}
+
+void layout_toggle_shown_element(Layout* layout, uint32_t mask)
+{
+    layout->elements_shown ^= mask;
 }
 
 typedef struct {
@@ -328,7 +331,7 @@ static void action_toggle_side_panel(Meditor* medit, void* ui_)
     MEDIT_UNUSED(medit);
 
     SDL3Ui* ui = ui_;
-    ui->layout.elements_shown ^= LAYOUT_SHOW_SIDE_PANEL;
+    layout_toggle_shown_element(&ui->layout, LAYOUT_SIDE_PANEL);
     ui_sdl3_recompute_layout(ui);
 }
 
@@ -533,19 +536,19 @@ static void ui_sdl3_recompute_layout(SDL3Ui* ui)
 
     Rect window = { 0, 0, int_to_size(ui->window_size.width), int_to_size(ui->window_size.height) };
 
-    if (layout_elements_shown(&ui->layout, LAYOUT_SHOW_MENU_BAR)) {
+    if (layout_is_element_shown(&ui->layout, LAYOUT_MENU_BAR)) {
         ui->layout.menu_bar = panel_cut_top(&window, MENU_BAR_HEIGHT, SEPARATOR_SIZE);
     }
-    if (layout_elements_shown(&ui->layout, LAYOUT_SHOW_STATUS_BAR)) {
+    if (layout_is_element_shown(&ui->layout, LAYOUT_STATUS_BAR)) {
         ui->layout.status_bar = panel_cut_bottom(&window, STATUS_BAR_HEIGHT, SEPARATOR_SIZE);
     }
-    if (layout_elements_shown(&ui->layout, LAYOUT_SHOW_SIDE_PANEL)) {
+    if (layout_is_element_shown(&ui->layout, LAYOUT_SIDE_PANEL)) {
         ui->layout.side_panel = panel_cut_left(&window, SIDE_PANEL_WIDTH, SEPARATOR_SIZE);
     }
-    if (layout_elements_shown(&ui->layout, LAYOUT_SHOW_TAB_BAR)) {
+    if (layout_is_element_shown(&ui->layout, LAYOUT_TAB_BAR)) {
         ui->layout.tab_bar = panel_cut_top(&window, TAB_BAR_HEIGHT, SEPARATOR_SIZE);
     }
-    if (layout_elements_shown(&ui->layout, LAYOUT_SHOW_BOTTOM_PANEL)) {
+    if (layout_is_element_shown(&ui->layout, LAYOUT_BOTTOM_PANEL)) {
         ui->layout.bottom_panel = panel_cut_bottom(&window, BOTTOM_PANEL_HEIGHT, SEPARATOR_SIZE);
     }
     ui->layout.editor_area = window;
@@ -643,7 +646,8 @@ static void ui_sdl3_handle_save_of_dirty_file(
     *cancel_exit = false;
 
     static const char fmt[] = "Do you want to save the changes you made to %s?";
-    int message_len = snprintf(NULL, 0, fmt, file->name) + 1; // +1 for null terminator
+    int format_ret = snprintf(NULL, 0, fmt, file->name) + 1; // +1 for null terminator
+    size_t message_len = int_to_size(format_ret);
     char* msg = calloc(message_len, 1);
     (void)snprintf(msg, message_len, fmt, file->name);
     messageboxdata->message = msg;
@@ -809,19 +813,19 @@ static void ui_sdl3_draw_panels(SDL3Ui* ui)
 {
     const ColorTheme* theme = &ui->medit->config.color_theme;
 
-    if (layout_elements_shown(&ui->layout, LAYOUT_SHOW_MENU_BAR)) {
+    if (layout_is_element_shown(&ui->layout, LAYOUT_MENU_BAR)) {
         ui_sdl3_draw_panel(ui, ui->layout.menu_bar, theme->menu_bar_bg);
     }
-    if (layout_elements_shown(&ui->layout, LAYOUT_SHOW_STATUS_BAR)) {
+    if (layout_is_element_shown(&ui->layout, LAYOUT_STATUS_BAR)) {
         ui_sdl3_draw_panel(ui, ui->layout.status_bar, theme->status_bar_bg);
     }
-    if (layout_elements_shown(&ui->layout, LAYOUT_SHOW_SIDE_PANEL)) {
+    if (layout_is_element_shown(&ui->layout, LAYOUT_SIDE_PANEL)) {
         ui_sdl3_draw_panel(ui, ui->layout.side_panel, theme->sidebar_bg);
     }
-    if (layout_elements_shown(&ui->layout, LAYOUT_SHOW_TAB_BAR)) {
+    if (layout_is_element_shown(&ui->layout, LAYOUT_TAB_BAR)) {
         ui_sdl3_draw_panel(ui, ui->layout.tab_bar, theme->tab_bar_bg);
     }
-    if (layout_elements_shown(&ui->layout, LAYOUT_SHOW_BOTTOM_PANEL)) {
+    if (layout_is_element_shown(&ui->layout, LAYOUT_BOTTOM_PANEL)) {
         ui_sdl3_draw_panel(ui, ui->layout.bottom_panel, theme->bottom_panel_bg);
     }
 }
@@ -1083,8 +1087,8 @@ static void ui_sdl3_draw_file_view_group(SDL3Ui* ui, FileViewGroup* group)
 // TODO temporary function placing groups on screen till we have a proper layout engine
 static void temp_ui_sdl3_update_file_view_groups_size(SDL3Ui* ui)
 {
-    ui->layout.elements_shown = LAYOUT_SHOW_MENU_BAR | LAYOUT_SHOW_STATUS_BAR | LAYOUT_SHOW_TAB_BAR
-        | LAYOUT_SHOW_SIDE_PANEL;
+    ui->layout.elements_shown = LAYOUT_MENU_BAR | LAYOUT_STATUS_BAR | LAYOUT_TAB_BAR
+        | LAYOUT_SIDE_PANEL;
     ui_sdl3_recompute_layout(ui);
 }
 
