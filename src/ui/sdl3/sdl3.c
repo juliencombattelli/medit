@@ -1088,7 +1088,7 @@ static void temp_ui_sdl3_update_file_view_groups_size(SDL3Ui* ui)
     }
 }
 
-void temp_ui_sdl3_setup_layout(SDL3Ui* ui)
+static void temp_ui_sdl3_setup_layout(SDL3Ui* ui)
 {
     Meditor* medit = ui->medit;
 
@@ -1109,7 +1109,7 @@ void temp_ui_sdl3_setup_layout(SDL3Ui* ui)
     temp_ui_sdl3_update_file_view_groups_size(ui);
 }
 
-void report_perf_counter(PerfCounter* perf_counter, void* userdata)
+static void report_perf_counter(PerfCounter* perf_counter, void* userdata)
 {
     MEDIT_UNUSED(userdata);
 
