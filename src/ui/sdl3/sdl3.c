@@ -92,7 +92,6 @@ Panel panel_cut_right(Rect* r, size_t width, size_t sep)
 
 typedef struct {
     Panel menu_bar;
-    Panel tab_bar;
     Panel side_panel;
     Panel bottom_panel;
     Panel status_bar;
@@ -545,9 +544,6 @@ static void ui_sdl3_recompute_layout(SDL3Ui* ui)
     if (layout_is_element_shown(&ui->layout, LAYOUT_SIDE_PANEL)) {
         ui->layout.side_panel = panel_cut_left(&window, SIDE_PANEL_WIDTH, SEPARATOR_SIZE);
     }
-    if (layout_is_element_shown(&ui->layout, LAYOUT_TAB_BAR)) {
-        ui->layout.tab_bar = panel_cut_top(&window, TAB_BAR_HEIGHT, SEPARATOR_SIZE);
-    }
     if (layout_is_element_shown(&ui->layout, LAYOUT_BOTTOM_PANEL)) {
         ui->layout.bottom_panel = panel_cut_bottom(&window, BOTTOM_PANEL_HEIGHT, SEPARATOR_SIZE);
     }
@@ -577,6 +573,11 @@ static void ui_sdl3_recompute_layout(SDL3Ui* ui)
                 break;
             }
             groups->items[idx].area = rect_cut_left(&row_rect, col_width);
+            Rect content = groups->items[idx].area;
+            if (layout_is_element_shown(&ui->layout, LAYOUT_TAB_BAR)) {
+                rect_cut_top(&content, TAB_BAR_HEIGHT + SEPARATOR_SIZE);
+            }
+            groups->items[idx].content_area = content;
         }
     }
 }
@@ -822,9 +823,6 @@ static void ui_sdl3_draw_panels(SDL3Ui* ui)
     if (layout_is_element_shown(&ui->layout, LAYOUT_SIDE_PANEL)) {
         ui_sdl3_draw_panel(ui, ui->layout.side_panel, theme->sidebar_bg);
     }
-    if (layout_is_element_shown(&ui->layout, LAYOUT_TAB_BAR)) {
-        ui_sdl3_draw_panel(ui, ui->layout.tab_bar, theme->tab_bar_bg);
-    }
     if (layout_is_element_shown(&ui->layout, LAYOUT_BOTTOM_PANEL)) {
         ui_sdl3_draw_panel(ui, ui->layout.bottom_panel, theme->bottom_panel_bg);
     }
@@ -882,8 +880,8 @@ static Rect ui_sdl3_cursor_rect(
             NULL);
     }
     return (Rect) {
-        .x = group->area.x + int_to_size(line_w),
-        .y = group->area.y + (cursor->line * ui->font_editor.line_spacing),
+        .x = group->content_area.x + int_to_size(line_w),
+        .y = group->content_area.y + (cursor->line * ui->font_editor.line_spacing),
         .w = int_to_size(cursor_w),
         .h = ui->font_editor.line_spacing,
     };
@@ -947,11 +945,11 @@ static void ui_sdl3_scroll_file_view(SDL3Ui* ui, FileViewGroup* group)
     const size_t margin_x = ui->font_editor.default_cursor_width * 3;
     const size_t margin_y = ui->font_editor.line_spacing * 3;
 
-    const size_t right_border = group->area.x + group->area.w - margin_x
+    const size_t right_border = group->content_area.x + group->content_area.w - margin_x
         - int_to_size(ui->line_nr_padding);
-    const size_t bottom_border = group->area.y + group->area.h - margin_y;
-    const size_t left_border = group->area.x + margin_x;
-    const size_t top_border = group->area.y + margin_y;
+    const size_t bottom_border = group->content_area.y + group->content_area.h - margin_y;
+    const size_t left_border = group->content_area.x + margin_x;
+    const size_t top_border = group->content_area.y + margin_y;
 
     const size_t cursor_right = on_screen.x + on_screen.w;
     const size_t cursor_bottom = on_screen.y + on_screen.h;
@@ -1015,8 +1013,8 @@ static void ui_sdl3_draw_line_number(SDL3Ui* ui, size_t row, FileViewGroup* grou
         : medit->config.color_theme.line_number;
 
     PixelPos pos = {
-        .x = size_to_int(group->area.x),
-        .y = size_to_int((row * ui->font_editor.line_spacing) + group->area.y)
+        .x = size_to_int(group->content_area.x),
+        .y = size_to_int((row * ui->font_editor.line_spacing) + group->content_area.y)
             - size_to_int(file_view->scrolling.y),
     };
 
@@ -1038,8 +1036,8 @@ static void ui_sdl3_draw_line(SDL3Ui* ui, size_t row, Line* line, FileViewGroup*
     FileView* file_view = medit_get_displayed_file_view_in_group(medit, group);
 
     PixelPos line_pos = {
-        .x = size_to_int(group->area.x) + ui->line_nr_padding - size_to_int(file_view->scrolling.x),
-        .y = size_to_int((row * ui->font_editor.line_spacing) + group->area.y)
+        .x = size_to_int(group->content_area.x) + ui->line_nr_padding - size_to_int(file_view->scrolling.x),
+        .y = size_to_int((row * ui->font_editor.line_spacing) + group->content_area.y)
             - size_to_int(file_view->scrolling.y),
     };
 
@@ -1060,12 +1058,18 @@ static void ui_sdl3_draw_file_view_group(SDL3Ui* ui, FileViewGroup* group)
 
     ui_sdl3_fill_rect(ui, group->area, medit->config.color_theme.editor_bg);
 
+    if (layout_is_element_shown(&ui->layout, LAYOUT_TAB_BAR)) {
+        Rect tab_area = group->area;
+        Panel tab_bar = panel_cut_top(&tab_area, TAB_BAR_HEIGHT, SEPARATOR_SIZE);
+        ui_sdl3_draw_panel(ui, tab_bar, medit->config.color_theme.tab_bar_bg);
+    }
+
     const size_t first_rendered_line = file_view->scrolling.y / ui->font_editor.line_spacing;
     const size_t screen_lines = (int_to_size(ui->window_size.height) / ui->font_editor.line_spacing)
         + 1;
     const size_t rendered_line_count = SDL_min(lines->count, first_rendered_line + screen_lines);
 
-    Rect area = group->area;
+    Rect area = group->content_area;
     Rect gutter = rect_cut_left(&area, int_to_size(ui->line_nr_padding));
     Rect content = area;
 

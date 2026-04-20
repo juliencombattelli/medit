@@ -72,7 +72,8 @@ typedef struct {
     size_t count;
     size_t capacity;
     size_t displayed;
-    Rect area; // area covered by the group on screen
+    Rect area; // area covered by the group on screen (including tab bar)
+    Rect content_area; // area for editor content (area minus tab bar)
 } FileViewGroup;
 
 typedef struct {
