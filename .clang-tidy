@@ -6,6 +6,7 @@ Checks:
 - '*'
 # Disable project specific checks
 - '-altera-*'
+- '-android-*'
 - '-fuchsia-*'
 - '-google-*'
 - '-llvmlibc-*'
@@ -24,6 +25,7 @@ Checks:
 - '-cert-dcl58-cpp' # Intentionally doing some specializations of std classes only when this is allowed by the standard
 - '-cert-err58-cpp' # Intentionally creating object at namespace scope, risking exception throwing that cannot be caught
 - '-*-uppercase-literal-suffix' # Intentionally using lowercase literal suffixes
+- '-bugprone-easily-swappable-parameters' # Very hard to counter in C
 
 CheckOptions:
   cppcoreguidelines-avoid-do-while.IgnoreMacros: true
