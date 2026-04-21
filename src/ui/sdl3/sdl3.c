@@ -712,24 +712,6 @@ static void ui_sdl3_draw_panel(SDL3Ui* ui, Panel panel, Color bg)
     ui_sdl3_fill_rect(ui, panel.separator, border);
 }
 
-static void ui_sdl3_draw_panels(SDL3Ui* ui)
-{
-    const ColorTheme* theme = &ui->medit->config.color_theme;
-
-    if (medit_layout_is_element_shown(&ui->layout, LAYOUT_MENU_BAR)) {
-        ui_sdl3_draw_panel(ui, ui->layout.menu_bar, theme->menu_bar_bg);
-    }
-    if (medit_layout_is_element_shown(&ui->layout, LAYOUT_STATUS_BAR)) {
-        ui_sdl3_draw_panel(ui, ui->layout.status_bar, theme->status_bar_bg);
-    }
-    if (medit_layout_is_element_shown(&ui->layout, LAYOUT_SIDE_PANEL)) {
-        ui_sdl3_draw_panel(ui, ui->layout.side_panel, theme->sidebar_bg);
-    }
-    if (medit_layout_is_element_shown(&ui->layout, LAYOUT_BOTTOM_PANEL)) {
-        ui_sdl3_draw_panel(ui, ui->layout.bottom_panel, theme->bottom_panel_bg);
-    }
-}
-
 static void ui_sdl3_draw_text(
     SDL3Ui* ui,
     const char* text,
@@ -837,6 +819,38 @@ static void ui_sdl3_draw_cursor(SDL3Ui* ui, Rect text_area, FileViewGroup* group
     }
 }
 
+static void ui_sdl3_draw_status_bar_text(SDL3Ui* ui)
+{
+    FileView* file_view = medit_get_focused_file_view(ui->medit);
+    Cursor* cursor = &file_view->cursors.items[0];
+    size_t col = cursor->byte; // TODO compute column count
+    size_t line = cursor->line;
+    char cursor_pos_segment[1024] = { 0 }; // Enough for the string below
+    int written = snprintf(
+        cursor_pos_segment,
+        sizeof(cursor_pos_segment),
+        "Ln %zu, Col %zu ",
+        line,
+        col);
+    size_t len = int_to_size(written);
+
+    int segment_width = 0;
+    TTF_MeasureString(ui->font_editor.main, cursor_pos_segment, len, 0, &segment_width, NULL);
+
+    Panel* status_bar = &ui->layout.status_bar;
+    int font_h = TTF_GetFontHeight(ui->font_editor.main);
+    ui_sdl3_draw_text(
+        ui,
+        cursor_pos_segment,
+        len,
+        &ui->font_editor,
+        (PixelPos) {
+            .x = size_to_int(status_bar->area.x + status_bar->area.w) - segment_width,
+            .y = size_to_int(status_bar->area.y) + (size_to_int(status_bar->area.h) - font_h) / 2,
+        },
+        ui->medit->config.color_theme.editor_fg);
+}
+
 static void ui_sdl3_scroll_file_view(SDL3Ui* ui, Rect text_area, FileViewGroup* group)
 {
     FileView* file_view = medit_get_displayed_file_view_in_group(ui->medit, group);
@@ -864,6 +878,25 @@ static void ui_sdl3_scroll_file_view(SDL3Ui* ui, Rect text_area, FileViewGroup* 
 
     file_view->scrolling.x = SDL_clamp(file_view->scrolling.x, scroll_min_x, scroll_max_x);
     file_view->scrolling.y = SDL_clamp(file_view->scrolling.y, scroll_min_y, scroll_max_y);
+}
+
+static void ui_sdl3_draw_panels(SDL3Ui* ui)
+{
+    const ColorTheme* theme = &ui->medit->config.color_theme;
+
+    if (medit_layout_is_element_shown(&ui->layout, LAYOUT_MENU_BAR)) {
+        ui_sdl3_draw_panel(ui, ui->layout.menu_bar, theme->menu_bar_bg);
+    }
+    if (medit_layout_is_element_shown(&ui->layout, LAYOUT_STATUS_BAR)) {
+        ui_sdl3_draw_panel(ui, ui->layout.status_bar, theme->status_bar_bg);
+        ui_sdl3_draw_status_bar_text(ui);
+    }
+    if (medit_layout_is_element_shown(&ui->layout, LAYOUT_SIDE_PANEL)) {
+        ui_sdl3_draw_panel(ui, ui->layout.side_panel, theme->sidebar_bg);
+    }
+    if (medit_layout_is_element_shown(&ui->layout, LAYOUT_BOTTOM_PANEL)) {
+        ui_sdl3_draw_panel(ui, ui->layout.bottom_panel, theme->bottom_panel_bg);
+    }
 }
 
 static void ui_sdl3_render(SDL3Ui* ui)
