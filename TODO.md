@@ -15,3 +15,6 @@
 - [ ] add selection
 - [-] layout engine
 - [ ] add undo and redo
+- [ ] add mouse handling
+- [ ] add syntax highlighting
+- [ ] add config using lua
