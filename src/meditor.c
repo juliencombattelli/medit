@@ -505,10 +505,10 @@ void medit_erase_char(Meditor* medit)
         Cursor* cursor = &file_view->cursors.items[0];
         // Remove the grapheme before the cursor
         dynarray_remove_many(current_line, cursor_byte - cursor->len, cursor->len);
-        // Update the length of the cursor as the character under it was removed and the whole line
-        // shifted left by one grapheme
-        update_cursor_len(medit);
     }
+
+    // Update the length of the cursor as the character under it changed
+    update_cursor_len(medit);
 }
 
 void medit_layout_recompute(Layout* layout, FileViewGroups* groups, size_t win_w, size_t win_h)
