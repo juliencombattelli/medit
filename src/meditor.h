@@ -90,23 +90,35 @@ typedef struct {
 #define LAYOUT_STATUS_BAR (1ull << 4ull)
 
 typedef struct {
+    size_t menu_bar_height;
+    size_t tab_bar_height;
+    size_t side_panel_width;
+    size_t bottom_panel_height;
+    size_t status_bar_height;
+    size_t separator_size;
+} LayoutSizes;
+
+typedef struct {
     Panel menu_bar;
     Panel side_panel;
     Panel bottom_panel;
     Panel status_bar;
     Rect editor_area;
     uint32_t elements_shown;
+    LayoutSizes sizes;
 } Layout;
 
-static inline bool layout_is_element_shown(Layout* layout, uint32_t mask)
+static inline bool medit_layout_is_element_shown(Layout* layout, uint32_t mask)
 {
     return (layout->elements_shown & mask) == mask;
 }
 
-static inline void layout_toggle_shown_element(Layout* layout, uint32_t mask)
+static inline void medit_layout_toggle_shown_element(Layout* layout, uint32_t mask)
 {
     layout->elements_shown ^= mask;
 }
+
+void medit_layout_recompute(Layout* layout, FileViewGroups* groups, size_t win_w, size_t win_h);
 
 typedef struct {
     Color editor_fg;

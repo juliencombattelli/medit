@@ -50,13 +50,13 @@ typedef struct {
     int line_centering_offset;
 } Font;
 
-enum {
-    MENU_BAR_HEIGHT = 30,
-    TAB_BAR_HEIGHT = 35,
-    SIDE_PANEL_WIDTH = 200,
-    BOTTOM_PANEL_HEIGHT = 200,
-    STATUS_BAR_HEIGHT = 30,
-    SEPARATOR_SIZE = 1,
+static const LayoutSizes SDL3_LAYOUT_SIZES = {
+    .menu_bar_height = 30,
+    .tab_bar_height = 35,
+    .side_panel_width = 200,
+    .bottom_panel_height = 200,
+    .status_bar_height = 30,
+    .separator_size = 1,
 };
 
 typedef struct {
@@ -92,7 +92,14 @@ enum UserEvents {
     EVENT_CURSOR_BLINK = 42,
 };
 
-static void ui_sdl3_recompute_layout(SDL3Ui* ui);
+static inline void ui_sdl3_recompute_layout(SDL3Ui* ui)
+{
+    medit_layout_recompute(
+        &ui->layout,
+        &ui->medit->file_views,
+        int_to_size(ui->window_size.width),
+        int_to_size(ui->window_size.height));
+}
 
 static void set_font_size_clamped(int* font, int value)
 {
@@ -280,7 +287,7 @@ static void action_toggle_side_panel(Meditor* medit, void* ui_)
     MEDIT_UNUSED(medit);
 
     SDL3Ui* ui = ui_;
-    layout_toggle_shown_element(&ui->layout, LAYOUT_SIDE_PANEL);
+    medit_layout_toggle_shown_element(&ui->layout, LAYOUT_SIDE_PANEL);
     ui_sdl3_recompute_layout(ui);
 }
 
@@ -475,61 +482,6 @@ static void ui_sdl3_unload_editor_font(SDL3Ui* ui)
     TTF_CloseFont(ui->font_editor.main);
     TTF_CloseFont(ui->font_editor.emoji);
     ui->font_editor = (Font) { 0 };
-}
-
-static void ui_sdl3_recompute_layout(SDL3Ui* ui)
-{
-    FileViewGroups* groups = &ui->medit->file_views;
-
-    assert(groups->count > 0 && "You forgot to create some demo group");
-
-    Rect window = { 0, 0, int_to_size(ui->window_size.width), int_to_size(ui->window_size.height) };
-
-    if (layout_is_element_shown(&ui->layout, LAYOUT_MENU_BAR)) {
-        ui->layout.menu_bar = panel_cut_top(&window, MENU_BAR_HEIGHT, SEPARATOR_SIZE);
-    }
-    if (layout_is_element_shown(&ui->layout, LAYOUT_STATUS_BAR)) {
-        ui->layout.status_bar = panel_cut_bottom(&window, STATUS_BAR_HEIGHT, SEPARATOR_SIZE);
-    }
-    if (layout_is_element_shown(&ui->layout, LAYOUT_SIDE_PANEL)) {
-        ui->layout.side_panel = panel_cut_left(&window, SIDE_PANEL_WIDTH, SEPARATOR_SIZE);
-    }
-    if (layout_is_element_shown(&ui->layout, LAYOUT_BOTTOM_PANEL)) {
-        ui->layout.bottom_panel = panel_cut_bottom(&window, BOTTOM_PANEL_HEIGHT, SEPARATOR_SIZE);
-    }
-    ui->layout.editor_area = window;
-
-    size_t cols = 1;
-    while (cols * cols < groups->count) {
-        cols++;
-    }
-    size_t rows = (groups->count + cols - 1) / cols;
-    size_t row_height = window.h / rows;
-    size_t col_width = window.w / cols;
-
-    Rect editor = ui->layout.editor_area;
-
-    for (size_t r = 0; r < rows; ++r) {
-        if (r > 0) {
-            rect_cut_top(&editor, SEPARATOR_SIZE);
-        }
-        Rect row_rect = rect_cut_top(&editor, row_height);
-        for (size_t c = 0; c < cols; ++c) {
-            if (c > 0) {
-                rect_cut_left(&row_rect, SEPARATOR_SIZE);
-            }
-            size_t idx = (r * cols) + c;
-            if (idx >= groups->count) {
-                break;
-            }
-            groups->items[idx].area = rect_cut_left(&row_rect, col_width);
-            Rect content = groups->items[idx].area;
-            if (layout_is_element_shown(&ui->layout, LAYOUT_TAB_BAR)) {
-                rect_cut_top(&content, TAB_BAR_HEIGHT + SEPARATOR_SIZE);
-            }
-            groups->items[idx].content_area = content;
-        }
-    }
 }
 
 static void ui_sdl3_on_window_resized(SDL3Ui* ui, int w, int h)
@@ -764,16 +716,16 @@ static void ui_sdl3_draw_panels(SDL3Ui* ui)
 {
     const ColorTheme* theme = &ui->medit->config.color_theme;
 
-    if (layout_is_element_shown(&ui->layout, LAYOUT_MENU_BAR)) {
+    if (medit_layout_is_element_shown(&ui->layout, LAYOUT_MENU_BAR)) {
         ui_sdl3_draw_panel(ui, ui->layout.menu_bar, theme->menu_bar_bg);
     }
-    if (layout_is_element_shown(&ui->layout, LAYOUT_STATUS_BAR)) {
+    if (medit_layout_is_element_shown(&ui->layout, LAYOUT_STATUS_BAR)) {
         ui_sdl3_draw_panel(ui, ui->layout.status_bar, theme->status_bar_bg);
     }
-    if (layout_is_element_shown(&ui->layout, LAYOUT_SIDE_PANEL)) {
+    if (medit_layout_is_element_shown(&ui->layout, LAYOUT_SIDE_PANEL)) {
         ui_sdl3_draw_panel(ui, ui->layout.side_panel, theme->sidebar_bg);
     }
-    if (layout_is_element_shown(&ui->layout, LAYOUT_BOTTOM_PANEL)) {
+    if (medit_layout_is_element_shown(&ui->layout, LAYOUT_BOTTOM_PANEL)) {
         ui_sdl3_draw_panel(ui, ui->layout.bottom_panel, theme->bottom_panel_bg);
     }
 }
@@ -1011,9 +963,10 @@ static void ui_sdl3_draw_file_view_group(SDL3Ui* ui, FileViewGroup* group)
 
     ui_sdl3_fill_rect(ui, group->area, medit->config.color_theme.editor_bg);
 
-    if (layout_is_element_shown(&ui->layout, LAYOUT_TAB_BAR)) {
+    if (medit_layout_is_element_shown(&ui->layout, LAYOUT_TAB_BAR)) {
         Rect tab_area = group->area;
-        Panel tab_bar = panel_cut_top(&tab_area, TAB_BAR_HEIGHT, SEPARATOR_SIZE);
+        LayoutSizes s = ui->layout.sizes;
+        Panel tab_bar = panel_cut_top(&tab_area, s.tab_bar_height, s.separator_size);
         ui_sdl3_draw_panel(ui, tab_bar, medit->config.color_theme.tab_bar_bg);
     }
 
@@ -1044,6 +997,7 @@ static void ui_sdl3_draw_file_view_group(SDL3Ui* ui, FileViewGroup* group)
 // TODO temporary function placing groups on screen till we have a proper layout engine
 static void temp_ui_sdl3_update_file_view_groups_size(SDL3Ui* ui)
 {
+    ui->layout.sizes = SDL3_LAYOUT_SIZES;
     ui->layout.elements_shown = LAYOUT_MENU_BAR | LAYOUT_STATUS_BAR | LAYOUT_TAB_BAR
         | LAYOUT_SIDE_PANEL;
     ui_sdl3_recompute_layout(ui);

@@ -13,4 +13,5 @@
 - [ ] add a string view library (would probably switch to C++ at this point)
 - [ ] reenable multi cursor
 - [ ] add selection
-- [ ] layout engine
+- [-] layout engine
+- [ ] add undo and redo
