@@ -823,8 +823,8 @@ static void ui_sdl3_draw_status_bar_text(SDL3Ui* ui)
 {
     FileView* file_view = medit_get_focused_file_view(ui->medit);
     Cursor* cursor = &file_view->cursors.items[0];
-    size_t col = cursor->byte; // TODO compute column count
-    size_t line = cursor->line;
+    size_t col = cursor->grapheme_col + 1;
+    size_t line = cursor->line + 1;
     char cursor_pos_segment[1024] = { 0 }; // Enough for the string below
     int written = snprintf(
         cursor_pos_segment,

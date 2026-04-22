@@ -41,12 +41,13 @@ typedef struct {
 } Files;
 
 typedef struct {
-    size_t line;
-    size_t byte;
+    size_t line; // line number where the cursor is (0 based)
+    size_t byte; // byte in the line where the cursor is (0 based)
+    size_t grapheme_col; // grapheme number in the line where the cursor is (0 based)
     size_t len; // length in bytes of the grapheme under the cursor
     // Grapheme column from the start of the line, set by horizontal moves and preserved across
     // vertical moves so that up/down navigation lands on the correct grapheme even when lines
-    // contain multi-byte clusters.
+    // contain multi-byte clusters. (0 based)
     size_t preferred_col;
 } Cursor;
 

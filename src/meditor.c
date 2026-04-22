@@ -68,6 +68,7 @@ static void fixup_cursor_col(Meditor* medit)
     Cursor* cursor = &file_view->cursors.items[0];
 
     cursor->byte = byte_from_grapheme_col(line->items, line->count, cursor->preferred_col);
+    cursor->grapheme_col = grapheme_col_from_byte(line->items, line->count, cursor->byte);
     update_cursor_len(medit);
 }
 
@@ -121,11 +122,13 @@ void medit_cursor_left(Meditor* medit)
         // grapheme and save its length
         uc_grapheme_iter_prev(&it, &out);
         cursor->byte -= out.len;
+        cursor->grapheme_col -= 1;
         cursor->len = out.len;
     } else if (cursor->line > 0) {
         --cursor->line;
         Line* upper_line = medit_get_current_line(medit);
         cursor->byte = upper_line->count;
+        cursor->grapheme_col = grapheme_col_from_byte(line->items, line->count, cursor->byte);
         update_cursor_len(medit);
     }
     update_preferred_col(medit);
@@ -152,6 +155,7 @@ void medit_cursor_right(Meditor* medit)
         // grapheme
         uc_grapheme_iter_next(&it, &out);
         cursor->byte += out.len;
+        ++cursor->grapheme_col;
         // Save the length of the grapheme at the new cursor position
         uc_grapheme_iter_next(&it, &out);
         cursor->len = out.len;
@@ -159,6 +163,7 @@ void medit_cursor_right(Meditor* medit)
         // End of current line, switch to the following one if any
         ++cursor->line;
         cursor->byte = 0;
+        cursor->grapheme_col = 0;
         update_cursor_len(medit);
     }
     update_preferred_col(medit);
@@ -181,6 +186,7 @@ void medit_cursor_line_begin(Meditor* medit)
     Cursor* cursor = &file_view->cursors.items[0];
 
     cursor->byte = 0;
+    cursor->grapheme_col = 0;
     cursor->preferred_col = 0;
     update_cursor_len(medit);
 }
@@ -189,8 +195,10 @@ void medit_cursor_line_end(Meditor* medit)
 {
     FileView* file_view = medit_get_focused_file_view(medit);
     Line* line = medit_get_current_line(medit);
+    Cursor* cursor = &file_view->cursors.items[0];
 
-    file_view->cursors.items[0].byte = line->count;
+    cursor->byte = line->count;
+    cursor->grapheme_col = grapheme_col_from_byte(line->items, line->count, cursor->byte);
     update_cursor_len(medit);
     update_preferred_col(medit);
 }
@@ -198,14 +206,16 @@ void medit_cursor_line_end(Meditor* medit)
 void medit_cursor_file_begin(Meditor* medit)
 {
     FileView* file_view = medit_get_focused_file_view(medit);
-    file_view->cursors.items[0].line = 0;
+    Cursor* cursor = &file_view->cursors.items[0];
+    cursor->line = 0;
     medit_cursor_line_begin(medit);
 }
 
 void medit_cursor_file_end(Meditor* medit)
 {
     FileView* file_view = medit_get_focused_file_view(medit);
-    file_view->cursors.items[0].line = file_view->file->lines.count - 1;
+    Cursor* cursor = &file_view->cursors.items[0];
+    cursor->line = file_view->file->lines.count - 1;
     medit_cursor_line_end(medit);
 }
 
