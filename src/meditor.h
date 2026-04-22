@@ -1,6 +1,7 @@
 #ifndef MEDIT_MEDITOR_H_
 #define MEDIT_MEDITOR_H_
 
+#include "action.h"
 #include "color.h"
 #include "keybind.h"
 #include "rect.h"
@@ -179,5 +180,14 @@ Line* medit_get_current_line(Meditor* medit);
 
 void medit_erase_char(Meditor* medit);
 void medit_erase_line(Meditor* medit);
+
+void medit_dump_state(Meditor* medit);
+
+// Load the default keybindings for the associated UI type:
+// Full: graphical UIs where all key+modifiers combinations are distinguishable.
+// ANSI: terminal UIs where CTRL+letter and CTRL+SHIFT+letter produce the same control character
+//       limiting available bindings.
+void medit_load_default_keybind_full(Meditor* medit, const Actions* actions, void* ui);
+void medit_load_default_keybind_ansi(Meditor* medit, const Actions* actions, void* ui);
 
 #endif // MEDIT_MEDITOR_H_

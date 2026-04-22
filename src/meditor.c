@@ -1,4 +1,5 @@
 #include "meditor.h"
+#include "action.h"
 #include "assert.h"
 #include "dynarray.h"
 #include "unicode.h"
@@ -573,4 +574,63 @@ void medit_layout_recompute(Layout* layout, FileViewGroups* groups, size_t win_w
             groups->items[idx].content_area = content;
         }
     }
+}
+
+void medit_dump_state(Meditor* medit)
+{
+    FileView* file_view = medit_get_focused_file_view(medit);
+
+    printf("Dump state:\n");
+    printf(
+        "  cursor: byte=%zu, line=%zu; lines:%zu\n  lines:\n",
+        file_view->cursors.items[0].byte,
+        file_view->cursors.items[0].line,
+        file_view->file->lines.count);
+    Lines* lines = &file_view->file->lines;
+    int row = 0;
+    dynarray_foreach(Line, line, lines)
+    {
+        if (line->count != 0) {
+            printf("    #%d:`%.*s`\n", row++, (int)line->count, line->items);
+        } else {
+            printf("    #%d:``\n", row++);
+        }
+    }
+}
+
+void medit_load_default_keybind_full(Meditor* medit, const Actions* actions, void* ui)
+{
+    Keybind* keybind = &medit->keybind;
+
+    keybind_bind(keybind, KEY_Q, MOD_CTRL, actions->quit, medit, ui);
+    keybind_bind(keybind, KEY_S, MOD_CTRL, actions->save_file, medit, ui);
+
+    keybind_bind(keybind, KEY_NPAD_PLUS, MOD_CTRL, actions->font_zoom_in, medit, ui);
+    keybind_bind(keybind, KEY_EQUALS, MOD_SHIFT_CTRL, actions->font_zoom_in, medit, ui);
+    keybind_bind(keybind, KEY_NPAD_MINUS, MOD_CTRL, actions->font_zoom_out, medit, ui);
+    keybind_bind(keybind, KEY_6, MOD_CTRL, actions->font_zoom_out, medit, ui);
+    keybind_bind(keybind, KEY_EQUALS, MOD_CTRL, actions->font_zoom_default, medit, ui);
+
+    keybind_bind(keybind, KEY_UP, MOD_NONE, actions->cursor_up, medit, ui);
+    keybind_bind(keybind, KEY_DOWN, MOD_NONE, actions->cursor_down, medit, ui);
+    keybind_bind(keybind, KEY_LEFT, MOD_NONE, actions->cursor_left, medit, ui);
+    keybind_bind(keybind, KEY_RIGHT, MOD_NONE, actions->cursor_right, medit, ui);
+    keybind_bind(keybind, KEY_HOME, MOD_NONE, actions->cursor_line_begin, medit, ui);
+    keybind_bind(keybind, KEY_END, MOD_NONE, actions->cursor_line_end, medit, ui);
+    keybind_bind(keybind, KEY_HOME, MOD_CTRL, actions->cursor_file_begin, medit, ui);
+    keybind_bind(keybind, KEY_END, MOD_CTRL, actions->cursor_file_end, medit, ui);
+
+    keybind_bind(keybind, KEY_ESCAPE, MOD_NONE, actions->restore_cursor, medit, ui);
+    keybind_bind(keybind, KEY_DOWN, MOD_CTRL_ALT, actions->add_cursor_down, medit, ui);
+
+    keybind_bind(keybind, KEY_D, MOD_CTRL, actions->dump_state, medit, ui);
+
+    keybind_bind(keybind, KEY_K, MOD_SHIFT_CTRL, actions->erase_line, medit, ui);
+
+    keybind_bind(keybind, KEY_LEFT, MOD_ALT, actions->focus_file_view_group_left, medit, ui);
+    keybind_bind(keybind, KEY_RIGHT, MOD_ALT, actions->focus_file_view_group_right, medit, ui);
+
+    keybind_bind(keybind, KEY_O, MOD_CTRL, actions->open_file_dialog, medit, ui);
+
+    keybind_bind(keybind, KEY_B, MOD_CTRL, actions->toggle_side_panel, medit, ui);
 }

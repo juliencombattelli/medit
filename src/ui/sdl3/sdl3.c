@@ -1,4 +1,5 @@
 #include "sdl3.h"
+#include "action.h"
 #include "assert.h"
 #include "dynarray.h"
 #include "font.h"
@@ -50,7 +51,7 @@ typedef struct {
     int line_centering_offset;
 } Font;
 
-static const LayoutSizes SDL3_LAYOUT_SIZES = {
+static const LayoutSizes SDL3_DEFAULT_LAYOUT_SIZES = {
     .menu_bar_height = 30,
     .tab_bar_height = 35,
     .side_panel_width = 200,
@@ -112,12 +113,6 @@ static void set_font_size_clamped(int* font, int value)
     *font = value;
 }
 
-static void action_quit(Meditor* medit, void* ui)
-{
-    MEDIT_UNUSED(ui);
-    medit->running = false;
-}
-
 static void action_font_zoom_out(Meditor* medit, void* ui)
 {
     MEDIT_UNUSED(ui);
@@ -136,116 +131,10 @@ static void action_font_zoom_default(Meditor* medit, void* ui)
     set_font_size_clamped(&medit->config.editor_font_size, FONT_SIZE_DEFAULT);
 }
 
-static void action_cursor_up(Meditor* medit, void* ui)
-{
-    MEDIT_UNUSED(ui);
-    medit_cursor_up(medit);
-}
-
-static void action_cursor_down(Meditor* medit, void* ui)
-{
-    MEDIT_UNUSED(ui);
-    medit_cursor_down(medit);
-}
-
-static void action_cursor_left(Meditor* medit, void* ui)
-{
-    MEDIT_UNUSED(ui);
-    medit_cursor_left(medit);
-}
-
-static void action_cursor_right(Meditor* medit, void* ui)
-{
-    MEDIT_UNUSED(ui);
-    medit_cursor_right(medit);
-}
-
-static void action_restore_cursor(Meditor* medit, void* ui)
-{
-    MEDIT_UNUSED(ui);
-    FileView* file_view = medit_get_focused_file_view(medit);
-    file_view->cursors.count = 1;
-    // TODO memset other cursors
-}
-
-static void action_cursor_line_begin(Meditor* medit, void* ui)
-{
-    MEDIT_UNUSED(ui);
-    medit_cursor_line_begin(medit);
-}
-
-static void action_cursor_line_end(Meditor* medit, void* ui)
-{
-    MEDIT_UNUSED(ui);
-    medit_cursor_line_end(medit);
-}
-
-static void action_cursor_file_begin(Meditor* medit, void* ui)
-{
-    MEDIT_UNUSED(ui);
-    medit_cursor_file_begin(medit);
-}
-
-static void action_cursor_file_end(Meditor* medit, void* ui)
-{
-    MEDIT_UNUSED(ui);
-    medit_cursor_file_end(medit);
-}
-
-static void action_add_cursor_down(Meditor* medit, void* ui)
-{
-    MEDIT_UNUSED(medit);
-    MEDIT_UNUSED(ui);
-    // Vec2* prev_cursor = &medit->cursor_pos[medit->cursor_index];
-    // Vec2* new_cursor = &medit->cursor_pos[++medit->cursor_index];
-    // *new_cursor = vec2(prev_cursor->x, prev_cursor->y + 1);
-}
-
 static void action_dump_state(Meditor* medit, void* ui)
 {
     MEDIT_UNUSED(ui);
-    FileView* file_view = medit_get_focused_file_view(medit);
-
-    printf("Dump state:\n");
-    printf(
-        "  cursor: byte=%zu, line=%zu; lines:%zu\n  lines:\n",
-        file_view->cursors.items[0].byte,
-        file_view->cursors.items[0].line,
-        file_view->file->lines.count);
-    Lines* lines = &file_view->file->lines;
-    int row = 0;
-    dynarray_foreach(Line, line, lines)
-    {
-        if (line->count != 0) {
-            printf("    #%d:`%.*s`\n", row++, (int)line->count, line->items);
-        } else {
-            printf("    #%d:``\n", row++);
-        }
-    }
-}
-
-static void action_erase_line(Meditor* medit, void* ui)
-{
-    MEDIT_UNUSED(ui);
-    medit_erase_line(medit);
-}
-
-static void action_focus_file_view_group_left(Meditor* medit, void* ui)
-{
-    MEDIT_UNUSED(ui);
-    size_t* focused = &medit->file_views.focused;
-    if (*focused > 0) {
-        *focused -= 1;
-    }
-}
-
-static void action_focus_file_view_group_right(Meditor* medit, void* ui)
-{
-    MEDIT_UNUSED(ui);
-    size_t* focused = &medit->file_views.focused;
-    if (*focused < medit->file_views.count - 1) {
-        *focused += 1;
-    }
+    medit_dump_state(medit);
 }
 
 static void action_save_file(Meditor* medit, void* ui)
@@ -291,43 +180,16 @@ static void action_toggle_side_panel(Meditor* medit, void* ui_)
     ui_sdl3_recompute_layout(ui);
 }
 
-static void ui_sdl3_load_default_keybind(SDL3Ui* ui)
-{
-    Keybind* keybind = &ui->medit->keybind;
-
-    keybind_bind(keybind, KEY_Q, MOD_CTRL, action_quit, ui->medit, ui);
-    keybind_bind(keybind, KEY_S, MOD_CTRL, action_save_file, ui->medit, ui);
-
-    keybind_bind(keybind, KEY_NPAD_PLUS, MOD_CTRL, action_font_zoom_in, ui->medit, ui);
-    keybind_bind(keybind, KEY_EQUALS, MOD_SHIFT_CTRL, action_font_zoom_in, ui->medit, ui);
-    keybind_bind(keybind, KEY_EQUALS, MOD_CTRL, action_font_zoom_default, ui->medit, ui);
-
-    keybind_bind(keybind, KEY_NPAD_MINUS, MOD_CTRL, action_font_zoom_out, ui->medit, ui);
-    keybind_bind(keybind, KEY_6, MOD_CTRL, action_font_zoom_out, ui->medit, ui);
-
-    keybind_bind(keybind, KEY_UP, MOD_NONE, action_cursor_up, ui->medit, ui);
-    keybind_bind(keybind, KEY_DOWN, MOD_NONE, action_cursor_down, ui->medit, ui);
-    keybind_bind(keybind, KEY_LEFT, MOD_NONE, action_cursor_left, ui->medit, ui);
-    keybind_bind(keybind, KEY_RIGHT, MOD_NONE, action_cursor_right, ui->medit, ui);
-    keybind_bind(keybind, KEY_HOME, MOD_NONE, action_cursor_line_begin, ui->medit, ui);
-    keybind_bind(keybind, KEY_END, MOD_NONE, action_cursor_line_end, ui->medit, ui);
-    keybind_bind(keybind, KEY_HOME, MOD_CTRL, action_cursor_file_begin, ui->medit, ui);
-    keybind_bind(keybind, KEY_END, MOD_CTRL, action_cursor_file_end, ui->medit, ui);
-
-    keybind_bind(keybind, KEY_ESCAPE, MOD_NONE, action_restore_cursor, ui->medit, ui);
-    keybind_bind(keybind, KEY_DOWN, MOD_CTRL_ALT, action_add_cursor_down, ui->medit, ui);
-
-    keybind_bind(keybind, KEY_D, MOD_CTRL, action_dump_state, ui->medit, ui);
-
-    keybind_bind(keybind, KEY_K, MOD_SHIFT_CTRL, action_erase_line, ui->medit, ui);
-
-    keybind_bind(keybind, KEY_LEFT, MOD_ALT, action_focus_file_view_group_left, ui->medit, ui);
-    keybind_bind(keybind, KEY_RIGHT, MOD_ALT, action_focus_file_view_group_right, ui->medit, ui);
-
-    keybind_bind(keybind, KEY_O, MOD_CTRL, action_open_file_dialog, ui->medit, ui);
-
-    keybind_bind(keybind, KEY_B, MOD_CTRL, action_toggle_side_panel, ui->medit, ui);
-}
+static const Actions ui_sdl3_actions = {
+    MEDIT_CORE_ACTIONS_DEFAULT,
+    .font_zoom_in = action_font_zoom_in,
+    .font_zoom_out = action_font_zoom_out,
+    .font_zoom_default = action_font_zoom_default,
+    .save_file = action_save_file,
+    .open_file_dialog = action_open_file_dialog,
+    .toggle_side_panel = action_toggle_side_panel,
+    .dump_state = action_dump_state,
+};
 
 static bool ui_sdl3_create(SDL3Ui* ui, Meditor* medit)
 {
@@ -361,7 +223,7 @@ static bool ui_sdl3_create(SDL3Ui* ui, Meditor* medit)
 
     try(SDL_StartTextInput(ui->window));
 
-    ui_sdl3_load_default_keybind(ui);
+    medit_load_default_keybind_full(medit, &ui_sdl3_actions, ui);
 
     return true;
 }
@@ -658,7 +520,7 @@ static void ui_sdl3_dispatch_event(SDL3Ui* ui, SDL_Event* event)
         case SDL_EVENT_KEYMAP_CHANGED: {
             printf("Reloading keymapping\n");
             keybind_reinit(&medit->keybind);
-            ui_sdl3_load_default_keybind(ui);
+            medit_load_default_keybind_full(ui->medit, &ui_sdl3_actions, ui);
         } break;
         default: break;
     }
@@ -846,7 +708,8 @@ static void ui_sdl3_draw_status_bar_text(SDL3Ui* ui)
         &ui->font_editor,
         (PixelPos) {
             .x = size_to_int(status_bar->area.x + status_bar->area.w) - segment_width,
-            .y = size_to_int(status_bar->area.y) + (size_to_int(status_bar->area.h) - font_h) / 2,
+            // vertically center the text in the status bar
+            .y = size_to_int(status_bar->area.y) + ((size_to_int(status_bar->area.h) - font_h) / 2),
         },
         ui->medit->config.color_theme.editor_fg);
 }
@@ -1030,7 +893,7 @@ static void ui_sdl3_draw_file_view_group(SDL3Ui* ui, FileViewGroup* group)
 // TODO temporary function placing groups on screen till we have a proper layout engine
 static void temp_ui_sdl3_update_file_view_groups_size(SDL3Ui* ui)
 {
-    ui->layout.sizes = SDL3_LAYOUT_SIZES;
+    ui->layout.sizes = SDL3_DEFAULT_LAYOUT_SIZES;
     ui->layout.elements_shown = LAYOUT_MENU_BAR | LAYOUT_STATUS_BAR | LAYOUT_TAB_BAR
         | LAYOUT_SIDE_PANEL;
     ui_sdl3_recompute_layout(ui);
