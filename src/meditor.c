@@ -105,7 +105,7 @@ void medit_cursor_up(Meditor* medit)
 void medit_cursor_down(Meditor* medit)
 {
     FileView* file_view = medit_get_focused_file_view(medit);
-    size_t line_count = file_view->file->lines.count;
+    size_t line_count = medit_file_view_file(medit, file_view)->lines.count;
     Cursor* cursor = &file_view->cursors.items[0];
     if (cursor->line < line_count - 1) {
         ++cursor->line;
@@ -171,7 +171,7 @@ void medit_cursor_right(Meditor* medit)
         // Save the length of the grapheme at the new cursor position
         uc_grapheme_iter_next(&it, &out);
         cursor->len = out.len;
-    } else if (cursor->line < file_view->file->lines.count - 1) {
+    } else if (cursor->line < medit_file_view_file(medit, file_view)->lines.count - 1) {
         // End of current line, switch to the following one if any
         ++cursor->line;
         cursor->byte = 0;
@@ -227,7 +227,7 @@ void medit_cursor_file_end(Meditor* medit)
 {
     FileView* file_view = medit_get_focused_file_view(medit);
     Cursor* cursor = &file_view->cursors.items[0];
-    cursor->line = file_view->file->lines.count - 1;
+    cursor->line = medit_file_view_file(medit, file_view)->lines.count - 1;
     medit_cursor_line_end(medit);
 }
 
@@ -241,7 +241,7 @@ void medit_split_line_at_cursor(Meditor* medit)
     Line* current_line = medit_get_current_line(medit);
     Line* new_line = medit_new_line_at(medit, cursor_line + 1);
 
-    file_view->file->dirty = true;
+    medit_file_view_file(medit, file_view)->dirty = true;
 
     dynarray_insert_many(
         new_line,
@@ -258,7 +258,7 @@ void medit_insert_text(Meditor* medit, const char* text, size_t n)
 
     const size_t cursor_col = file_view->cursors.items[0].byte;
 
-    file_view->file->dirty = true;
+    medit_file_view_file(medit, file_view)->dirty = true;
 
     Line* current_line = medit_get_current_line(medit);
 
@@ -271,13 +271,20 @@ void medit_new_empty_file(Meditor* medit, FileViewGroup* group)
     dynarray_append(&medit->opened_files, new_file);
 
     FileView new_file_view = {
-        .file = &dynarray_last(&medit->opened_files),
+        .file_index = medit->opened_files.count - 1,
     };
     dynarray_append(&new_file_view.cursors, (Cursor) { 0 });
 
     dynarray_append(group, new_file_view);
+    group->displayed = group->count - 1;
 
     medit_new_line_at(medit, 0);
+}
+
+File* medit_file_view_file(Meditor* medit, FileView* fv)
+{
+    assert(fv->file_index < medit->opened_files.count);
+    return &medit->opened_files.items[fv->file_index];
 }
 
 void medit_load_file(Meditor* medit, const char* filepath)
@@ -290,7 +297,7 @@ void medit_load_file(Meditor* medit, const char* filepath)
     FileViewGroup* group = medit_get_focused_file_view_group(medit);
 
     // Create and register the new file
-    File new_file = { .name = filepath };
+    File new_file = { 0 };
     dynarray_append(&medit->opened_files, new_file);
     File* file = &dynarray_last(&medit->opened_files);
     file->name = medit_strdup(filepath);
@@ -342,7 +349,7 @@ void medit_load_file(Meditor* medit, const char* filepath)
 
     // Create a file view pointing to the loaded file
     FileView new_file_view = {
-        .file = file,
+        .file_index = medit->opened_files.count - 1,
     };
 
     // Add the cursor to the top character
@@ -358,18 +365,18 @@ void medit_load_file(Meditor* medit, const char* filepath)
     dynarray_append(group, new_file_view);
     group->displayed = group->count - 1;
 
-    printf("file lines: %zu\n", new_file_view.file->lines.count);
+    printf("file lines: %zu\n", file->lines.count);
 }
 
 void medit_save_file(Meditor* medit)
 {
     FileView* file_view = medit_get_focused_file_view(medit);
-    if (file_view == NULL || file_view->file == NULL) {
+    if (file_view == NULL) {
         printf("Error: no file to save\n");
         return;
     }
 
-    const char* filepath = file_view->file->name;
+    const char* filepath = medit_file_view_file(medit, file_view)->name;
     if (filepath == NULL) {
         printf("Error: file has no name\n");
         return;
@@ -381,7 +388,7 @@ void medit_save_file(Meditor* medit)
         return;
     }
 
-    Lines* lines = &file_view->file->lines;
+    Lines* lines = &medit_file_view_file(medit, file_view)->lines;
     for (size_t i = 0; i < lines->count; ++i) {
         Line* line = &lines->items[i];
         if (line->count > 0) {
@@ -404,7 +411,7 @@ void medit_save_file(Meditor* medit)
     (void)fclose(f);
     printf("File saved: %s\n", filepath);
 
-    file_view->file->dirty = false;
+    medit_file_view_file(medit, file_view)->dirty = false;
 }
 
 void medit_close_files(Meditor* medit)
@@ -433,9 +440,9 @@ void medit_close_files(Meditor* medit)
 Line* medit_new_line_at(Meditor* medit, size_t pos)
 {
     FileView* file_view = medit_get_focused_file_view(medit);
-    Lines* lines = &file_view->file->lines;
+    Lines* lines = &medit_file_view_file(medit, file_view)->lines;
 
-    file_view->file->dirty = true;
+    medit_file_view_file(medit, file_view)->dirty = true;
 
     Line empty_line = { 0 };
     dynarray_reserve(&empty_line, MEDIT_LINE_DEFAULT_CAPACITY);
@@ -469,7 +476,7 @@ Line* medit_get_current_line(Meditor* medit)
 {
     FileView* file_view = medit_get_focused_file_view(medit);
     const size_t cursor_row = file_view->cursors.items[0].line;
-    return &file_view->file->lines.items[cursor_row];
+    return &medit_file_view_file(medit, file_view)->lines.items[cursor_row];
 }
 
 void medit_erase_line(Meditor* medit)
@@ -477,9 +484,9 @@ void medit_erase_line(Meditor* medit)
     FileView* file_view = medit_get_focused_file_view(medit);
 
     const size_t cursor_row = file_view->cursors.items[0].line;
-    Lines* lines = &file_view->file->lines;
+    Lines* lines = &medit_file_view_file(medit, file_view)->lines;
 
-    file_view->file->dirty = true;
+    medit_file_view_file(medit, file_view)->dirty = true;
 
     if (lines->count > 1) {
         if (cursor_row + 1 == lines->count) {
@@ -508,10 +515,10 @@ void medit_erase_char(Meditor* medit)
         return;
     }
 
-    Lines* lines = &file_view->file->lines;
+    Lines* lines = &medit_file_view_file(medit, file_view)->lines;
     Line* current_line = &lines->items[cursor_line];
 
-    file_view->file->dirty = true;
+    medit_file_view_file(medit, file_view)->dirty = true;
 
     medit_cursor_left(medit);
 
@@ -596,8 +603,8 @@ void medit_dump_state(Meditor* medit)
         "  cursor: byte=%zu, line=%zu; lines:%zu\n  lines:\n",
         file_view->cursors.items[0].byte,
         file_view->cursors.items[0].line,
-        file_view->file->lines.count);
-    Lines* lines = &file_view->file->lines;
+        medit_file_view_file(medit, file_view)->lines.count);
+    Lines* lines = &medit_file_view_file(medit, file_view)->lines;
     int row = 0;
     dynarray_foreach(Line, line, lines)
     {

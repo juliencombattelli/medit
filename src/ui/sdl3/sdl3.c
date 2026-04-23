@@ -446,11 +446,11 @@ static void ui_sdl3_on_key_down(SDL3Ui* ui, SDL_Event* event)
             medit_split_line_at_cursor(ui->medit);
             medit_cursor_down(ui->medit);
             medit_cursor_line_begin(ui->medit);
-            medit_get_focused_file_view(ui->medit)->file->dirty = true;
+            medit_file_view_file(ui->medit, medit_get_focused_file_view(ui->medit))->dirty = true;
         } break;
         case SDLK_BACKSPACE:
             medit_erase_char(ui->medit);
-            medit_get_focused_file_view(ui->medit)->file->dirty = true;
+            medit_file_view_file(ui->medit, medit_get_focused_file_view(ui->medit))->dirty = true;
             break;
         default: break;
     }
@@ -553,13 +553,13 @@ static Rect ui_sdl3_cursor_rect(
     const Cursor* cursor,
     FileView* file_view)
 {
-    Line* line = &file_view->file->lines.items[cursor->line];
+    Line* line = &medit_file_view_file(ui->medit, file_view)->lines.items[cursor->line];
     // Compute x offset of the cursor in the line
     int line_w = 0;
     if (cursor->byte != 0) {
         TTF_MeasureString(
             ui->font_editor.main,
-            file_view->file->lines.items[cursor->line].items,
+            medit_file_view_file(ui->medit, file_view)->lines.items[cursor->line].items,
             cursor->byte,
             0,
             &line_w,
@@ -618,7 +618,7 @@ static void ui_sdl3_draw_cursor(SDL3Ui* ui, Rect text_area, FileViewGroup* group
         }
 
         // Redraw glyph at cursor on top of it
-        Line* current_line = &file_view->file->lines.items[cursor->line];
+        Line* current_line = &medit_file_view_file(medit, file_view)->lines.items[cursor->line];
         if (cursor->byte < current_line->count) {
             const char* grapheme = &current_line->items[cursor->byte];
             PixelPos char_pos = {
@@ -721,7 +721,9 @@ static void ui_sdl3_compute_line_number_gutter_width(SDL3Ui* ui, FileViewGroup* 
     Meditor* medit = ui->medit;
     FileView* file_view = medit_get_displayed_file_view_in_group(medit, group);
 
-    const int line_count = SDL_max(size_to_int(file_view->file->lines.count), 1000);
+    const int line_count = SDL_max(
+        size_to_int(medit_file_view_file(medit, file_view)->lines.count),
+        1000);
     if (line_count == ui->line_nr_cached_line_count) {
         return;
     }
@@ -803,19 +805,50 @@ static void ui_sdl3_draw_line(
 static void ui_sdl3_draw_file_view_group(SDL3Ui* ui, FileViewGroup* group)
 {
     Meditor* medit = ui->medit;
-    FileView* file_view = medit_get_displayed_file_view_in_group(medit, group);
-    Lines* lines = &file_view->file->lines;
+    FileView* displayed_file_view = medit_get_displayed_file_view_in_group(medit, group);
+    Lines* lines = &medit_file_view_file(medit, displayed_file_view)->lines;
 
     ui_sdl3_fill_rect(ui, group->area, medit->config.color_theme.editor_bg);
 
     if (medit_layout_is_element_shown(&ui->layout, LAYOUT_TAB_BAR)) {
-        Rect tab_area = group->area;
-        LayoutSizes s = ui->layout.sizes;
-        Panel tab_bar = panel_cut_top(&tab_area, s.tab_bar_height, s.separator_size);
+        const LayoutSizes s = ui->layout.sizes;
+        Rect tab_bar_area = group->area;
+        Panel tab_bar = panel_cut_top(&tab_bar_area, s.tab_bar_height, s.separator_size);
         ui_sdl3_draw_panel(ui, tab_bar, medit->config.color_theme.tab_bar_bg);
+
+        Panel tab = { .area = tab_bar.area };
+        Rect remaining = tab_bar.area;
+        for (size_t i = 0; i < group->count; ++i) {
+            FileView* file_view = &group->items[i];
+            const char* filename = medit_file_view_file(medit, file_view)->name
+                ? medit_file_view_file(medit, file_view)->name
+                : " Untitled ";
+            size_t filename_len = strlen(filename);
+            int w = 0;
+            TTF_MeasureString(ui->font_editor.main, filename, filename_len, 0, &w, NULL);
+            size_t filename_width = int_to_size(w);
+            tab = panel_cut_left(&remaining, SDL_max(filename_width, 128), s.separator_size);
+            const Color tab_color = i == group->displayed ? medit->config.color_theme.editor_bg
+                                                          : medit->config.color_theme.tab_bar_bg;
+            ui_sdl3_draw_panel(ui, tab, tab_color);
+
+            int font_h = TTF_GetFontHeight(ui->font_editor.main);
+            ui_sdl3_draw_text(
+                ui,
+                filename,
+                filename_len,
+                &ui->font_editor,
+                (PixelPos) {
+                    .x = size_to_int(tab.area.x),
+                    // vertically center the text in the status bar
+                    .y = size_to_int(tab.area.y) + ((size_to_int(tab.area.h) - font_h) / 2),
+                },
+                ui->medit->config.color_theme.editor_fg);
+        }
     }
 
-    const size_t first_rendered_line = file_view->scrolling.y / ui->font_editor.line_spacing;
+    const size_t first_rendered_line = displayed_file_view->scrolling.y
+        / ui->font_editor.line_spacing;
     const size_t screen_lines = (int_to_size(ui->window_size.height) / ui->font_editor.line_spacing)
         + 1;
     const size_t rendered_line_count = SDL_min(lines->count, first_rendered_line + screen_lines);
@@ -859,6 +892,7 @@ static void temp_ui_sdl3_setup_layout(SDL3Ui* ui)
         dynarray_append(&medit->file_views, (FileViewGroup) { 0 });
         medit->file_views.focused = medit->file_views.count - 1;
         medit_new_empty_file(medit, &dynarray_last(&medit->file_views));
+        medit_new_empty_file(medit, &dynarray_last(&medit->file_views));
     }
 
     // Insert some text in the focused latest created group
@@ -893,7 +927,7 @@ void medit_ui_sdl3_run(Meditor* medit)
         for (size_t j = 0; j < group->count; ++j) {
             FileView* file_view = &group->items[j];
             Cursor* cursor = &file_view->cursors.items[0];
-            Line* line = &file_view->file->lines.items[0];
+            Line* line = &medit_file_view_file(medit, file_view)->lines.items[0];
 
             UcGraphemeIter it = { 0 };
             uc_grapheme_iter_init(&it, (uint8_t*)line->items, line->count, cursor->byte);

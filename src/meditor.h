@@ -66,7 +66,7 @@ typedef struct {
 } Scrolling;
 
 typedef struct {
-    File* file;
+    size_t file_index;
     Cursors cursors;
     Scrolling scrolling;
 } FileView;
@@ -169,6 +169,8 @@ void medit_new_empty_file(Meditor* medit, FileViewGroup* group);
 void medit_load_file(Meditor* medit, const char* filepath);
 void medit_save_file(Meditor* medit);
 void medit_close_files(Meditor* medit);
+
+File* medit_file_view_file(Meditor* medit, FileView* fv);
 
 void medit_split_line_at_cursor(Meditor* medit);
 Line* medit_new_line_at(Meditor* medit, size_t pos);
