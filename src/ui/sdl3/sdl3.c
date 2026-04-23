@@ -802,6 +802,77 @@ static void ui_sdl3_draw_line(
         medit->config.color_theme.editor_fg);
 }
 
+typedef struct {
+    char content[1024];
+    size_t length;
+    size_t width;
+} FileViewTabText;
+
+static void ui_sdl3_format_file_view_tab_text(
+    SDL3Ui* ui,
+    FileView* file_view,
+    FileViewTabText* tab_text)
+{
+    // TODO draw a button instead of just an indicator
+    static const char dirty_indicator[] = " ●";
+
+    Meditor* medit = ui->medit;
+
+    // TODO generate "Untitled" file names when creating the file
+    const char* filename = medit_file_view_file(medit, file_view)->name
+        ? medit_file_view_file(medit, file_view)->name
+        : "Untitled";
+    size_t filename_len = strlen(filename);
+
+    const char* dirty_str = medit_file_view_file(medit, file_view)->dirty ? dirty_indicator : "";
+    int written = snprintf(
+        tab_text->content,
+        sizeof(tab_text->content),
+        " %.*s%s ",
+        size_to_int(filename_len),
+        filename,
+        dirty_str);
+    tab_text->length = int_to_size(written);
+
+    int w = 0;
+    TTF_MeasureString(ui->font_editor.main, tab_text->content, tab_text->length, 0, &w, NULL);
+    tab_text->width = int_to_size(w);
+}
+
+static void ui_sdl3_draw_file_view_group_tab_bar(SDL3Ui* ui, FileViewGroup* group)
+{
+    Meditor* medit = ui->medit;
+    const LayoutSizes s = ui->layout.sizes;
+    Rect tab_bar_area = group->area;
+    Panel tab_bar = panel_cut_top(&tab_bar_area, s.tab_bar_height, s.separator_size);
+    ui_sdl3_draw_panel(ui, tab_bar, medit->config.color_theme.tab_bar_bg);
+
+    Panel tab = { .area = tab_bar.area };
+    Rect remaining = tab_bar.area;
+    for (size_t i = 0; i < group->count; ++i) {
+        FileView* file_view = &group->items[i];
+        FileViewTabText tab_text = { 0 };
+        ui_sdl3_format_file_view_tab_text(ui, file_view, &tab_text);
+        tab = panel_cut_left(&remaining, SDL_max(tab_text.width, 128), s.separator_size);
+        const Color tab_color = i == group->displayed ? medit->config.color_theme.editor_bg
+                                                      : medit->config.color_theme.tab_bar_bg;
+        ui_sdl3_draw_panel(ui, tab, tab_color);
+
+        int font_h = TTF_GetFontHeight(ui->font_editor.main);
+        ui_sdl3_draw_text(
+            ui,
+            tab_text.content,
+            tab_text.length,
+            &ui->font_editor,
+            (PixelPos) {
+                .x = size_to_int(tab.area.x),
+                // vertically center the text in the status bar
+                .y = size_to_int(tab.area.y) + ((size_to_int(tab.area.h) - font_h) / 2),
+            },
+            ui->medit->config.color_theme.editor_fg);
+    }
+}
+
 static void ui_sdl3_draw_file_view_group(SDL3Ui* ui, FileViewGroup* group)
 {
     Meditor* medit = ui->medit;
@@ -811,40 +882,7 @@ static void ui_sdl3_draw_file_view_group(SDL3Ui* ui, FileViewGroup* group)
     ui_sdl3_fill_rect(ui, group->area, medit->config.color_theme.editor_bg);
 
     if (medit_layout_is_element_shown(&ui->layout, LAYOUT_TAB_BAR)) {
-        const LayoutSizes s = ui->layout.sizes;
-        Rect tab_bar_area = group->area;
-        Panel tab_bar = panel_cut_top(&tab_bar_area, s.tab_bar_height, s.separator_size);
-        ui_sdl3_draw_panel(ui, tab_bar, medit->config.color_theme.tab_bar_bg);
-
-        Panel tab = { .area = tab_bar.area };
-        Rect remaining = tab_bar.area;
-        for (size_t i = 0; i < group->count; ++i) {
-            FileView* file_view = &group->items[i];
-            const char* filename = medit_file_view_file(medit, file_view)->name
-                ? medit_file_view_file(medit, file_view)->name
-                : " Untitled ";
-            size_t filename_len = strlen(filename);
-            int w = 0;
-            TTF_MeasureString(ui->font_editor.main, filename, filename_len, 0, &w, NULL);
-            size_t filename_width = int_to_size(w);
-            tab = panel_cut_left(&remaining, SDL_max(filename_width, 128), s.separator_size);
-            const Color tab_color = i == group->displayed ? medit->config.color_theme.editor_bg
-                                                          : medit->config.color_theme.tab_bar_bg;
-            ui_sdl3_draw_panel(ui, tab, tab_color);
-
-            int font_h = TTF_GetFontHeight(ui->font_editor.main);
-            ui_sdl3_draw_text(
-                ui,
-                filename,
-                filename_len,
-                &ui->font_editor,
-                (PixelPos) {
-                    .x = size_to_int(tab.area.x),
-                    // vertically center the text in the status bar
-                    .y = size_to_int(tab.area.y) + ((size_to_int(tab.area.h) - font_h) / 2),
-                },
-                ui->medit->config.color_theme.editor_fg);
-        }
+        ui_sdl3_draw_file_view_group_tab_bar(ui, group);
     }
 
     const size_t first_rendered_line = displayed_file_view->scrolling.y
