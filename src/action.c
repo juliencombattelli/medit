@@ -98,6 +98,18 @@ void medit_action_focus_file_view_group_right(Meditor* medit, void* ui)
     }
 }
 
+void medit_action_display_file_view_left(Meditor* medit, void* ui)
+{
+    MEDIT_UNUSED(ui);
+    medit_file_view_group_display_prev(medit, medit_get_focused_file_view_group(medit));
+}
+
+void medit_action_display_file_view_right(Meditor* medit, void* ui)
+{
+    MEDIT_UNUSED(ui);
+    medit_file_view_group_display_next(medit, medit_get_focused_file_view_group(medit));
+}
+
 void medit_action_font_zoom_in(Meditor* medit, void* ui)
 {
     MEDIT_UNUSED(ui);

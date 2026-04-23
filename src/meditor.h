@@ -171,6 +171,8 @@ void medit_save_file(Meditor* medit);
 void medit_close_files(Meditor* medit);
 
 File* medit_file_view_file(Meditor* medit, FileView* fv);
+void medit_file_view_group_display_next(Meditor* medit, FileViewGroup* group);
+void medit_file_view_group_display_prev(Meditor* medit, FileViewGroup* group);
 
 void medit_split_line_at_cursor(Meditor* medit);
 Line* medit_new_line_at(Meditor* medit, size_t pos);

@@ -287,6 +287,26 @@ File* medit_file_view_file(Meditor* medit, FileView* fv)
     return &medit->opened_files.items[fv->file_index];
 }
 
+void medit_file_view_group_display_next(Meditor* medit, FileViewGroup* group)
+{
+    MEDIT_UNUSED(medit);
+    if (group->displayed >= group->count - 1) {
+        group->displayed = 0;
+    } else {
+        ++group->displayed;
+    }
+}
+
+void medit_file_view_group_display_prev(Meditor* medit, FileViewGroup* group)
+{
+    MEDIT_UNUSED(medit);
+    if (group->displayed == 0) {
+        group->displayed = group->count - 1;
+    } else {
+        --group->displayed;
+    }
+}
+
 void medit_load_file(Meditor* medit, const char* filepath)
 {
     // Create a group if none exists
@@ -647,6 +667,8 @@ void medit_load_default_keybind_full(Meditor* medit, const Actions* actions, voi
 
     keybind_bind(keybind, KEY_LEFT, MOD_ALT, actions->focus_file_view_group_left, medit, ui);
     keybind_bind(keybind, KEY_RIGHT, MOD_ALT, actions->focus_file_view_group_right, medit, ui);
+    keybind_bind(keybind, KEY_TAB, MOD_SHIFT_CTRL, actions->display_file_view_left, medit, ui);
+    keybind_bind(keybind, KEY_TAB, MOD_CTRL, actions->display_file_view_right, medit, ui);
 
     keybind_bind(keybind, KEY_O, MOD_CTRL, actions->open_file_dialog, medit, ui);
 

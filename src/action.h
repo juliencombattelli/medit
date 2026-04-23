@@ -31,6 +31,8 @@ typedef struct {
     // Focus control
     void (*focus_file_view_group_left)(Meditor* medit, void* ui);
     void (*focus_file_view_group_right)(Meditor* medit, void* ui);
+    void (*display_file_view_left)(Meditor* medit, void* ui);
+    void (*display_file_view_right)(Meditor* medit, void* ui);
 
     // Font zoom
     void (*font_zoom_in)(Meditor* medit, void* ui);
@@ -67,6 +69,8 @@ void medit_action_restore_cursor(Meditor* medit, void* ui);
 void medit_action_erase_line(Meditor* medit, void* ui);
 void medit_action_focus_file_view_group_left(Meditor* medit, void* ui);
 void medit_action_focus_file_view_group_right(Meditor* medit, void* ui);
+void medit_action_display_file_view_left(Meditor* medit, void* ui);
+void medit_action_display_file_view_right(Meditor* medit, void* ui);
 void medit_action_font_zoom_in(Meditor* medit, void* ui);
 void medit_action_font_zoom_out(Meditor* medit, void* ui);
 void medit_action_font_zoom_default(Meditor* medit, void* ui);
@@ -88,6 +92,8 @@ void medit_action_font_zoom_default(Meditor* medit, void* ui);
     .erase_line = medit_action_erase_line,                                                         \
     .focus_file_view_group_left = medit_action_focus_file_view_group_left,                         \
     .focus_file_view_group_right = medit_action_focus_file_view_group_right,                       \
+    .display_file_view_left = medit_action_display_file_view_left,                                 \
+    .display_file_view_right = medit_action_display_file_view_right,                               \
     .font_zoom_in =   medit_action_font_zoom_in,                                                   \
     .font_zoom_out = medit_action_font_zoom_out,                                                   \
     .font_zoom_default = medit_action_font_zoom_default
