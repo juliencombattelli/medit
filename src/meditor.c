@@ -238,8 +238,8 @@ void medit_split_line_at_cursor(Meditor* medit)
     const size_t cursor_line = file_view->cursors.items[0].line;
     const size_t cursor_byte = file_view->cursors.items[0].byte;
 
-    Line* current_line = medit_get_current_line(medit);
     Line* new_line = medit_new_line_at(medit, cursor_line + 1);
+    Line* current_line = medit_get_current_line(medit);
 
     medit_file_view_file(medit, file_view)->dirty = true;
 
