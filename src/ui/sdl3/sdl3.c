@@ -27,16 +27,6 @@ typedef struct {
     int y;
 } PixelPos;
 
-static inline SDL_Rect rect_to_sdl(Rect r)
-{
-    return (SDL_Rect) {
-        .x = size_to_int(r.x),
-        .y = size_to_int(r.y),
-        .w = size_to_int(r.w),
-        .h = size_to_int(r.h),
-    };
-}
-
 typedef struct {
     SDL_TimerID timer;
     bool show;
@@ -50,15 +40,6 @@ typedef struct {
     size_t default_cursor_width;
     int line_centering_offset;
 } Font;
-
-static const LayoutSizes SDL3_DEFAULT_LAYOUT_SIZES = {
-    .menu_bar_height = 30,
-    .tab_bar_height = 35,
-    .side_panel_width = 200,
-    .bottom_panel_height = 200,
-    .status_bar_height = 30,
-    .separator_size = 1,
-};
 
 typedef struct {
     Meditor* medit;
@@ -100,35 +81,6 @@ static inline void ui_sdl3_recompute_layout(SDL3Ui* ui)
         &ui->medit->file_views,
         int_to_size(ui->window_size.width),
         int_to_size(ui->window_size.height));
-}
-
-static void set_font_size_clamped(int* font, int value)
-{
-    if (value > FONT_SIZE_MAX) {
-        value = FONT_SIZE_MAX;
-    }
-    if (value < FONT_SIZE_MIN) {
-        value = FONT_SIZE_MIN;
-    }
-    *font = value;
-}
-
-static void action_font_zoom_out(Meditor* medit, void* ui)
-{
-    MEDIT_UNUSED(ui);
-    set_font_size_clamped(&medit->config.editor_font_size, medit->config.editor_font_size - 2);
-}
-
-static void action_font_zoom_in(Meditor* medit, void* ui)
-{
-    MEDIT_UNUSED(ui);
-    set_font_size_clamped(&medit->config.editor_font_size, medit->config.editor_font_size + 2);
-}
-
-static void action_font_zoom_default(Meditor* medit, void* ui)
-{
-    MEDIT_UNUSED(ui);
-    set_font_size_clamped(&medit->config.editor_font_size, FONT_SIZE_DEFAULT);
 }
 
 static void action_dump_state(Meditor* medit, void* ui)
@@ -180,15 +132,21 @@ static void action_toggle_side_panel(Meditor* medit, void* ui_)
     ui_sdl3_recompute_layout(ui);
 }
 
-static const Actions ui_sdl3_actions = {
+static const Actions UI_SDL3_ACTIONS = {
     MEDIT_CORE_ACTIONS_DEFAULT,
-    .font_zoom_in = action_font_zoom_in,
-    .font_zoom_out = action_font_zoom_out,
-    .font_zoom_default = action_font_zoom_default,
     .save_file = action_save_file,
     .open_file_dialog = action_open_file_dialog,
     .toggle_side_panel = action_toggle_side_panel,
     .dump_state = action_dump_state,
+};
+
+static const LayoutSizes UI_SDL3_DEFAULT_LAYOUT_SIZES = {
+    .menu_bar_height = 30,
+    .tab_bar_height = 35,
+    .side_panel_width = 200,
+    .bottom_panel_height = 200,
+    .status_bar_height = 30,
+    .separator_size = 1,
 };
 
 static bool ui_sdl3_create(SDL3Ui* ui, Meditor* medit)
@@ -223,7 +181,7 @@ static bool ui_sdl3_create(SDL3Ui* ui, Meditor* medit)
 
     try(SDL_StartTextInput(ui->window));
 
-    medit_load_default_keybind_full(medit, &ui_sdl3_actions, ui);
+    medit_load_default_keybind_full(medit, &UI_SDL3_ACTIONS, ui);
 
     return true;
 }
@@ -520,7 +478,7 @@ static void ui_sdl3_dispatch_event(SDL3Ui* ui, SDL_Event* event)
         case SDL_EVENT_KEYMAP_CHANGED: {
             printf("Reloading keymapping\n");
             keybind_reinit(&medit->keybind);
-            medit_load_default_keybind_full(ui->medit, &ui_sdl3_actions, ui);
+            medit_load_default_keybind_full(ui->medit, &UI_SDL3_ACTIONS, ui);
         } break;
         default: break;
     }
@@ -550,19 +508,13 @@ static bool ui_sdl3_handle_event(SDL3Ui* ui)
 static void ui_sdl3_clear(SDL3Ui* ui)
 {
     Color color = ui->medit->config.color_theme.editor_bg;
-
     SDL_SetRenderDrawColor(ui->renderer, color_to_RGBA_args(color));
     SDL_RenderClear(ui->renderer);
 }
 
 static void ui_sdl3_fill_rect(SDL3Ui* ui, Rect rect, Color color)
 {
-    SDL_FRect frect = {
-        .x = (float)rect.x,
-        .y = (float)rect.y,
-        .w = (float)rect.w,
-        .h = (float)rect.h,
-    };
+    SDL_FRect frect = rect_to_sdl_frect(rect);
     SDL_SetRenderDrawColor(ui->renderer, color_to_RGBA_args(color));
     SDL_RenderFillRect(ui->renderer, &frect);
 }
@@ -651,12 +603,9 @@ static void ui_sdl3_draw_cursor(SDL3Ui* ui, Rect text_area, FileViewGroup* group
         const Cursor* cursor = &file_view->cursors.items[i];
         const Rect on_screen = ui_sdl3_cursor_rect(ui, text_area, cursor, file_view);
 
-        SDL_FRect cursor_frect = {
-            .x = (float)(on_screen.x - file_view->scrolling.x),
-            .y = (float)(on_screen.y - file_view->scrolling.y),
-            .w = (float)on_screen.w,
-            .h = (float)on_screen.h,
-        };
+        SDL_FRect cursor_frect = rect_to_sdl_frect(on_screen);
+        cursor_frect.x -= (float)file_view->scrolling.x;
+        cursor_frect.y -= (float)file_view->scrolling.y;
         SDL_SetRenderDrawColor(ui->renderer, color_to_RGBA_args(cursor_color));
         Color glyph_color = { 0 };
         if (focused) {
@@ -875,13 +824,13 @@ static void ui_sdl3_draw_file_view_group(SDL3Ui* ui, FileViewGroup* group)
     Rect gutter = rect_cut_left(&area, int_to_size(ui->line_nr_padding));
     Rect content = area;
 
-    const SDL_Rect gutter_clip = rect_to_sdl(gutter);
+    const SDL_Rect gutter_clip = rect_to_sdl_rect(gutter);
     assert(SDL_SetRenderClipRect(ui->renderer, &gutter_clip));
     for (size_t row = first_rendered_line; row < rendered_line_count; ++row) {
         ui_sdl3_draw_line_number(ui, row, gutter, group);
     }
 
-    const SDL_Rect content_clip = rect_to_sdl(content);
+    const SDL_Rect content_clip = rect_to_sdl_rect(content);
     assert(SDL_SetRenderClipRect(ui->renderer, &content_clip));
     for (size_t row = first_rendered_line; row < rendered_line_count; ++row) {
         ui_sdl3_draw_line(ui, row, &lines->items[row], content, group);
@@ -893,7 +842,7 @@ static void ui_sdl3_draw_file_view_group(SDL3Ui* ui, FileViewGroup* group)
 // TODO temporary function placing groups on screen till we have a proper layout engine
 static void temp_ui_sdl3_update_file_view_groups_size(SDL3Ui* ui)
 {
-    ui->layout.sizes = SDL3_DEFAULT_LAYOUT_SIZES;
+    ui->layout.sizes = UI_SDL3_DEFAULT_LAYOUT_SIZES;
     ui->layout.elements_shown = LAYOUT_MENU_BAR | LAYOUT_STATUS_BAR | LAYOUT_TAB_BAR
         | LAYOUT_SIDE_PANEL;
     ui_sdl3_recompute_layout(ui);

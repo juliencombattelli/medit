@@ -5,7 +5,7 @@ typedef struct Meditor Meditor;
 
 typedef struct {
     ////////////////////////////////////////////////////////////////////////////
-    /// Core actions
+    /// Core actions, overridble by UI backends
     ////////////////////////////////////////////////////////////////////////////
 
     // Miscelaneous
@@ -32,14 +32,14 @@ typedef struct {
     void (*focus_file_view_group_left)(Meditor* medit, void* ui);
     void (*focus_file_view_group_right)(Meditor* medit, void* ui);
 
-    ////////////////////////////////////////////////////////////////////////////
-    /// UI-specific actions
-    ////////////////////////////////////////////////////////////////////////////
-
     // Font zoom
     void (*font_zoom_in)(Meditor* medit, void* ui);
     void (*font_zoom_out)(Meditor* medit, void* ui);
     void (*font_zoom_default)(Meditor* medit, void* ui);
+
+    ////////////////////////////////////////////////////////////////////////////
+    /// UI-specific actions, must be provided by UI backends
+    ////////////////////////////////////////////////////////////////////////////
 
     // Dialogs
     void (*save_file)(Meditor* medit, void* ui);
@@ -67,24 +67,30 @@ void medit_action_restore_cursor(Meditor* medit, void* ui);
 void medit_action_erase_line(Meditor* medit, void* ui);
 void medit_action_focus_file_view_group_left(Meditor* medit, void* ui);
 void medit_action_focus_file_view_group_right(Meditor* medit, void* ui);
+void medit_action_font_zoom_in(Meditor* medit, void* ui);
+void medit_action_font_zoom_out(Meditor* medit, void* ui);
+void medit_action_font_zoom_default(Meditor* medit, void* ui);
 
 // Helper macros to initialize an Actions struct with default core actions
 // clang-format off
-#define MEDIT_CORE_ACTIONS_DEFAULT                                              \
-    .quit = medit_action_quit,                                                  \
-    .cursor_up = medit_action_cursor_up,                                        \
-    .cursor_down = medit_action_cursor_down,                                    \
-    .cursor_left = medit_action_cursor_left,                                    \
-    .cursor_right = medit_action_cursor_right,                                  \
-    .cursor_line_begin = medit_action_cursor_line_begin,                        \
-    .cursor_line_end = medit_action_cursor_line_end,                            \
-    .cursor_file_begin = medit_action_cursor_file_begin,                        \
-    .cursor_file_end = medit_action_cursor_file_end,                            \
-    .add_cursor_down = medit_action_add_cursor_down,                            \
-    .restore_cursor = medit_action_restore_cursor,                              \
-    .erase_line = medit_action_erase_line,                                      \
-    .focus_file_view_group_left = medit_action_focus_file_view_group_left,      \
-    .focus_file_view_group_right = medit_action_focus_file_view_group_right
+#define MEDIT_CORE_ACTIONS_DEFAULT                                                                 \
+    .quit = medit_action_quit,                                                                     \
+    .cursor_up = medit_action_cursor_up,                                                           \
+    .cursor_down = medit_action_cursor_down,                                                       \
+    .cursor_left = medit_action_cursor_left,                                                       \
+    .cursor_right = medit_action_cursor_right,                                                     \
+    .cursor_line_begin = medit_action_cursor_line_begin,                                           \
+    .cursor_line_end = medit_action_cursor_line_end,                                               \
+    .cursor_file_begin = medit_action_cursor_file_begin,                                           \
+    .cursor_file_end = medit_action_cursor_file_end,                                               \
+    .add_cursor_down = medit_action_add_cursor_down,                                               \
+    .restore_cursor = medit_action_restore_cursor,                                                 \
+    .erase_line = medit_action_erase_line,                                                         \
+    .focus_file_view_group_left = medit_action_focus_file_view_group_left,                         \
+    .focus_file_view_group_right = medit_action_focus_file_view_group_right,                       \
+    .font_zoom_in =   medit_action_font_zoom_in,                                                   \
+    .font_zoom_out = medit_action_font_zoom_out,                                                   \
+    .font_zoom_default = medit_action_font_zoom_default
 // clang-format on
 
 #endif // MEDIT_ACTION_H_

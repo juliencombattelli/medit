@@ -10,6 +10,17 @@
 
 #define MEDIT_LINE_DEFAULT_CAPACITY 1024
 
+int clamp_font_size(int size)
+{
+    if (size > FONT_SIZE_MAX) {
+        size = FONT_SIZE_MAX;
+    }
+    if (size < FONT_SIZE_MIN) {
+        size = FONT_SIZE_MIN;
+    }
+    return size;
+}
+
 // Update the length of the grapheme at the cursor position
 static void update_cursor_len(Meditor* medit)
 {

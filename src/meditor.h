@@ -17,6 +17,8 @@ enum {
 
 #define FONT_PATH_DEFAULT "asset/font/consola.ttf"
 
+int clamp_font_size(int size);
+
 typedef struct {
     char* items;
     size_t count;
