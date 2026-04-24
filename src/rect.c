@@ -60,6 +60,11 @@ Rect rect_cut_right(Rect* r, size_t amount)
     };
 }
 
+bool rect_contains(Rect r, size_t x, size_t y)
+{
+    return x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h;
+}
+
 Panel panel_cut_top(Rect* r, size_t height, size_t sep)
 {
     return (Panel) {

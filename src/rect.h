@@ -1,6 +1,7 @@
 #ifndef MEDIT_RECT_H_
 #define MEDIT_RECT_H_
 
+#include <stdbool.h>
 #include <stddef.h>
 
 typedef struct {
@@ -14,6 +15,8 @@ Rect rect_cut_top(Rect* r, size_t amount);
 Rect rect_cut_bottom(Rect* r, size_t amount);
 Rect rect_cut_left(Rect* r, size_t amount);
 Rect rect_cut_right(Rect* r, size_t amount);
+
+bool rect_contains(Rect r, size_t x, size_t y);
 
 typedef struct {
     Rect area;
