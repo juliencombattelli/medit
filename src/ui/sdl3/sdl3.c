@@ -9,6 +9,7 @@
 #include "rect.h"
 #include "safeint.h"
 #include "sdl3_utils.h"
+#include "ui.h"
 #include "unicode.h"
 #include "utils.h"
 
@@ -57,6 +58,15 @@ typedef struct {
     int line_nr_max_digits;
     int line_nr_cached_line_count;
     int editor_font_size;
+    // UI module
+    UiCtx ui_ctx;
+    UiDrawCmdList ui_draw_list;
+    // Per-frame scroll delta accumulator (reset each frame)
+    float ui_scroll_delta_x;
+    float ui_scroll_delta_y;
+    bool ui_scroll_valid;
+    // Mouse state from previous frame, to detect clicks (press+release)
+    bool ui_mouse_was_down;
 } SDL3Ui;
 
 enum {
@@ -183,12 +193,16 @@ static bool ui_sdl3_create(SDL3Ui* ui, Meditor* medit)
 
     medit_load_default_keybind_full(medit, &UI_SDL3_ACTIONS, ui);
 
+    ui_draw_cmd_list_init(&ui->ui_draw_list);
+
     return true;
 }
 
 static void ui_sdl3_destroy(SDL3Ui* ui)
 {
     SDL_StopTextInput(ui->window);
+
+    ui_draw_cmd_list_free(&ui->ui_draw_list);
 
     TTF_DestroyRendererTextEngine(ui->text_engine);
     SDL_DestroyRenderer(ui->renderer);
@@ -198,6 +212,35 @@ static void ui_sdl3_destroy(SDL3Ui* ui)
     SDL_Quit();
 
     *ui = (SDL3Ui) { 0 };
+}
+
+static void ui_sdl3_draw_frame_begin(SDL3Ui* ui)
+{
+    ui_draw_cmd_list_clear(&ui->ui_draw_list);
+
+    float mouse_x = 0.f;
+    float mouse_y = 0.f;
+    SDL_MouseButtonFlags buttons = SDL_GetMouseState(&mouse_x, &mouse_y);
+    bool is_down = (buttons & SDL_BUTTON_LMASK) != 0;
+
+    ui->ui_ctx = (UiCtx) {
+        .draw_list    = &ui->ui_draw_list,
+        .scroll_speed = (float)ui->font_editor.line_spacing,
+        .input = {
+            .x            = (size_t)mouse_x,
+            .y            = (size_t)mouse_y,
+            .left_down    = is_down,
+            .left_clicked = ui->ui_mouse_was_down && !is_down,
+            .scroll_x     = ui->ui_scroll_delta_x,
+            .scroll_y     = ui->ui_scroll_delta_y,
+            .scroll_valid = ui->ui_scroll_valid,
+        },
+    };
+
+    ui->ui_scroll_delta_x = 0;
+    ui->ui_scroll_delta_y = 0;
+    ui->ui_scroll_valid = false;
+    ui->ui_mouse_was_down = is_down;
 }
 
 static void ui_sdl3_resize_window_with_data(SDL3Ui* ui, PixelSize window_size)
@@ -480,6 +523,11 @@ static void ui_sdl3_dispatch_event(SDL3Ui* ui, SDL_Event* event)
             keybind_reinit(&medit->keybind);
             medit_load_default_keybind_full(ui->medit, &UI_SDL3_ACTIONS, ui);
         } break;
+        case SDL_EVENT_MOUSE_WHEEL: {
+            ui->ui_scroll_delta_x += event->wheel.x;
+            ui->ui_scroll_delta_y += event->wheel.y;
+            ui->ui_scroll_valid = true;
+        } break;
         default: break;
     }
 }
@@ -711,7 +759,57 @@ static void ui_sdl3_draw_panels(SDL3Ui* ui)
     }
 }
 
-static void ui_sdl3_render(SDL3Ui* ui)
+static void ui_sdl3_draw_frame_end(SDL3Ui* ui)
+{
+    for (size_t i = 0; i < ui->ui_draw_list.count; i++) {
+        const UiDrawCmd* cmd = &ui->ui_draw_list.items[i];
+        switch (cmd->kind) {
+            case UI_CMD_RECT_FILLED: {
+                SDL_FRect r = rect_to_sdl_frect(cmd->rect);
+                SDL_SetRenderDrawColor(ui->renderer, color_to_RGBA_args(cmd->color));
+                SDL_RenderFillRect(ui->renderer, &r);
+            } break;
+            case UI_CMD_RECT_OUTLINED: {
+                SDL_FRect r = rect_to_sdl_frect(cmd->rect);
+                SDL_SetRenderDrawColor(ui->renderer, color_to_RGBA_args(cmd->outline_color));
+                SDL_RenderRect(ui->renderer, &r);
+            } break;
+            case UI_CMD_TEXT: {
+                ui_sdl3_draw_text(
+                    ui,
+                    cmd->text,
+                    strlen(cmd->text),
+                    &ui->font_editor,
+                    (PixelPos) { .x = (int)cmd->rect.x, .y = (int)cmd->rect.y },
+                    cmd->color);
+            } break;
+            case UI_CMD_CLIP_PUSH: {
+                SDL_Rect r = rect_to_sdl_rect(cmd->rect);
+                SDL_SetRenderClipRect(ui->renderer, &r);
+            } break;
+            case UI_CMD_CLIP_POP: {
+                SDL_SetRenderClipRect(ui->renderer, NULL);
+            } break;
+            case UI_CMD_SCROLLBAR: {
+                float track_len = (float)cmd->rect.h; // vertical scrollbar
+                float thumb_h = cmd->thumb_ratio * track_len;
+                SDL_FRect track = rect_to_sdl_frect(cmd->rect);
+                SDL_SetRenderDrawColor(ui->renderer, color_to_RGBA_args(cmd->color));
+                SDL_RenderFillRect(ui->renderer, &track);
+                SDL_FRect thumb = {
+                    .x = track.x,
+                    .y = track.y + (cmd->scroll_pos * (track_len - thumb_h)),
+                    .w = track.w,
+                    .h = thumb_h,
+                };
+                SDL_SetRenderDrawColor(ui->renderer, color_to_RGBA_args(cmd->thumb_color));
+                SDL_RenderFillRect(ui->renderer, &thumb);
+            } break;
+        }
+    }
+}
+
+static void ui_sdl3_render_frame(SDL3Ui* ui)
 {
     SDL_RenderPresent(ui->renderer);
 }
@@ -998,20 +1096,24 @@ void medit_ui_sdl3_run(Meditor* medit)
         }
 
         ui_sdl3_clear(&ui);
-        ui_sdl3_draw_panels(&ui);
-        ui_sdl3_fill_rect(&ui, ui.layout.editor_area, medit->config.color_theme.panel_border);
+        ui_sdl3_draw_frame_begin(&ui);
+        {
+            ui_sdl3_draw_panels(&ui);
+            ui_sdl3_fill_rect(&ui, ui.layout.editor_area, medit->config.color_theme.panel_border);
 
-        for (size_t i = 0; i < medit->file_views.count; ++i) {
-            FileViewGroup* group = &medit->file_views.items[i];
-            Rect text_area = group->content_area;
-            rect_cut_left(&text_area, int_to_size(ui.line_nr_padding));
+            for (size_t i = 0; i < medit->file_views.count; ++i) {
+                FileViewGroup* group = &medit->file_views.items[i];
+                Rect text_area = group->content_area;
+                rect_cut_left(&text_area, int_to_size(ui.line_nr_padding));
 
-            ui_sdl3_compute_line_number_gutter_width(&ui, group);
-            ui_sdl3_scroll_file_view(&ui, text_area, group);
-            ui_sdl3_draw_file_view_group(&ui, group);
-            ui_sdl3_draw_cursor(&ui, text_area, group);
+                ui_sdl3_compute_line_number_gutter_width(&ui, group);
+                ui_sdl3_scroll_file_view(&ui, text_area, group);
+                ui_sdl3_draw_file_view_group(&ui, group);
+                ui_sdl3_draw_cursor(&ui, text_area, group);
+            }
         }
-        ui_sdl3_render(&ui);
+        ui_sdl3_draw_frame_end(&ui);
+        ui_sdl3_render_frame(&ui);
 
         perf_counter_frame_end(&ui.perf_counter);
     }
