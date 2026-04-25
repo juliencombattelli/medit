@@ -44,7 +44,7 @@ typedef struct {
         // specific to UI_CMD_SCROLLBAR
         struct {
             Color thumb_color;
-            float scroll_pos; // 0..1 normalised thumb position
+            float scroll_pos; // 0..1 normalized thumb position
             float thumb_ratio; // thumb_size / track_size, clamped 0..1
         };
     };
@@ -102,7 +102,7 @@ UiWidgetState ui_button(
 // Vertical scrollbar - emits UI_CMD_SCROLLBAR
 // Handles click-on-track to jump and drag-to-scroll on the thumb
 // Updates scroll_state->offset_y on interaction
-// Returns a bimask UiWidgetState flags
+// Returns a bitmask UiWidgetState flags
 // NOTE: pass left_clicked=true for the single frame the mouse button is released so drag state is
 //       cleared correctly
 UiWidgetState ui_scrollbar_v(

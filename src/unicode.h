@@ -45,9 +45,9 @@ bool uc_grapheme_iter_prev(UcGraphemeIter* iter, UcSpan* out);
 // Word iterator
 //
 // Groups consecutive grapheme clusters into word segments by Unicode category:
-//   WORD_KIND_WORD  – letters, digits, connector punctuation (e.g. '_')
-//   WORD_KIND_SPACE – whitespace and line/paragraph separators
-//   WORD_KIND_PUNCT – everything else (punctuation, symbols, control chars)
+//   WORD_KIND_WORD  - letters, digits, connector punctuation (e.g. '_')
+//   WORD_KIND_SPACE - whitespace and line/paragraph separators
+//   WORD_KIND_PUNCT - everything else (punctuation, symbols, control chars)
 //
 // The cursor `pos` is a byte offset that always sits between two segment boundaries (or at the very
 // start / end of the string).

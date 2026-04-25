@@ -2,9 +2,6 @@
 
 #include "dynarray.h"
 
-#include <stdlib.h>
-#include <string.h>
-
 void ui_draw_cmd_list_init(UiDrawCmdList* draw_cmd_list)
 {
     *draw_cmd_list = (UiDrawCmdList) { 0 };
@@ -54,7 +51,7 @@ static float clampf(float v, float lo, float hi)
     return v;
 }
 
-// Compute normalised thumb position (0..1) and thumb-to-track ratio from scroll state and track
+// Compute normalized thumb position (0..1) and thumb-to-track ratio from scroll state and track
 // length
 static void scrollbar_geometry(
     float offset,
