@@ -18,6 +18,10 @@
 
 #include <limits.h>
 
+enum {
+    UI_TEXT_ARENA_SIZE = 4096,
+};
+
 typedef struct {
     int width;
     int height;
@@ -58,9 +62,19 @@ typedef struct {
     int line_nr_max_digits;
     int line_nr_cached_line_count;
     int editor_font_size;
-    // UI module
-    UiCtx ui_ctx;
-    UiDrawCmdList ui_draw_list;
+    // UI module - 5 draw layers
+    // Layer 1 (bg):            panels, backgrounds, tab bars
+    // Layer 2 (file content):  file lines, line numbers, decorations
+    // Layer 3 (overlay):       cursors
+    // Layer 4 (cursor glyph):  redraw the glyphs behind cursors on top of them
+    // Layer 5 (popups):        all popups and floating panels (not yet implemented)
+    UiCtx ui_ctx_bg;
+    UiCtx ui_ctx_overlay;
+    UiDrawCmdList ui_draw_list_bg;
+    UiDrawCmdList ui_draw_list_overlay;
+    // Per-frame string arena for UI_CMD_TEXT labels (reset each frame alongside draw lists)
+    char ui_text_arena[UI_TEXT_ARENA_SIZE];
+    size_t ui_text_arena_used;
     // Per-frame scroll delta accumulator (reset each frame)
     float ui_scroll_delta_x;
     float ui_scroll_delta_y;
@@ -193,7 +207,8 @@ static bool ui_sdl3_create(SDL3Ui* ui, Meditor* medit)
 
     medit_load_default_keybind_full(medit, &UI_SDL3_ACTIONS, ui);
 
-    ui_draw_cmd_list_init(&ui->ui_draw_list);
+    ui_draw_cmd_list_init(&ui->ui_draw_list_bg);
+    ui_draw_cmd_list_init(&ui->ui_draw_list_overlay);
 
     return true;
 }
@@ -202,7 +217,8 @@ static void ui_sdl3_destroy(SDL3Ui* ui)
 {
     SDL_StopTextInput(ui->window);
 
-    ui_draw_cmd_list_free(&ui->ui_draw_list);
+    ui_draw_cmd_list_free(&ui->ui_draw_list_bg);
+    ui_draw_cmd_list_free(&ui->ui_draw_list_overlay);
 
     TTF_DestroyRendererTextEngine(ui->text_engine);
     SDL_DestroyRenderer(ui->renderer);
@@ -214,17 +230,52 @@ static void ui_sdl3_destroy(SDL3Ui* ui)
     *ui = (SDL3Ui) { 0 };
 }
 
+// Allocate a null-terminated string copy from the per-frame arena
+// Returns NULL if the arena is full (the label is silently dropped)
+// TODO reallocate a new arena if full? or used buckets?
+static const char* ui_sdl3_arena_str(SDL3Ui* ui, const char* str, size_t len)
+{
+    size_t needed = len + 1;
+    if (ui->ui_text_arena_used + needed > UI_TEXT_ARENA_SIZE) {
+        printf(
+            "Error: cannot allocate str from arena, capacity: %zu, total needed: %zu\n",
+            (size_t)UI_TEXT_ARENA_SIZE,
+            ui->ui_text_arena_used + needed);
+        return NULL;
+    }
+    char* dst = &ui->ui_text_arena[ui->ui_text_arena_used];
+    memcpy(dst, str, len);
+    dst[len] = '\0';
+    ui->ui_text_arena_used += needed;
+    return dst;
+}
+
 static void ui_sdl3_draw_frame_begin(SDL3Ui* ui)
 {
-    ui_draw_cmd_list_clear(&ui->ui_draw_list);
+    ui_draw_cmd_list_clear(&ui->ui_draw_list_bg);
+    ui_draw_cmd_list_clear(&ui->ui_draw_list_overlay);
+    ui->ui_text_arena_used = 0;
 
     float mouse_x = 0.f;
     float mouse_y = 0.f;
     SDL_MouseButtonFlags buttons = SDL_GetMouseState(&mouse_x, &mouse_y);
     bool is_down = (buttons & SDL_BUTTON_LMASK) != 0;
 
-    ui->ui_ctx = (UiCtx) {
-        .draw_list    = &ui->ui_draw_list,
+    ui->ui_ctx_bg = (UiCtx) {
+        .draw_list    = &ui->ui_draw_list_bg,
+        .scroll_speed = (float)ui->font_editor.line_spacing,
+        .input = {
+            .x            = (size_t)mouse_x,
+            .y            = (size_t)mouse_y,
+            .left_down    = is_down,
+            .left_clicked = ui->ui_mouse_was_down && !is_down,
+            .scroll_x     = ui->ui_scroll_delta_x,
+            .scroll_y     = ui->ui_scroll_delta_y,
+            .scroll_valid = ui->ui_scroll_valid,
+        },
+    };
+    ui->ui_ctx_overlay = (UiCtx) {
+        .draw_list    = &ui->ui_draw_list_overlay,
         .scroll_speed = (float)ui->font_editor.line_spacing,
         .input = {
             .x            = (size_t)mouse_x,
@@ -537,8 +588,8 @@ static bool ui_sdl3_handle_event(SDL3Ui* ui)
     // Save current font size to monitor changes
     ui->editor_font_size = ui->medit->config.editor_font_size;
 
-    // Block until an event arrives or a timeout, saving CPU.
-    // Pass NULL to avoid consuming the first event, so PollEvent drains everything uniformly.
+    // Block until an event arrives or a timeout, saving CPU
+    // Pass NULL to avoid consuming the first event, so PollEvent drains everything uniformly
     if (SDL_WaitEventTimeout(NULL, WAIT_FOR_EVENT_TIMEOUT_MS)) {
         perf_counter_frame_begin(&ui->perf_counter);
         SDL_Event event = { 0 };
@@ -548,7 +599,7 @@ static bool ui_sdl3_handle_event(SDL3Ui* ui)
         }
         return true;
     }
-    // Timeout (no events): nothing changed, skip render.
+    // Timeout (no events): nothing changed, skip render
     perf_counter_frame_discard(&ui->perf_counter);
     return false;
 }
@@ -560,18 +611,11 @@ static void ui_sdl3_clear(SDL3Ui* ui)
     SDL_RenderClear(ui->renderer);
 }
 
-static void ui_sdl3_fill_rect(SDL3Ui* ui, Rect rect, Color color)
-{
-    SDL_FRect frect = rect_to_sdl_frect(rect);
-    SDL_SetRenderDrawColor(ui->renderer, color_to_RGBA_args(color));
-    SDL_RenderFillRect(ui->renderer, &frect);
-}
-
 static void ui_sdl3_draw_panel(SDL3Ui* ui, Panel panel, Color bg)
 {
     Color border = ui->medit->config.color_theme.panel_border;
-    ui_sdl3_fill_rect(ui, panel.area, bg);
-    ui_sdl3_fill_rect(ui, panel.separator, border);
+    ui_panel(&ui->ui_ctx_bg, panel.area, bg);
+    ui_panel(&ui->ui_ctx_bg, panel.separator, border);
 }
 
 static void ui_sdl3_draw_text(
@@ -633,14 +677,12 @@ static Rect ui_sdl3_cursor_rect(
     };
 }
 
-static void ui_sdl3_draw_cursor(SDL3Ui* ui, Rect text_area, FileViewGroup* group)
+// Queue cursor rect(s) into the overlay draw layer
+static void ui_sdl3_queue_cursor(SDL3Ui* ui, Rect text_area, FileViewGroup* group)
 {
     Meditor* medit = ui->medit;
-
     Color cursor_color = ui->medit->config.color_theme.cursor;
-
     FileView* file_view = medit_get_displayed_file_view_in_group(medit, group);
-
     bool focused = medit_get_focused_file_view_group(medit) == group;
 
     if (focused && !ui->cursor_blinker.show) {
@@ -651,21 +693,51 @@ static void ui_sdl3_draw_cursor(SDL3Ui* ui, Rect text_area, FileViewGroup* group
         const Cursor* cursor = &file_view->cursors.items[i];
         const Rect on_screen = ui_sdl3_cursor_rect(ui, text_area, cursor, file_view);
 
-        SDL_FRect cursor_frect = rect_to_sdl_frect(on_screen);
-        cursor_frect.x -= (float)file_view->scrolling.x;
-        cursor_frect.y -= (float)file_view->scrolling.y;
-        SDL_SetRenderDrawColor(ui->renderer, color_to_RGBA_args(cursor_color));
-        Color glyph_color = { 0 };
-        if (focused) {
-            glyph_color = color_inverse(cursor_color);
-            SDL_RenderFillRect(ui->renderer, &cursor_frect);
-        } else {
-            // TODO should be the real color of the glyph instead of cursor color
-            glyph_color = cursor_color;
-            SDL_RenderRect(ui->renderer, &cursor_frect);
-        }
+        Rect cursor_rect = {
+            .x = on_screen.x - file_view->scrolling.x,
+            .y = on_screen.y - file_view->scrolling.y,
+            .w = on_screen.w,
+            .h = on_screen.h,
+        };
 
-        // Redraw glyph at cursor on top of it
+        if (focused) {
+            UiDrawCmd fill_cmd = {
+                .kind = UI_CMD_RECT_FILLED,
+                .rect = cursor_rect,
+                .color = cursor_color,
+            };
+            dynarray_append(&ui->ui_draw_list_overlay, fill_cmd);
+        } else {
+            UiDrawCmd outline_cmd = {
+                .kind = UI_CMD_RECT_OUTLINED,
+                .rect = cursor_rect,
+                .color = cursor_color,
+                .outline_color = cursor_color,
+            };
+            dynarray_append(&ui->ui_draw_list_overlay, outline_cmd);
+        }
+    }
+}
+
+// Draw the glyph on top of each cursor rect directly
+// Must be called after the overlay layer has been flushed
+static void ui_sdl3_draw_cursor_glyphs(SDL3Ui* ui, Rect text_area, FileViewGroup* group)
+{
+    Meditor* medit = ui->medit;
+    Color cursor_color = ui->medit->config.color_theme.cursor;
+    FileView* file_view = medit_get_displayed_file_view_in_group(medit, group);
+    bool focused = medit_get_focused_file_view_group(medit) == group;
+
+    if (focused && !ui->cursor_blinker.show) {
+        return;
+    }
+
+    for (size_t i = 0; i < file_view->cursors.count; ++i) {
+        const Cursor* cursor = &file_view->cursors.items[i];
+        const Rect on_screen = ui_sdl3_cursor_rect(ui, text_area, cursor, file_view);
+
+        Color glyph_color = focused ? color_inverse(cursor_color) : cursor_color;
+
         Line* current_line = &medit_file_view_file(medit, file_view)->lines.items[cursor->line];
         if (cursor->byte < current_line->count) {
             const char* grapheme = &current_line->items[cursor->byte];
@@ -678,13 +750,16 @@ static void ui_sdl3_draw_cursor(SDL3Ui* ui, Rect text_area, FileViewGroup* group
     }
 }
 
+// Enough to hold 2 64-bits integers and some text
+#define CURSOR_POS_SEGMENT_LENGTH (INT64_DIGITS_COUNT * 2 + 32)
+
 static void ui_sdl3_draw_status_bar_text(SDL3Ui* ui)
 {
     FileView* file_view = medit_get_focused_file_view(ui->medit);
     Cursor* cursor = &file_view->cursors.items[0];
     size_t col = cursor->grapheme_col + 1;
     size_t line = cursor->line + 1;
-    char cursor_pos_segment[1024] = { 0 }; // Enough for the string below
+    char cursor_pos_segment[CURSOR_POS_SEGMENT_LENGTH] = { 0 };
     int written = snprintf(
         cursor_pos_segment,
         sizeof(cursor_pos_segment),
@@ -698,17 +773,24 @@ static void ui_sdl3_draw_status_bar_text(SDL3Ui* ui)
 
     Panel* status_bar = &ui->layout.status_bar;
     int font_h = TTF_GetFontHeight(ui->font_editor.main);
-    ui_sdl3_draw_text(
-        ui,
-        cursor_pos_segment,
-        len,
-        &ui->font_editor,
-        (PixelPos) {
-            .x = size_to_int(status_bar->area.x + status_bar->area.w) - segment_width,
-            // vertically center the text in the status bar
-            .y = size_to_int(status_bar->area.y) + ((size_to_int(status_bar->area.h) - font_h) / 2),
-        },
-        ui->medit->config.color_theme.editor_fg);
+    int text_x = size_to_int(status_bar->area.x + status_bar->area.w) - segment_width;
+    int text_y = size_to_int(status_bar->area.y) + ((size_to_int(status_bar->area.h) - font_h) / 2);
+
+    const char* status_text = ui_sdl3_arena_str(ui, cursor_pos_segment, len);
+    if (!status_text) {
+        return;
+    }
+
+    UiDrawCmd text_cmd = {
+        .kind = UI_CMD_TEXT,
+        .rect = { .x = int_to_size(text_x),
+                  .y = int_to_size(text_y),
+                  .w = int_to_size(segment_width),
+                  .h = status_bar->area.h },
+        .color = ui->medit->config.color_theme.editor_fg,
+        .text = status_text,
+    };
+    dynarray_append(&ui->ui_draw_list_bg, text_cmd);
 }
 
 static void ui_sdl3_scroll_file_view(SDL3Ui* ui, Rect text_area, FileViewGroup* group)
@@ -759,10 +841,10 @@ static void ui_sdl3_draw_panels(SDL3Ui* ui)
     }
 }
 
-static void ui_sdl3_draw_frame_end(SDL3Ui* ui)
+static void ui_sdl3_flush_draw_list(SDL3Ui* ui, const UiDrawCmdList* list)
 {
-    for (size_t i = 0; i < ui->ui_draw_list.count; i++) {
-        const UiDrawCmd* cmd = &ui->ui_draw_list.items[i];
+    for (size_t i = 0; i < list->count; i++) {
+        const UiDrawCmd* cmd = &list->items[i];
         switch (cmd->kind) {
             case UI_CMD_RECT_FILLED: {
                 SDL_FRect r = rect_to_sdl_frect(cmd->rect);
@@ -791,7 +873,7 @@ static void ui_sdl3_draw_frame_end(SDL3Ui* ui)
                 SDL_SetRenderClipRect(ui->renderer, NULL);
             } break;
             case UI_CMD_SCROLLBAR: {
-                float track_len = (float)cmd->rect.h; // vertical scrollbar
+                float track_len = (float)cmd->rect.h;
                 float thumb_h = cmd->thumb_ratio * track_len;
                 SDL_FRect track = rect_to_sdl_frect(cmd->rect);
                 SDL_SetRenderDrawColor(ui->renderer, color_to_RGBA_args(cmd->color));
@@ -901,6 +983,8 @@ static void ui_sdl3_draw_line(
 }
 
 typedef struct {
+    // TODO when scrollable tab bars will be supported, there will be no real limit to the tab
+    // content length
     char content[1024];
     size_t length;
     size_t width;
@@ -957,31 +1041,43 @@ static void ui_sdl3_draw_file_view_group_tab_bar(SDL3Ui* ui, FileViewGroup* grou
         ui_sdl3_draw_panel(ui, tab, tab_color);
 
         int font_h = TTF_GetFontHeight(ui->font_editor.main);
-        ui_sdl3_draw_text(
-            ui,
-            tab_text.content,
-            tab_text.length,
-            &ui->font_editor,
-            (PixelPos) {
-                .x = size_to_int(tab.area.x),
-                // vertically center the text in the status bar
-                .y = size_to_int(tab.area.y) + ((size_to_int(tab.area.h) - font_h) / 2),
-            },
-            ui->medit->config.color_theme.editor_fg);
+        int tab_text_y = size_to_int(tab.area.y) + ((size_to_int(tab.area.h) - font_h) / 2);
+        const char* tab_label = ui_sdl3_arena_str(ui, tab_text.content, tab_text.length);
+        if (tab_label) {
+            UiDrawCmd tab_text_cmd = {
+                .kind = UI_CMD_TEXT,
+                .rect = { .x = tab.area.x,
+                          .y = int_to_size(tab_text_y),
+                          .w = tab.area.w,
+                          .h = tab.area.h },
+                .color = ui->medit->config.color_theme.editor_fg,
+                .text = tab_label,
+            };
+            dynarray_append(&ui->ui_draw_list_bg, tab_text_cmd);
+        }
     }
 }
 
+// Queue background and tab bar draw commands for this group into the bg draw layer
+// Does NOT draw file content lines — call ui_sdl3_draw_file_view_group_content for that
 static void ui_sdl3_draw_file_view_group(SDL3Ui* ui, FileViewGroup* group)
 {
     Meditor* medit = ui->medit;
-    FileView* displayed_file_view = medit_get_displayed_file_view_in_group(medit, group);
-    Lines* lines = &medit_file_view_file(medit, displayed_file_view)->lines;
 
-    ui_sdl3_fill_rect(ui, group->area, medit->config.color_theme.editor_bg);
+    ui_panel(&ui->ui_ctx_bg, group->area, medit->config.color_theme.editor_bg);
 
     if (medit_layout_is_element_shown(&ui->layout, LAYOUT_TAB_BAR)) {
         ui_sdl3_draw_file_view_group_tab_bar(ui, group);
     }
+}
+
+// Draw file lines and line numbers directly to the renderer
+// Must be called after the bg draw layer has been flushed
+static void ui_sdl3_draw_file_view_group_content(SDL3Ui* ui, FileViewGroup* group)
+{
+    Meditor* medit = ui->medit;
+    FileView* displayed_file_view = medit_get_displayed_file_view_in_group(medit, group);
+    Lines* lines = &medit_file_view_file(medit, displayed_file_view)->lines;
 
     const size_t first_rendered_line = displayed_file_view->scrolling.y
         / ui->font_editor.line_spacing;
@@ -1027,6 +1123,7 @@ static void temp_ui_sdl3_setup_layout(SDL3Ui* ui)
     for (size_t i = 0; i < 2; ++i) {
         dynarray_append(&medit->file_views, (FileViewGroup) { 0 });
         medit->file_views.focused = medit->file_views.count - 1;
+        medit_new_empty_file(medit, &dynarray_last(&medit->file_views));
         medit_new_empty_file(medit, &dynarray_last(&medit->file_views));
         medit_new_empty_file(medit, &dynarray_last(&medit->file_views));
     }
@@ -1098,21 +1195,42 @@ void medit_ui_sdl3_run(Meditor* medit)
         ui_sdl3_clear(&ui);
         ui_sdl3_draw_frame_begin(&ui);
         {
+            // 1. Queue background layer: panels, tab bars, group backgrounds
             ui_sdl3_draw_panels(&ui);
-            ui_sdl3_fill_rect(&ui, ui.layout.editor_area, medit->config.color_theme.panel_border);
+            ui_panel(&ui.ui_ctx_bg, ui.layout.editor_area, medit->config.color_theme.panel_border);
 
+            for (size_t i = 0; i < medit->file_views.count; ++i) {
+                FileViewGroup* group = &medit->file_views.items[i];
+                ui_sdl3_compute_line_number_gutter_width(&ui, group);
+                ui_sdl3_draw_file_view_group(&ui, group); // queues group bg + tab bar into bg layer
+            }
+
+            // 2. Flush background layer so file content is drawn on top
+            ui_sdl3_flush_draw_list(&ui, &ui.ui_draw_list_bg);
+
+            // 3. Draw file content directly (lines + line numbers)
             for (size_t i = 0; i < medit->file_views.count; ++i) {
                 FileViewGroup* group = &medit->file_views.items[i];
                 Rect text_area = group->content_area;
                 rect_cut_left(&text_area, int_to_size(ui.line_nr_padding));
 
-                ui_sdl3_compute_line_number_gutter_width(&ui, group);
                 ui_sdl3_scroll_file_view(&ui, text_area, group);
-                ui_sdl3_draw_file_view_group(&ui, group);
-                ui_sdl3_draw_cursor(&ui, text_area, group);
+                ui_sdl3_draw_file_view_group_content(&ui, group);
+                // 4. Queue cursor rects into overlay layer
+                ui_sdl3_queue_cursor(&ui, text_area, group);
+            }
+
+            // 5. Flush overlay layer (cursor rects) on top of file content
+            ui_sdl3_flush_draw_list(&ui, &ui.ui_draw_list_overlay);
+
+            // 6. Draw cursor glyphs on top of cursor rects
+            for (size_t i = 0; i < medit->file_views.count; ++i) {
+                FileViewGroup* group = &medit->file_views.items[i];
+                Rect text_area = group->content_area;
+                rect_cut_left(&text_area, int_to_size(ui.line_nr_padding));
+                ui_sdl3_draw_cursor_glyphs(&ui, text_area, group);
             }
         }
-        ui_sdl3_draw_frame_end(&ui);
         ui_sdl3_render_frame(&ui);
 
         perf_counter_frame_end(&ui.perf_counter);
