@@ -34,7 +34,7 @@ add_executable(medit
     src/main.c
     # Core modules
     src/core/meditor.c src/core/keybind.c src/core/unicode.c src/core/utils.c
-    src/core/rect.c src/core/action.c src/core/ui.c
+    src/core/rect.c src/core/action.c src/core/ui.c src/core/string_view.c
     # SDL3 UI modules
     src/ui/sdl3/sdl3.c src/ui/sdl3/font.c src/ui/sdl3/keybind_sdl3.c src/ui/sdl3/perf_counter.c
 )

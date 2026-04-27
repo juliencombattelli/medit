@@ -10,7 +10,7 @@
 - [x] rework keybind to allow defining actions in UI modules (pass the ui as void* userdata)
 - [-] show dialog box when exiting with dirty files
 - [ ] monitor file changed and reload if needed
-- [ ] add a string view library (would probably switch to C++ at this point)
+- [x] add a string view library ~~(would probably switch to C++ at this point)~~
 - [ ] reenable multi cursor
 - [ ] add selection
 - [-] layout engine
