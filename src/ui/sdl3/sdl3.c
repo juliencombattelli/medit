@@ -751,7 +751,7 @@ static void ui_sdl3_draw_cursor_glyphs(SDL3Ui* ui, Rect text_area, FileViewGroup
 }
 
 // Enough to hold 2 64-bits integers and some text
-#define CURSOR_POS_SEGMENT_LENGTH (INT64_DIGITS_COUNT * 2 + 32)
+#define CURSOR_POS_SEGMENT_LENGTH ((INT64_DIGITS_COUNT * 2) + 32)
 
 static void ui_sdl3_draw_status_bar_text(SDL3Ui* ui)
 {
@@ -983,9 +983,10 @@ static void ui_sdl3_draw_line(
 }
 
 typedef struct {
+#define FILE_VIEW_TAB_TEXT_CONTENT_LEN 1024
     // TODO when scrollable tab bars will be supported, there will be no real limit to the tab
     // content length
-    char content[1024];
+    char content[FILE_VIEW_TAB_TEXT_CONTENT_LEN];
     size_t length;
     size_t width;
 } FileViewTabText;

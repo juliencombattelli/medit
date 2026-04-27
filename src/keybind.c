@@ -6,7 +6,7 @@
 void keybind_reinit(Keybind* keybind)
 {
     for (int key = 0; key < MAX_KEY_STATES; key++) {
-        for (int mod = 0; mod < MOD_COUNT; mod++) {
+        for (uint32_t mod = 0; mod < MOD_COUNT; mod++) {
             keybind->bindings[key][mod] = (KeybindEntry) { 0 };
         }
     }

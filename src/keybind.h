@@ -7,6 +7,7 @@
 
 // Logical key representation - independent of physical layout
 // Only usual keys from US QWERTY and French AZERTY layouts are supported
+// NOLINTBEGIN(*confusable-ident*)
 typedef enum {
     KEY_UNKNOWN,
 
@@ -50,19 +51,19 @@ typedef enum {
 
     KEY_COUNT,
 } Key;
+// NOLINTEND(*confusable-ident*)
 
-typedef enum {
-    MOD_NONE = 0,
-    MOD_SHIFT = 1 << 0,
-    MOD_CTRL = 1 << 1,
-    MOD_ALT = 1 << 2,
-    MOD_SHIFT_CTRL = MOD_SHIFT | MOD_CTRL,
-    MOD_SHIFT_ALT = MOD_SHIFT | MOD_ALT,
-    MOD_CTRL_ALT = MOD_CTRL | MOD_ALT,
-    MOD_SHIFT_CTRL_ALT = MOD_SHIFT | MOD_CTRL | MOD_ALT,
-    MOD_MASK = MOD_SHIFT_CTRL_ALT,
-    MOD_COUNT = MOD_MASK + 1,
-} Keymod;
+#define MOD_NONE (0ul)
+#define MOD_SHIFT (1ul << 0ul)
+#define MOD_CTRL (1ul << 1ul)
+#define MOD_ALT (1ul << 2ul)
+#define MOD_SHIFT_CTRL (MOD_SHIFT | MOD_CTRL)
+#define MOD_SHIFT_ALT (MOD_SHIFT | MOD_ALT)
+#define MOD_CTRL_ALT (MOD_CTRL | MOD_ALT)
+#define MOD_SHIFT_CTRL_ALT (MOD_SHIFT | MOD_CTRL | MOD_ALT)
+#define MOD_MASK (MOD_SHIFT_CTRL_ALT)
+#define MOD_COUNT (MOD_MASK + 1)
+typedef uint32_t Keymod;
 
 typedef enum {
     EVENT_UNKNOWN = 0,

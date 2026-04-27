@@ -3,7 +3,7 @@
 
 #include <limits.h>
 #include <stdio.h>
-#include <stdlib.h>
+#include <stdlib.h> // IWYU pragma: keep // needed for abort()
 
 #define MEDIT_UNUSED(x) (void)((x))
 
@@ -20,6 +20,7 @@ char* medit_strdup(const char* str);
 
 static inline int digits_count(int n)
 {
+    // NOLINTBEGIN(*magic-numbers*,*braces-around-statement*)
     // clang-format off
     if (n < 0) n = (n == INT_MIN) ? INT_MAX : -n;
     if (n < 10) return 1;
@@ -33,6 +34,7 @@ static inline int digits_count(int n)
     if (n < 1000000000) return 9;
     // clang-format on
     return 10;
+    // NOLINTEND(*magic-numbers*,*braces-around-statement*)
 }
 
 // Maximum number of digits needed to represent any 64-bits integer (including a potential sign for

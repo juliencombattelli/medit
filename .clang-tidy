@@ -30,8 +30,8 @@ Checks:
 CheckOptions:
   cppcoreguidelines-avoid-do-while.IgnoreMacros: true
   readability-function-cognitive-complexity.IgnoreMacros: true
-  readability-magic-numbers.IgnoredIntegerValues: '0;1;2;3;255;'
-  cppcoreguidelines-avoid-magic-numbers.IgnoredIntegerValues: '0;1;2;3;255;'
+  readability-magic-numbers.IgnoredIntegerValues: '0;1;2;3;8;'
+  cppcoreguidelines-avoid-magic-numbers.IgnoredIntegerValues: '0;1;2;3;8;'
   cppcoreguidelines-avoid-magic-numbers.IgnoredFloatingPointValues: '1.0;2.0;100.0;'
   readability-magic-numbers.IgnoredFloatingPointValues: '1.0;2.0;100.0;'
 

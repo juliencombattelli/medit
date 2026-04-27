@@ -1,7 +1,6 @@
 #include "font.h"
 
 #include <stdio.h>
-#include <stdlib.h>
 
 // **Note about emoji**
 // A fallback font is used to render emoji. As we want emoji to fit in a grid

@@ -2,7 +2,6 @@
 #include "action.h"
 #include "assert.h"
 #include "dynarray.h"
-#include "safeint.h"
 #include "unicode.h"
 #include "utils.h"
 

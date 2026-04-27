@@ -3,7 +3,7 @@
 
 #include "assert.h"
 
-#include <string.h>
+#include <string.h> // IWYU pragma: keep // needed for memcpy(), memmove()
 
 #ifdef __cplusplus
 #define MEDIT_DECLTYPE_CAST(T) (decltype(T))

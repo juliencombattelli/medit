@@ -121,9 +121,11 @@ static Key sdl3_keycode_to_keybind_key(SDL_Keycode keycode)
         case SDLK_KP_ENTER: return KEY_NPAD_ENTER;
         case SDLK_KP_PERIOD: return KEY_NPAD_PERIOD;
 
+        // NOLINTBEGIN(*magic-numbers*)
         case 0xB2: return KEY_SUPERSCRIPT2;
         case 0xF9: return KEY_UGRAVE;
 
+        // NOLINTEND(*magic-numbers*)
         default: return KEY_UNKNOWN;
     }
 }
