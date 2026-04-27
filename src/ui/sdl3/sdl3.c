@@ -263,9 +263,9 @@ static void ui_sdl3_draw_frame_begin(SDL3Ui* ui)
     float m_y = 0.f;
     SDL_MouseButtonFlags buttons = SDL_GetMouseState(&m_x, &m_y);
     bool is_down = (buttons & SDL_BUTTON_LMASK) != 0;
-    // Clamp between 0 and size_t_max/2 (ptrdiff)
-    size_t mouse_x = (size_t)medit_clampf(m_x, 0.f, (float)PTRDIFF_MAX);
-    size_t mouse_y = (size_t)medit_clampf(m_y, 0.f, (float)PTRDIFF_MAX);
+    // float_to_i32 is not absolutely needed here, but it doesn't hurt
+    int32_t mouse_x = float_to_i32(medit_clampf(m_x, 0.f, (float)INT32_MAX));
+    int32_t mouse_y = float_to_i32(medit_clampf(m_y, 0.f, (float)INT32_MAX));
 
     ui->ui_ctx_bg = (UiCtx) {
         .draw_list    = &ui->ui_draw_list_bg,
@@ -676,10 +676,10 @@ static Rect ui_sdl3_cursor_rect(
             NULL);
     }
     return (Rect) {
-        .x = text_area.x + int_to_size(line_w),
-        .y = text_area.y + (cursor->line * ui->font_editor.line_spacing),
-        .w = int_to_size(cursor_w),
-        .h = ui->font_editor.line_spacing,
+        .x = text_area.x + line_w,
+        .y = text_area.y + size_to_i32(cursor->line * ui->font_editor.line_spacing),
+        .w = cursor_w,
+        .h = size_to_i32(ui->font_editor.line_spacing),
     };
 }
 
@@ -748,8 +748,8 @@ static void ui_sdl3_draw_cursor_glyphs(SDL3Ui* ui, Rect text_area, FileViewGroup
         if (cursor->byte < current_line->count) {
             const char* grapheme = &current_line->items[cursor->byte];
             PixelPos char_pos = {
-                .x = size_to_int(on_screen.x) - size_to_int(file_view->scrolling.x),
-                .y = size_to_int(on_screen.y - file_view->scrolling.y),
+                .x = on_screen.x - file_view->scrolling.x,
+                .y = on_screen.y - file_view->scrolling.y,
             };
             ui_sdl3_draw_text(ui, grapheme, cursor->len, &ui->font_editor, char_pos, glyph_color);
         }
@@ -779,8 +779,8 @@ static void ui_sdl3_draw_status_bar_text(SDL3Ui* ui)
 
     Panel* status_bar = &ui->layout.status_bar;
     int font_h = TTF_GetFontHeight(ui->font_editor.main);
-    int text_x = size_to_int(status_bar->area.x + status_bar->area.w) - segment_width;
-    int text_y = size_to_int(status_bar->area.y) + ((size_to_int(status_bar->area.h) - font_h) / 2);
+    int text_x = status_bar->area.x + status_bar->area.w - segment_width;
+    int text_y = status_bar->area.y + ((status_bar->area.h - font_h) / 2);
 
     const char* status_text = ui_sdl3_arena_str(ui, cursor_pos_segment, len);
     if (!status_text) {
@@ -789,14 +789,14 @@ static void ui_sdl3_draw_status_bar_text(SDL3Ui* ui)
 
     UiDrawCmd text_cmd = {
         .kind = UI_CMD_TEXT,
-        .rect = { .x = int_to_size(text_x),
-                  .y = int_to_size(text_y),
-                  .w = int_to_size(segment_width),
-                  .h = status_bar->area.h },
+        .rect = {
+            .x = text_x,
+            .y = text_y,
+            .w = segment_width,
+            .h = status_bar->area.h,
+        },
         .color = ui->medit->config.color_theme.editor_fg,
         .text = status_text,
-        .text_x = (ptrdiff_t)text_x,
-        .text_y = (ptrdiff_t)text_y,
     };
     dynarray_append(&ui->ui_draw_list_bg, text_cmd);
 }
@@ -807,24 +807,24 @@ static void ui_sdl3_scroll_file_view(SDL3Ui* ui, Rect text_area, FileViewGroup* 
     Cursor* cursor = &file_view->cursors.items[0];
     const Rect on_screen = ui_sdl3_cursor_rect(ui, text_area, cursor, file_view);
 
-    const size_t margin_x = ui->font_editor.default_cursor_width * 3;
-    const size_t margin_y = ui->font_editor.line_spacing * 3;
+    const int32_t margin_x = size_to_i32(ui->font_editor.default_cursor_width * 3);
+    const int32_t margin_y = size_to_i32(ui->font_editor.line_spacing * 3);
 
-    const size_t right_border = text_area.x + text_area.w - margin_x;
-    const size_t bottom_border = text_area.y + text_area.h - margin_y;
-    const size_t left_border = text_area.x + margin_x;
-    const size_t top_border = text_area.y + margin_y;
+    const int32_t right_border = text_area.x + text_area.w - margin_x;
+    const int32_t bottom_border = text_area.y + text_area.h - margin_y;
+    const int32_t left_border = text_area.x + margin_x;
+    const int32_t top_border = text_area.y + margin_y;
 
-    const size_t cursor_right = on_screen.x + on_screen.w;
-    const size_t cursor_bottom = on_screen.y + on_screen.h;
+    const int32_t cursor_right = on_screen.x + on_screen.w;
+    const int32_t cursor_bottom = on_screen.y + on_screen.h;
 
     // Compute the valid scroll range that keeps the cursor within both margins:
     // smallest offset that prevents the cursor from going past the right/bottom margin
-    const size_t scroll_min_x = SDL_max(cursor_right, right_border) - right_border;
-    const size_t scroll_min_y = SDL_max(cursor_bottom, bottom_border) - bottom_border;
+    const int32_t scroll_min_x = SDL_max(cursor_right, right_border) - right_border;
+    const int32_t scroll_min_y = SDL_max(cursor_bottom, bottom_border) - bottom_border;
     // largest offset before the cursor goes past the left/top margin
-    const size_t scroll_max_x = SDL_max(on_screen.x, left_border) - left_border;
-    const size_t scroll_max_y = SDL_max(on_screen.y, top_border) - top_border;
+    const int32_t scroll_max_x = SDL_max(on_screen.x, left_border) - left_border;
+    const int32_t scroll_max_y = SDL_max(on_screen.y, top_border) - top_border;
 
     file_view->scrolling.x = SDL_clamp(file_view->scrolling.x, scroll_min_x, scroll_max_x);
     file_view->scrolling.y = SDL_clamp(file_view->scrolling.y, scroll_min_y, scroll_max_y);
@@ -870,7 +870,7 @@ static void ui_sdl3_flush_draw_list(SDL3Ui* ui, const UiDrawCmdList* list)
                     cmd->text,
                     strlen(cmd->text),
                     &ui->font_editor,
-                    (PixelPos) { .x = (int)cmd->text_x, .y = (int)cmd->text_y },
+                    (PixelPos) { .x = (int)cmd->rect.x, .y = (int)cmd->rect.y },
                     cmd->color);
             } break;
             case UI_CMD_CLIP_PUSH: {
@@ -962,9 +962,8 @@ static void ui_sdl3_draw_line_number(SDL3Ui* ui, size_t row, Rect gutter, FileVi
         : medit->config.color_theme.line_number;
 
     PixelPos pos = {
-        .x = size_to_int(gutter.x),
-        .y = size_to_int((row * ui->font_editor.line_spacing) + gutter.y)
-            - size_to_int(file_view->scrolling.y),
+        .x = gutter.x,
+        .y = size_to_i32(row * ui->font_editor.line_spacing) + gutter.y - file_view->scrolling.y,
     };
 
     char line_number[INT64_DIGITS_COUNT] = { 0 };
@@ -990,9 +989,8 @@ static void ui_sdl3_draw_line(
     FileView* file_view = medit_get_displayed_file_view_in_group(medit, group);
 
     PixelPos line_pos = {
-        .x = size_to_int(content.x) - size_to_int(file_view->scrolling.x),
-        .y = size_to_int((row * ui->font_editor.line_spacing) + content.y)
-            - size_to_int(file_view->scrolling.y),
+        .x = content.x - file_view->scrolling.x,
+        .y = size_to_i32(row * ui->font_editor.line_spacing) + content.y - file_view->scrolling.y,
     };
 
     ui_sdl3_draw_text(
@@ -1010,7 +1008,7 @@ typedef struct {
     // content length
     char content[FILE_VIEW_TAB_TEXT_CONTENT_LEN];
     size_t length;
-    size_t width;
+    int32_t width;
 } FileViewTabText;
 
 static void ui_sdl3_format_file_view_tab_text(
@@ -1037,7 +1035,7 @@ static void ui_sdl3_format_file_view_tab_text(
 
     int w = 0;
     TTF_MeasureString(ui->font_editor.main, tab_text->content, tab_text->length, 0, &w, NULL);
-    tab_text->width = int_to_size(w);
+    tab_text->width = w;
 }
 
 static void ui_sdl3_draw_tab_bar_tabs(
@@ -1049,34 +1047,34 @@ static void ui_sdl3_draw_tab_bar_tabs(
 {
     const LayoutSizes s = ui->layout.sizes;
 
-    // Push clip rect; origin_x gives the true signed content origin even when
-    // the scroll offset exceeds tabs_viewport.x (where Rect.x would saturate to 0)
-    UiScrollContent sc = ui_scroll_begin(&ui->ui_ctx_bg, tabs_viewport, &group->tab_bar_scroll);
-    ptrdiff_t cursor_x = sc.origin_x;
+    // Push clip rect; ui_scroll_begin sets content.x = viewport.x - offset_x (int32_t, can be
+    // negative) so cursor_x is naturally signed — no ptrdiff_t needed
+    Rect sc = ui_scroll_begin(&ui->ui_ctx_bg, tabs_viewport, &group->tab_bar_scroll);
+    int32_t cursor_x = sc.x;
     const int font_h = TTF_GetFontHeight(ui->font_editor.main);
 
     for (size_t i = 0; i < group->count; ++i) {
         FileView* file_view = &group->items[i];
         FileViewTabText tab_text = { 0 };
         ui_sdl3_format_file_view_tab_text(ui, file_view, &tab_text);
-        const ptrdiff_t tab_w = (ptrdiff_t)SDL_max(tab_text.width, 128);
-        const ptrdiff_t tab_right = cursor_x + tab_w;
+        const int32_t tab_w = SDL_max(tab_text.width, 128);
+        const int32_t tab_right = cursor_x + tab_w;
 
         // Skip tabs fully off-screen to the left
-        if (tab_right <= (ptrdiff_t)tabs_viewport.x) {
-            cursor_x = tab_right + (ptrdiff_t)s.separator_size;
+        if (tab_right <= tabs_viewport.x) {
+            cursor_x = tab_right + s.separator_size;
             continue;
         }
         // Stop when fully off-screen to the right
-        if (cursor_x >= (ptrdiff_t)(tabs_viewport.x + tabs_viewport.w)) {
+        if (cursor_x >= tabs_viewport.x + tabs_viewport.w) {
             break;
         }
 
-        // Clamp x to 0 for the Rect; the clip rect handles the visible boundary
+        // Clip to 0 for the Rect when negative; the clip rect handles the visible boundary
         Rect tab_area = {
-            .x = (cursor_x >= 0) ? (size_t)cursor_x : 0,
+            .x = SDL_max(cursor_x, 0),
             .y = tabs_viewport.y,
-            .w = (size_t)tab_w,
+            .w = tab_w,
             .h = tabs_viewport.h,
         };
         const Color tab_color = i == group->displayed ? ui->medit->config.color_theme.editor_bg
@@ -1085,7 +1083,7 @@ static void ui_sdl3_draw_tab_bar_tabs(
 
         if (s.separator_size > 0) {
             Rect sep_area = {
-                .x = (tab_right >= 0) ? (size_t)tab_right : 0,
+                .x = SDL_max(tab_right, 0),
                 .y = tabs_viewport.y,
                 .w = s.separator_size,
                 .h = tabs_viewport.h,
@@ -1093,27 +1091,24 @@ static void ui_sdl3_draw_tab_bar_tabs(
             ui_panel(&ui->ui_ctx_bg, sep_area, ui->medit->config.color_theme.panel_border);
         }
 
-        const int tab_text_y = size_to_int(tabs_viewport.y)
-            + ((size_to_int(tabs_viewport.h) - font_h) / 2);
+        const int tab_text_y = tabs_viewport.y + ((tabs_viewport.h - font_h) / 2);
         const char* tab_label = ui_sdl3_arena_str(ui, tab_text.content, tab_text.length);
         if (tab_label) {
             UiDrawCmd cmd = {
                 .kind = UI_CMD_TEXT,
                 .rect = {
-                    .x = tab_area.x,
-                    .y = int_to_size(tab_text_y),
+                    .x = cursor_x,
+                    .y = tab_text_y,
                     .w = tab_area.w,
                     .h = tab_area.h,
                 },
                 .color = ui->medit->config.color_theme.editor_fg,
                 .text = tab_label,
-                .text_x = cursor_x, // may be negative for partially-visible left-edge tabs
-                .text_y = tab_text_y,
             };
             dynarray_append(&ui->ui_draw_list_bg, cmd);
         }
 
-        cursor_x = tab_right + (ptrdiff_t)s.separator_size;
+        cursor_x = tab_right + s.separator_size;
     }
 
     // Pop clip rect and apply trackpad / horizontal-wheel delta to offset_x
@@ -1143,7 +1138,7 @@ static void ui_sdl3_draw_file_view_group_tab_bar(SDL3Ui* ui, FileViewGroup* grou
     ui_sdl3_draw_panel(ui, tab_bar, medit->config.color_theme.tab_bar_bg);
 
     // First pass: compute total pixel width of all tabs and their separators
-    size_t total_tabs_w = 0;
+    int32_t total_tabs_w = 0;
     for (size_t i = 0; i < group->count; ++i) {
         FileViewTabText tab_text = { 0 };
         ui_sdl3_format_file_view_tab_text(ui, &group->items[i], &tab_text);
@@ -1215,14 +1210,13 @@ static void ui_sdl3_draw_file_view_group_content(SDL3Ui* ui, FileViewGroup* grou
     FileView* displayed_file_view = medit_get_displayed_file_view_in_group(medit, group);
     Lines* lines = &medit_file_view_file(medit, displayed_file_view)->lines;
 
-    const size_t first_rendered_line = displayed_file_view->scrolling.y
+    const size_t first_rendered_line = (size_t)SDL_max(displayed_file_view->scrolling.y, 0)
         / ui->font_editor.line_spacing;
-    const size_t screen_lines = (int_to_size(ui->window_size.height) / ui->font_editor.line_spacing)
-        + 1;
+    const size_t screen_lines = ((size_t)ui->window_size.height / ui->font_editor.line_spacing) + 1;
     const size_t rendered_line_count = SDL_min(lines->count, first_rendered_line + screen_lines);
 
     Rect area = group->content_area;
-    Rect gutter = rect_cut_left(&area, int_to_size(ui->line_nr_padding));
+    Rect gutter = rect_cut_left(&area, ui->line_nr_padding);
     Rect content = area;
 
     const SDL_Rect gutter_clip = rect_to_sdl_rect(gutter);
@@ -1348,8 +1342,7 @@ void medit_ui_sdl3_run(Meditor* medit)
             for (size_t i = 0; i < medit->file_views.count; ++i) {
                 FileViewGroup* group = &medit->file_views.items[i];
                 Rect text_area = group->content_area;
-                rect_cut_left(&text_area, int_to_size(ui.line_nr_padding));
-
+                rect_cut_left(&text_area, ui.line_nr_padding);
                 ui_sdl3_scroll_file_view(&ui, text_area, group);
                 ui_sdl3_draw_file_view_group_content(&ui, group);
                 // 4. Queue cursor rects into overlay layer
@@ -1363,7 +1356,7 @@ void medit_ui_sdl3_run(Meditor* medit)
             for (size_t i = 0; i < medit->file_views.count; ++i) {
                 FileViewGroup* group = &medit->file_views.items[i];
                 Rect text_area = group->content_area;
-                rect_cut_left(&text_area, int_to_size(ui.line_nr_padding));
+                rect_cut_left(&text_area, ui.line_nr_padding);
                 ui_sdl3_draw_cursor_glyphs(&ui, text_area, group);
             }
         }

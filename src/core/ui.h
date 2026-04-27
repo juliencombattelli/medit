@@ -5,11 +5,10 @@
 #include "rect.h"
 
 #include <stdbool.h>
-#include <stddef.h>
 #include <stdint.h>
 
 typedef struct {
-    size_t x, y; // current mouse position on screen (UI-dependent, could be pixels or cells)
+    int32_t x, y; // current mouse position on screen (UI-dependent, could be pixels or cells)
     float scroll_x, scroll_y; // scroll wheel delta
     bool scroll_valid;
     bool left_down; // is left button currently held
@@ -40,11 +39,7 @@ typedef struct {
         // specific to UI_CMD_RECT_OUTLINED
         Color outline_color;
         // specific to UI_CMD_TEXT
-        struct {
-            const char* text;
-            ptrdiff_t text_x; // signed screen-space x for the label (may be negative when scrolled)
-            ptrdiff_t text_y; // signed screen-space y for the label
-        };
+        const char* text;
         // specific to UI_CMD_SCROLLBAR
         struct {
             Color thumb_color;
@@ -73,23 +68,11 @@ typedef struct {
     float content_h; // total content height (set by caller)
 
     // Thumb drag state - managed by ui_scrollbar_v / ui_scrollbar_h
-    size_t drag_start_mouse; // mouse coord at drag start (y or x)
+    int32_t drag_start_mouse; // mouse coord at drag start (y or x)
     float drag_start_offset; // offset_y or offset_x at drag start
     bool drag_active_v; // vertical thumb is being dragged
     bool drag_active_h; // horizontal thumb is being dragged
 } UiScrollState;
-
-// Return value of ui_scroll_begin.
-// rect  — safe content rect (x/y saturated to 0 so size_t never wraps); suitable for
-//         panel_cut_left / panel_cut_top when the scroll offset ≤ viewport.x/y.
-// origin_x / origin_y — true signed content origin in screen space; use these for layout
-//         whenever the scroll offset can exceed viewport.x/y (e.g. a tab bar whose
-//         viewport starts near x = 0 and may scroll many pixels to the right).
-typedef struct {
-    Rect rect;
-    ptrdiff_t origin_x;
-    ptrdiff_t origin_y;
-} UiScrollContent;
 
 // Context (one per window, reset each frame)
 typedef struct {
@@ -137,14 +120,11 @@ UiWidgetState ui_scrollbar_h(
     Color track_color,
     Color thumb_color);
 
-// Begin a scrollable region.
-// Pushes a clip rect matching viewport.
-// Returns a UiScrollContent whose:
-//   .rect     has x/y saturated to 0 so size_t never wraps — use with panel_cut_left/top when
-//             the scroll offset is guaranteed to be ≤ viewport.x/y.
-//   .origin_x / .origin_y are the true signed content origins — use these for manual layout
-//             when the scroll offset may exceed the viewport's screen-space position.
-UiScrollContent ui_scroll_begin(UiCtx* ctx, Rect viewport, UiScrollState* scroll_state);
+// Begin a scrollable region
+// Pushes a clip rect matching viewport, then returns the inner content rect whose origin is offset
+// by scroll_state so child widgets lay out in content-space coordinates.
+// With int32_t coordinates, rect.x/y can be negative — no saturation needed.
+Rect ui_scroll_begin(UiCtx* ctx, Rect viewport, UiScrollState* scroll_state);
 
 // End a scrollable region
 // Pops the clip rect and applies wheel delta to scroll_state when hovered

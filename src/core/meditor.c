@@ -2,6 +2,7 @@
 #include "action.h"
 #include "assert.h"
 #include "dynarray.h"
+#include "safeint.h"
 #include "unicode.h"
 #include "utils.h"
 
@@ -605,7 +606,12 @@ void medit_layout_recompute(Layout* layout, FileViewGroups* groups, size_t win_w
     assert(groups->count > 0 && "You forgot to create some demo group");
 
     LayoutSizes s = layout->sizes;
-    Rect window = { 0, 0, win_w, win_h };
+    Rect window = {
+        .x = 0,
+        .y = 0,
+        .w = size_to_i32(win_w),
+        .h = size_to_i32(win_h),
+    };
 
     if (medit_layout_is_element_shown(layout, LAYOUT_MENU_BAR)) {
         layout->menu_bar = panel_cut_top(&window, s.menu_bar_height, s.separator_size);
@@ -626,8 +632,8 @@ void medit_layout_recompute(Layout* layout, FileViewGroups* groups, size_t win_w
         cols++;
     }
     size_t rows = (groups->count + cols - 1) / cols;
-    size_t row_height = window.h / rows;
-    size_t col_width = window.w / cols;
+    int32_t row_height = window.h / size_to_i32(rows);
+    int32_t col_width = window.w / size_to_i32(cols);
 
     Rect editor = layout->editor_area;
 

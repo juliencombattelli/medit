@@ -27,10 +27,10 @@ static inline SDL_Color color_to_sdl3(Color color)
 static inline SDL_Rect rect_to_sdl_rect(Rect r)
 {
     return (SDL_Rect) {
-        .x = size_to_int(r.x),
-        .y = size_to_int(r.y),
-        .w = size_to_int(r.w),
-        .h = size_to_int(r.h),
+        .x = r.x,
+        .y = r.y,
+        .w = r.w,
+        .h = r.h,
     };
 }
 

@@ -63,8 +63,8 @@ typedef struct {
 } Cursors;
 
 typedef struct {
-    size_t x;
-    size_t y;
+    int32_t x;
+    int32_t y;
 } Scrolling;
 
 typedef struct {
@@ -97,12 +97,12 @@ typedef struct {
 #define LAYOUT_STATUS_BAR (1ull << 4ull)
 
 typedef struct {
-    size_t menu_bar_height;
-    size_t tab_bar_height;
-    size_t side_panel_width;
-    size_t bottom_panel_height;
-    size_t status_bar_height;
-    size_t separator_size;
+    int32_t menu_bar_height;
+    int32_t tab_bar_height;
+    int32_t side_panel_width;
+    int32_t bottom_panel_height;
+    int32_t status_bar_height;
+    int32_t separator_size;
 } LayoutSizes;
 
 typedef struct {

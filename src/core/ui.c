@@ -1,4 +1,5 @@
 #include "ui.h"
+#include "safeint.h"
 
 #include "dynarray.h"
 #include "utils.h"
@@ -123,8 +124,6 @@ UiWidgetState ui_button(
             .rect = rect,
             .color = label_color,
             .text = label,
-            .text_x = (ptrdiff_t)rect.x,
-            .text_y = (ptrdiff_t)rect.y,
         };
         draw_cmd_list_push(ctx->draw_list, text_label);
     }
@@ -158,9 +157,9 @@ UiWidgetState ui_scrollbar_v(
     float thumb_y = (float)track.y + (scroll_pos * (viewport_h - thumb_h));
     Rect thumb_rect = {
         .x = track.x,
-        .y = (size_t)thumb_y,
+        .y = float_to_i32(thumb_y),
         .w = track.w,
-        .h = (size_t)thumb_h,
+        .h = float_to_i32(thumb_h),
     };
 
     UiWidgetState state = 0;
@@ -188,8 +187,7 @@ UiWidgetState ui_scrollbar_v(
     // Continue drag
     if (scroll_state->drag_active_v) {
         if (ctx->input.left_down) {
-            float delta_px = (float)((ptrdiff_t)ctx->input.y
-                                     - (ptrdiff_t)scroll_state->drag_start_mouse);
+            float delta_px = (float)(ctx->input.y - scroll_state->drag_start_mouse);
             float track_usable = viewport_h - thumb_h;
             if (track_usable > 0.0f && max_offset > 0.0f) {
                 float new_offset = scroll_state->drag_start_offset
@@ -257,9 +255,9 @@ UiWidgetState ui_scrollbar_h(
     float thumb_w = thumb_ratio * viewport_w;
     float thumb_x = (float)track.x + (scroll_pos * (viewport_w - thumb_w));
     Rect thumb_rect = {
-        .x = (size_t)thumb_x,
+        .x = float_to_i32(thumb_x),
         .y = track.y,
-        .w = (size_t)thumb_w,
+        .w = float_to_i32(thumb_w),
         .h = track.h,
     };
 
@@ -288,8 +286,7 @@ UiWidgetState ui_scrollbar_h(
     // Continue drag
     if (scroll_state->drag_active_h) {
         if (ctx->input.left_down) {
-            float delta_px = (float)((ptrdiff_t)ctx->input.x
-                                     - (ptrdiff_t)scroll_state->drag_start_mouse);
+            float delta_px = (float)(ctx->input.x - scroll_state->drag_start_mouse);
             float track_usable = viewport_w - thumb_w;
             if (track_usable > 0.0f && max_offset > 0.0f) {
                 float new_offset = scroll_state->drag_start_offset
@@ -332,7 +329,7 @@ UiWidgetState ui_scrollbar_h(
     return state;
 }
 
-UiScrollContent ui_scroll_begin(UiCtx* ctx, Rect viewport, UiScrollState* scroll_state)
+Rect ui_scroll_begin(UiCtx* ctx, Rect viewport, UiScrollState* scroll_state)
 {
     UiDrawCmd clip = {
         .kind = UI_CMD_CLIP_PUSH,
@@ -340,23 +337,19 @@ UiScrollContent ui_scroll_begin(UiCtx* ctx, Rect viewport, UiScrollState* scroll
     };
     draw_cmd_list_push(ctx->draw_list, clip);
 
-    // Clamp offsets to valid content range
-    size_t ox = (size_t)medit_clampf(scroll_state->offset_x, 0.0f, scroll_state->content_w);
-    size_t oy = (size_t)medit_clampf(scroll_state->offset_y, 0.0f, scroll_state->content_h);
+    // With int32_t coordinates, subtraction is naturally signed — no saturation needed.
+    int32_t ox = float_to_i32(medit_clampf(scroll_state->offset_x, 0.0f, scroll_state->content_w));
+    int32_t oy = float_to_i32(medit_clampf(scroll_state->offset_y, 0.0f, scroll_state->content_h));
 
-    // Compute the true (possibly negative) content origin in screen space
-    ptrdiff_t origin_x = (ptrdiff_t)viewport.x - (ptrdiff_t)ox;
-    ptrdiff_t origin_y = (ptrdiff_t)viewport.y - (ptrdiff_t)oy;
-
-    // Build the safe content Rect: x/y are saturated to 0 so size_t never wraps on underflow.
-    // Callers whose scroll offset can exceed viewport.x/y must use origin_x/y instead.
     Rect content = viewport;
-    content.x = (origin_x >= 0) ? (size_t)origin_x : 0;
-    content.y = (origin_y >= 0) ? (size_t)origin_y : 0;
-    content.w = (scroll_state->content_w > 0.0f) ? (size_t)scroll_state->content_w : viewport.w;
-    content.h = (scroll_state->content_h > 0.0f) ? (size_t)scroll_state->content_h : viewport.h;
+    content.x = viewport.x - ox;
+    content.y = viewport.y - oy;
+    content.w = (scroll_state->content_w > 0.0f) ? float_to_i32(scroll_state->content_w)
+                                                 : viewport.w;
+    content.h = (scroll_state->content_h > 0.0f) ? float_to_i32(scroll_state->content_h)
+                                                 : viewport.h;
 
-    return (UiScrollContent) { .rect = content, .origin_x = origin_x, .origin_y = origin_y };
+    return content;
 }
 
 void ui_scroll_end(UiCtx* ctx, Rect viewport, UiScrollState* scroll_state, bool hovered)

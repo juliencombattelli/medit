@@ -10,4 +10,8 @@
 
 #define int_to_size(i) (assert((i) >= 0), (size_t)((i)))
 
+#define size_to_i32(i) (assert((i) <= INT32_MAX), (int32_t)((i)))
+
+#define float_to_i32(f) (assert((f) >= (float)INT32_MIN && (f) <= (float)INT32_MAX), (int32_t)(f))
+
 #endif // MEDIT_CORE_SAFEINT_H_
