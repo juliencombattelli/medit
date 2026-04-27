@@ -1,5 +1,5 @@
-#ifndef MEDIT_UI_H_
-#define MEDIT_UI_H_
+#ifndef MEDIT_CORE_UI_H_
+#define MEDIT_CORE_UI_H_
 
 #include "color.h"
 #include "rect.h"
@@ -131,4 +131,4 @@ Rect ui_scroll_begin(UiCtx* ctx, Rect viewport, UiScrollState* scroll_state);
 //       works correctly
 void ui_scroll_end(UiCtx* ctx, Rect viewport, UiScrollState* scroll_state, bool hovered);
 
-#endif // MEDIT_UI_H_
+#endif // MEDIT_CORE_UI_H_

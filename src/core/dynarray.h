@@ -1,5 +1,5 @@
-#ifndef MEDIT_DYNARRAY_H_
-#define MEDIT_DYNARRAY_H_
+#ifndef MEDIT_CORE_DYNARRAY_H_
+#define MEDIT_CORE_DYNARRAY_H_
 
 #include "assert.h"
 
@@ -102,4 +102,4 @@
 #define dynarray_foreach(Type, it, da)                                                             \
     for (Type* it = (da)->items; it < (da)->items + (da)->count; ++it)
 
-#endif // MEDIT_ALLOC_H_
+#endif // MEDIT_CORE_DYNARRAY_H_

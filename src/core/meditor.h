@@ -1,5 +1,5 @@
-#ifndef MEDIT_MEDITOR_H_
-#define MEDIT_MEDITOR_H_
+#ifndef MEDIT_CORE_MEDITOR_H_
+#define MEDIT_CORE_MEDITOR_H_
 
 #include "action.h"
 #include "color.h"
@@ -199,4 +199,4 @@ void medit_dump_state(Meditor* medit);
 void medit_load_default_keybind_full(Meditor* medit, const Actions* actions, void* ui);
 void medit_load_default_keybind_ansi(Meditor* medit, const Actions* actions, void* ui);
 
-#endif // MEDIT_MEDITOR_H_
+#endif // MEDIT_CORE_MEDITOR_H_

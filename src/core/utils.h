@@ -1,5 +1,5 @@
-#ifndef MEDIT_UTILS_H_
-#define MEDIT_UTILS_H_
+#ifndef MEDIT_CORE_UTILS_H_
+#define MEDIT_CORE_UTILS_H_
 
 #include <limits.h>
 #include <stdio.h>
@@ -43,4 +43,4 @@ enum {
     INT64_DIGITS_COUNT = 22u,
 };
 
-#endif // MEDIT_UTILS_H_
+#endif // MEDIT_CORE_UTILS_H_

@@ -1,5 +1,5 @@
-#ifndef MEDIT_LINALG_H_
-#define MEDIT_LINALG_H_
+#ifndef MEDIT_CORE_LINALG_H_
+#define MEDIT_CORE_LINALG_H_
 
 #define vec2_add(a, b)                                                                             \
     {                                                                                              \
@@ -25,4 +25,4 @@
         (a).v[1] / (b).v[1],                                                                       \
     }
 
-#endif // MEDIT_LINALG_H_
+#endif // MEDIT_CORE_LINALG_H_

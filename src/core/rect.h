@@ -1,5 +1,5 @@
-#ifndef MEDIT_RECT_H_
-#define MEDIT_RECT_H_
+#ifndef MEDIT_CORE_RECT_H_
+#define MEDIT_CORE_RECT_H_
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -28,4 +28,4 @@ Panel panel_cut_bottom(Rect* r, size_t height, size_t sep);
 Panel panel_cut_left(Rect* r, size_t width, size_t sep);
 Panel panel_cut_right(Rect* r, size_t width, size_t sep);
 
-#endif // MEDIT_RECT_H_
+#endif // MEDIT_CORE_RECT_H_

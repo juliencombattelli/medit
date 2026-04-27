@@ -1,5 +1,5 @@
-#ifndef MEDIT_UNICODE_ITER_H_
-#define MEDIT_UNICODE_ITER_H_
+#ifndef MEDIT_CORE_UNICODE_H_
+#define MEDIT_CORE_UNICODE_H_
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -86,4 +86,4 @@ bool uc_word_iter_next(UcWordIter* iter, UcWordSegment* out);
 // Returns false when already at the start of the string.
 bool uc_word_iter_prev(UcWordIter* iter, UcWordSegment* out);
 
-#endif // MEDIT_UNICODE_ITER_H_
+#endif // MEDIT_CORE_UNICODE_H_

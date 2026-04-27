@@ -1,5 +1,5 @@
-#ifndef MEDIT_KEYBIND_H_
-#define MEDIT_KEYBIND_H_
+#ifndef MEDIT_CORE_KEYBIND_H_
+#define MEDIT_CORE_KEYBIND_H_
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -118,4 +118,4 @@ bool keybind_handle_event(Keybind* keybind, const KeybindEvent* event);
 
 const char* keybind_key_to_string(Key key);
 
-#endif // MEDIT_KEYBIND_H_
+#endif // MEDIT_CORE_KEYBIND_H_

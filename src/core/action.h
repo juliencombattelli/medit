@@ -1,5 +1,5 @@
-#ifndef MEDIT_ACTION_H_
-#define MEDIT_ACTION_H_
+#ifndef MEDIT_CORE_ACTION_H_
+#define MEDIT_CORE_ACTION_H_
 
 typedef struct Meditor Meditor;
 
@@ -99,4 +99,4 @@ void medit_action_font_zoom_default(Meditor* medit, void* ui);
     .font_zoom_default = medit_action_font_zoom_default
 // clang-format on
 
-#endif // MEDIT_ACTION_H_
+#endif // MEDIT_CORE_ACTION_H_

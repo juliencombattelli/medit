@@ -1,5 +1,5 @@
-#ifndef MEDIT_COLOR_H_
-#define MEDIT_COLOR_H_
+#ifndef MEDIT_CORE_COLOR_H_
+#define MEDIT_CORE_COLOR_H_
 
 #include <stddef.h>
 #include <stdint.h>
@@ -31,4 +31,4 @@ static inline Color color_inverse(Color color)
     };
 }
 
-#endif // MEDIT_COLOR_H_
+#endif // MEDIT_CORE_COLOR_H_

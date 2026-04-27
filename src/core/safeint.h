@@ -1,25 +1,13 @@
-#ifndef MEDIT_SAFEINT_H_
-#define MEDIT_SAFEINT_H_
+#ifndef MEDIT_CORE_SAFEINT_H_
+#define MEDIT_CORE_SAFEINT_H_
 
 #include "assert.h"
 
 #include <limits.h>
 #include <stdint.h>
 
-// static inline int size_to_int(size_t i)
-// {
-//     assert(i <= INT_MAX);
-//     return (int)i;
-// }
-
-// static inline size_t int_to_size(int i)
-// {
-//     assert(i >= 0);
-//     return (size_t)i;
-// }
-
 #define size_to_int(i) (assert((i) <= INT_MAX), (int)((i)))
 
 #define int_to_size(i) (assert((i) >= 0), (size_t)((i)))
 
-#endif // MEDIT_SAFEINT_H_
+#endif // MEDIT_CORE_SAFEINT_H_
