@@ -5,10 +5,10 @@ typedef struct Meditor Meditor;
 
 typedef struct {
     ////////////////////////////////////////////////////////////////////////////
-    /// Core actions, overridble by UI backends
+    /// Core actions, overridable by UI backends
     ////////////////////////////////////////////////////////////////////////////
 
-    // Miscelaneous
+    // Miscellaneous
     void (*quit)(Meditor* medit, void* ui);
 
     // Cursor navigation
