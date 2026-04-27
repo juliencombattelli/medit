@@ -142,21 +142,32 @@ install(DIRECTORY asset DESTINATION .)
 # Install sources as well just to be able to open them on Windows for playing around
 install(DIRECTORY src DESTINATION .)
 
+include(CTest)
+
 add_executable(test_dynarray test/dynarray.c)
 target_compile_options(test_dynarray PRIVATE ${COMPILE_OPTIONS})
 target_link_options(test_dynarray PRIVATE ${LINK_OPTIONS})
 target_include_directories(test_dynarray PRIVATE src)
+add_test(NAME Dynarray COMMAND test_dynarray)
 
 add_executable(test_layout test/layout.c)
 target_compile_options(test_layout PRIVATE ${COMPILE_OPTIONS})
 target_link_options(test_layout PRIVATE ${LINK_OPTIONS})
 target_include_directories(test_layout PRIVATE src)
+add_test(NAME Layout COMMAND test_layout)
 
 add_executable(test_unicode test/unicode.c src/core/unicode.c)
 target_compile_options(test_unicode PRIVATE ${COMPILE_OPTIONS})
 target_link_options(test_unicode PRIVATE ${LINK_OPTIONS})
 target_include_directories(test_unicode PRIVATE src)
 target_link_libraries(test_unicode PRIVATE utf8proc::utf8proc)
+add_test(NAME Unicode COMMAND test_unicode)
+
+add_executable(test_string_view test/string_view.c src/core/string_view.c)
+target_compile_options(test_string_view PRIVATE ${COMPILE_OPTIONS})
+target_link_options(test_string_view PRIVATE ${LINK_OPTIONS})
+target_include_directories(test_string_view PRIVATE src)
+add_test(NAME StringView COMMAND test_string_view)
 
 # Sanitizers are not supported by all toolchains (especially MinGW), so check if it works.
 include(cmake/Modules/CheckAddressSanitizerSupported.cmake)
