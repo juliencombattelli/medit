@@ -11,6 +11,7 @@
 #include <core/meditor.h>
 #include <core/rect.h>
 #include <core/safeint.h>
+#include <core/string_view.h>
 #include <core/ui.h>
 #include <core/unicode.h>
 #include <core/utils.h>
@@ -1002,17 +1003,16 @@ static void ui_sdl3_format_file_view_tab_text(
     static const char dirty_indicator[] = " ●";
 
     Meditor* medit = ui->medit;
+    File* file = medit_file_view_file(medit, file_view);
 
-    const char* filename = medit_file_view_file(medit, file_view)->name;
-    size_t filename_len = strlen(filename);
+    StringView filename = sv_path_basename(sv_from_cstr(file->name));
 
-    const char* dirty_str = medit_file_view_file(medit, file_view)->dirty ? dirty_indicator : "";
+    const char* dirty_str = file->dirty ? dirty_indicator : "";
     int written = snprintf(
         tab_text->content,
         sizeof(tab_text->content),
-        " %.*s%s ",
-        size_to_int(filename_len),
-        filename,
+        " " SV_Fmt "%s ",
+        SV_Arg(filename),
         dirty_str);
     tab_text->length = int_to_size(written);
 

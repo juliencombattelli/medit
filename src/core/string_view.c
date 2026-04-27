@@ -190,3 +190,15 @@ bool sv_starts_with_sv(StringView sv, StringView prefix)
 
     return false;
 }
+
+StringView sv_path_basename(StringView path)
+{
+    StringView result = sv_from(".", 1);
+    while (path.count > 0) {
+        StringView segment = sv_chop_by_delim(&path, '/');
+        if (segment.count > 0) {
+            result = segment;
+        }
+    }
+    return result;
+}

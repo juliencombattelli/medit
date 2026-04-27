@@ -76,4 +76,8 @@ bool sv_starts_with_sv(StringView sv, StringView prefix);
 #define SV_Arg(sv) size_to_int((sv).count), (sv).data
 #endif // SV_Arg
 
+// Return the last path component of `path`, stripping any trailing slashes; return "." for an empty
+// or all-slash path (POSIX basename semantics)
+StringView sv_path_basename(StringView path);
+
 #endif // MEDIT_CORE_STRING_VIEW_H_

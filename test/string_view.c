@@ -237,6 +237,36 @@ static void test_sv_starts_ends_with(void)
 }
 
 // ---------------------------------------------------------------------------
+// sv_path_basename
+// ---------------------------------------------------------------------------
+
+static void test_sv_path_basename(void)
+{
+    // Simple filename
+    CHECK_SV_EQ(sv_path_basename(sv_from_cstr("file.txt")), "file.txt", 8);
+
+    // Single directory component
+    CHECK_SV_EQ(sv_path_basename(sv_from_cstr("dir/file.txt")), "file.txt", 8);
+
+    // Deep path
+    CHECK_SV_EQ(sv_path_basename(sv_from_cstr("/usr/local/bin/prog")), "prog", 4);
+
+    // Trailing slash(es) are ignored
+    CHECK_SV_EQ(sv_path_basename(sv_from_cstr("dir/sub/")), "sub", 3);
+    CHECK_SV_EQ(sv_path_basename(sv_from_cstr("dir/sub///")), "sub", 3);
+
+    // Root path: all slashes → "."
+    CHECK_SV_EQ(sv_path_basename(sv_from_cstr("/")), ".", 1);
+    CHECK_SV_EQ(sv_path_basename(sv_from_cstr("///")), ".", 1);
+
+    // Empty string → "."
+    CHECK_SV_EQ(sv_path_basename(sv_from_cstr("")), ".", 1);
+
+    // Path with no slash
+    CHECK_SV_EQ(sv_path_basename(sv_from_cstr("nodir")), "nodir", 5);
+}
+
+// ---------------------------------------------------------------------------
 
 int main(void)
 {
@@ -252,6 +282,7 @@ int main(void)
     test_sv_trim();
     test_sv_eq();
     test_sv_starts_ends_with();
+    test_sv_path_basename();
 
     if (g_failures == 0) {
         printf("All string_view tests passed.\n");
