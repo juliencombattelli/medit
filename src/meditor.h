@@ -168,9 +168,10 @@ void medit_insert_text(Meditor* medit, const char* text, size_t n);
 
 void medit_new_empty_file(Meditor* medit, FileViewGroup* group);
 void medit_load_file(Meditor* medit, const char* filepath);
-void medit_save_file(Meditor* medit);
+void medit_save_file(File* file);
+void medit_save_focused_file(Meditor* medit);
 void medit_close_file(File* file);
-void medit_close_files(Meditor* medit);
+void medit_close_all_files(Meditor* medit);
 
 File* medit_file_view_file(Meditor* medit, FileView* fv);
 void medit_file_view_group_display_next(Meditor* medit, FileViewGroup* group);

@@ -116,7 +116,7 @@ static void action_dump_state(Meditor* medit, void* ui)
 static void action_save_file(Meditor* medit, void* ui)
 {
     MEDIT_UNUSED(ui);
-    medit_save_file(medit);
+    medit_save_focused_file(medit);
 }
 
 static void ui_sdl3_open_file_dialog_cb(void* userdata, const char* const* filelist, int filter)
@@ -475,7 +475,7 @@ static void ui_sdl3_handle_save_of_dirty_file(
         switch (buttonid) {
             case 0:
                 printf("Saving changes for file %s\n", file->name);
-                medit_save_file(ui->medit);
+                medit_save_focused_file(ui->medit);
                 break;
             case 1: printf("Discarding changes for file %s\n", file->name); break;
             default: printf("Cancelling exit\n"); *cancel_exit = true;

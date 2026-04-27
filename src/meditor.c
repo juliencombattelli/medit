@@ -416,15 +416,9 @@ void medit_load_file(Meditor* medit, const char* filepath)
     printf("file lines: %zu\n", file->lines.count);
 }
 
-void medit_save_file(Meditor* medit)
+void medit_save_file(File* file)
 {
-    FileView* file_view = medit_get_focused_file_view(medit);
-    if (file_view == NULL) {
-        printf("Error: no file to save\n");
-        return;
-    }
-
-    const char* filepath = medit_file_view_file(medit, file_view)->name;
+    const char* filepath = file->name;
     if (filepath == NULL) {
         printf("Error: file has no name\n");
         return;
@@ -436,7 +430,7 @@ void medit_save_file(Meditor* medit)
         return;
     }
 
-    Lines* lines = &medit_file_view_file(medit, file_view)->lines;
+    Lines* lines = &file->lines;
     for (size_t i = 0; i < lines->count; ++i) {
         Line* line = &lines->items[i];
         if (line->count > 0) {
@@ -459,7 +453,20 @@ void medit_save_file(Meditor* medit)
     (void)fclose(f);
     printf("File saved: %s\n", filepath);
 
-    medit_file_view_file(medit, file_view)->dirty = false;
+    file->dirty = false;
+}
+
+void medit_save_focused_file(Meditor* medit)
+{
+    FileView* file_view = medit_get_focused_file_view(medit);
+    if (file_view == NULL) {
+        printf("Error: no file to save\n");
+        return;
+    }
+    File* file = medit_file_view_file(medit, file_view);
+    assert(file);
+
+    medit_save_file(file);
 }
 
 void medit_close_file(File* file)
@@ -472,7 +479,7 @@ void medit_close_file(File* file)
     free((void*)file->name);
 }
 
-void medit_close_files(Meditor* medit)
+void medit_close_all_files(Meditor* medit)
 {
     dynarray_foreach(FileViewGroup, group, &medit->file_views)
     {

@@ -26,5 +26,5 @@ int main(int argc, char** argv)
     medit.config.color_theme = default_color_theme;
 
     medit_ui_sdl3_run(&medit);
-    medit_close_files(&medit);
+    medit_close_all_files(&medit);
 }
