@@ -1,4 +1,4 @@
-#include "dynarray.h"
+#include <core/dynarray.h>
 
 typedef struct {
     int* items;

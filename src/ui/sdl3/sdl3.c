@@ -1,17 +1,19 @@
 #include "sdl3.h"
-#include "action.h"
-#include "assert.h"
-#include "dynarray.h"
+
 #include "font.h"
-#include "keybind.h"
-#include "meditor.h"
 #include "perf_counter.h"
-#include "rect.h"
-#include "safeint.h"
 #include "sdl3_utils.h"
-#include "ui.h"
-#include "unicode.h"
-#include "utils.h"
+
+#include <core/action.h>
+#include <core/assert.h>
+#include <core/dynarray.h>
+#include <core/keybind.h>
+#include <core/meditor.h>
+#include <core/rect.h>
+#include <core/safeint.h>
+#include <core/ui.h>
+#include <core/unicode.h>
+#include <core/utils.h>
 
 #include <SDL3/SDL.h>
 #include <SDL3_ttf/SDL_ttf.h>

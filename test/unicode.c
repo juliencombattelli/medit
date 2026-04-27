@@ -1,4 +1,4 @@
-#include "unicode.h"
+#include <core/unicode.h>
 
 #include <stdint.h>
 #include <stdio.h>

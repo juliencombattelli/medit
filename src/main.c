@@ -1,6 +1,7 @@
-#include "meditor.h"
-#include "ui/sdl3/sdl3.h"
-#include "utils.h"
+#include <core/meditor.h>
+#include <core/utils.h>
+
+#include <ui/sdl3/sdl3.h>
 
 int main(int argc, char** argv)
 {

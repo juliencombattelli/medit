@@ -30,9 +30,12 @@ elseif(CMAKE_C_COMPILER_ID MATCHES ".*Clang" OR CMAKE_C_COMPILER_ID STREQUAL "GN
 endif()
 
 add_executable(medit
-    src/main.c src/meditor.c src/keybind.c src/unicode.c src/utils.c src/rect.c src/action.c
-    src/ui.c
-    # SDL3 UI
+    # Editor entry point
+    src/main.c
+    # Core modules
+    src/core/meditor.c src/core/keybind.c src/core/unicode.c src/core/utils.c
+    src/core/rect.c src/core/action.c src/core/ui.c
+    # SDL3 UI modules
     src/ui/sdl3/sdl3.c src/ui/sdl3/font.c src/ui/sdl3/keybind_sdl3.c src/ui/sdl3/perf_counter.c
 )
 target_compile_options(medit PRIVATE ${COMPILE_OPTIONS})
@@ -149,7 +152,7 @@ target_compile_options(test_layout PRIVATE ${COMPILE_OPTIONS})
 target_link_options(test_layout PRIVATE ${LINK_OPTIONS})
 target_include_directories(test_layout PRIVATE src)
 
-add_executable(test_unicode test/unicode.c src/unicode.c)
+add_executable(test_unicode test/unicode.c src/core/unicode.c)
 target_compile_options(test_unicode PRIVATE ${COMPILE_OPTIONS})
 target_link_options(test_unicode PRIVATE ${LINK_OPTIONS})
 target_include_directories(test_unicode PRIVATE src)

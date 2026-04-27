@@ -1,6 +1,6 @@
 #include "perf_counter.h"
 
-#include "utils.h"
+#include <core/utils.h>
 
 static Uint32 perf_counter_report_cb(void* userdata, SDL_TimerID timer_id, Uint32 interval)
 {

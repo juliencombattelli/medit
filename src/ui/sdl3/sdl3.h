@@ -1,8 +1,8 @@
 #ifndef MEDIT_UI_SDL3_SDL3_H_
 #define MEDIT_UI_SDL3_SDL3_H_
 
-#include "keybind.h"
-#include "meditor.h"
+#include <core/keybind.h>
+#include <core/meditor.h>
 
 KeybindEvent keybind_sdl3_translate_event(void* native_event);
 
