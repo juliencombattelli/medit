@@ -1000,10 +1000,7 @@ static void ui_sdl3_format_file_view_tab_text(
 
     Meditor* medit = ui->medit;
 
-    // TODO generate "Untitled" file names when creating the file
-    const char* filename = medit_file_view_file(medit, file_view)->name
-        ? medit_file_view_file(medit, file_view)->name
-        : "Untitled";
+    const char* filename = medit_file_view_file(medit, file_view)->name;
     size_t filename_len = strlen(filename);
 
     const char* dirty_str = medit_file_view_file(medit, file_view)->dirty ? dirty_indicator : "";

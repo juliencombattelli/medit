@@ -34,6 +34,7 @@ typedef struct {
 typedef struct {
     const char* name;
     Lines lines;
+    size_t untitled_number;
     bool dirty;
 } File;
 

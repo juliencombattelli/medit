@@ -2,6 +2,7 @@
 #include "action.h"
 #include "assert.h"
 #include "dynarray.h"
+#include "safeint.h"
 #include "unicode.h"
 #include "utils.h"
 
@@ -265,9 +266,36 @@ void medit_insert_text(Meditor* medit, const char* text, size_t n)
     dynarray_insert_many(current_line, text, n, cursor_col);
 }
 
+// Returns the next available untitled file number by scanning all opened files for the highest
+// existing untitled_number and returning the next one, guaranteeing a unique, monotonically
+// increasing suffix for "Untitled-N" names
+static size_t medit_new_untitled_number(Meditor* medit)
+{
+    // titled files always have 0 as untitled_number, so the first untitled file number starts at 1
+    size_t max = 0;
+    for (size_t i = 0; i < medit->opened_files.count; ++i) {
+        File* file = &medit->opened_files.items[i];
+        max = MEDIT_MAX(max, file->untitled_number);
+    }
+    return max + 1;
+}
+
+#define UNTITLED_PREFIX "Untitled-"
+#define UNTITLED_MAX_LEN (sizeof(UNTITLED_PREFIX) + INT64_DIGITS_COUNT)
+
 void medit_new_empty_file(Meditor* medit, FileViewGroup* group)
 {
-    File new_file = { 0 };
+    File new_file = {
+        .untitled_number = medit_new_untitled_number(medit),
+    };
+    char new_empty_filename[UNTITLED_MAX_LEN] = { 0 };
+    int written = snprintf(
+        new_empty_filename,
+        sizeof(new_empty_filename),
+        UNTITLED_PREFIX "%zu",
+        new_file.untitled_number);
+    assert(written);
+    new_file.name = medit_strdup(new_empty_filename);
     dynarray_append(&medit->opened_files, new_file);
 
     FileView new_file_view = {
