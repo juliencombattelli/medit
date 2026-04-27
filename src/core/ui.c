@@ -1,6 +1,7 @@
 #include "ui.h"
 
 #include "dynarray.h"
+#include "utils.h"
 
 void ui_draw_cmd_list_init(UiDrawCmdList* draw_cmd_list)
 {
@@ -39,18 +40,6 @@ static UiWidgetState widget_state(const UiInputEvent* input, Rect rect)
     return state;
 }
 
-// Clamp a float to [lo, hi]
-static float clampf(float v, float lo, float hi)
-{
-    if (v < lo) {
-        return lo;
-    }
-    if (v > hi) {
-        return hi;
-    }
-    return v;
-}
-
 // Compute normalized thumb position (0..1) and thumb-to-track ratio from scroll state and track
 // length
 static void scrollbar_geometry(
@@ -68,7 +57,7 @@ static void scrollbar_geometry(
 
     float max_offset = content - viewport;
     float pos = (max_offset > 0.0f) ? (offset / max_offset) : 0.0f;
-    pos = clampf(pos, 0.0f, 1.0f);
+    pos = medit_clampf(pos, 0.0f, 1.0f);
 
     *out_ratio = ratio;
     *out_pos = pos;
@@ -199,12 +188,13 @@ UiWidgetState ui_scrollbar_v(
     // Continue drag
     if (scroll_state->drag_active_v) {
         if (ctx->input.left_down) {
-            float delta_px = (float)(ctx->input.y - scroll_state->drag_start_mouse);
+            float delta_px = (float)((ptrdiff_t)ctx->input.y
+                                     - (ptrdiff_t)scroll_state->drag_start_mouse);
             float track_usable = viewport_h - thumb_h;
             if (track_usable > 0.0f && max_offset > 0.0f) {
                 float new_offset = scroll_state->drag_start_offset
                     + (delta_px * (max_offset / track_usable));
-                scroll_state->offset_y = clampf(new_offset, 0.0f, max_offset);
+                scroll_state->offset_y = medit_clampf(new_offset, 0.0f, max_offset);
             }
         } else {
             // Button released - end drag
@@ -214,7 +204,7 @@ UiWidgetState ui_scrollbar_v(
         // Click on track outside thumb - jump
         float rel = ((float)ctx->input.y - (float)track.y - (thumb_h / 2.f))
             / (viewport_h - thumb_h);
-        rel = clampf(rel, 0.0f, 1.0f);
+        rel = medit_clampf(rel, 0.0f, 1.0f);
         if (max_offset > 0.0f) {
             scroll_state->offset_y = rel * max_offset;
         }
@@ -298,12 +288,13 @@ UiWidgetState ui_scrollbar_h(
     // Continue drag
     if (scroll_state->drag_active_h) {
         if (ctx->input.left_down) {
-            float delta_px = (float)(ctx->input.x - scroll_state->drag_start_mouse);
+            float delta_px = (float)((ptrdiff_t)ctx->input.x
+                                     - (ptrdiff_t)scroll_state->drag_start_mouse);
             float track_usable = viewport_w - thumb_w;
             if (track_usable > 0.0f && max_offset > 0.0f) {
                 float new_offset = scroll_state->drag_start_offset
                     + (delta_px * (max_offset / track_usable));
-                scroll_state->offset_x = clampf(new_offset, 0.0f, max_offset);
+                scroll_state->offset_x = medit_clampf(new_offset, 0.0f, max_offset);
             }
         } else {
             scroll_state->drag_active_h = false;
@@ -312,7 +303,7 @@ UiWidgetState ui_scrollbar_h(
         // Click on track outside thumb - jump
         float rel = ((float)ctx->input.x - (float)track.x - (thumb_w / 2.f))
             / (viewport_w - thumb_w);
-        rel = clampf(rel, 0.0f, 1.0f);
+        rel = medit_clampf(rel, 0.0f, 1.0f);
         if (max_offset > 0.0f) {
             scroll_state->offset_x = rel * max_offset;
         }
@@ -350,8 +341,8 @@ UiScrollContent ui_scroll_begin(UiCtx* ctx, Rect viewport, UiScrollState* scroll
     draw_cmd_list_push(ctx->draw_list, clip);
 
     // Clamp offsets to valid content range
-    size_t ox = (size_t)clampf(scroll_state->offset_x, 0.0f, scroll_state->content_w);
-    size_t oy = (size_t)clampf(scroll_state->offset_y, 0.0f, scroll_state->content_h);
+    size_t ox = (size_t)medit_clampf(scroll_state->offset_x, 0.0f, scroll_state->content_w);
+    size_t oy = (size_t)medit_clampf(scroll_state->offset_y, 0.0f, scroll_state->content_h);
 
     // Compute the true (possibly negative) content origin in screen space
     ptrdiff_t origin_x = (ptrdiff_t)viewport.x - (ptrdiff_t)ox;
@@ -384,13 +375,13 @@ void ui_scroll_end(UiCtx* ctx, Rect viewport, UiScrollState* scroll_state, bool 
     float max_x = scroll_state->content_w - (float)viewport.w;
 
     if (max_y > 0.0f) {
-        scroll_state->offset_y = clampf(
+        scroll_state->offset_y = medit_clampf(
             scroll_state->offset_y - (ctx->input.scroll_y * ctx->scroll_speed),
             0.0f,
             max_y);
     }
     if (max_x > 0.0f) {
-        scroll_state->offset_x = clampf(
+        scroll_state->offset_x = medit_clampf(
             scroll_state->offset_x - (ctx->input.scroll_x * ctx->scroll_speed),
             0.0f,
             max_x);

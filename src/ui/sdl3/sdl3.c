@@ -259,17 +259,20 @@ static void ui_sdl3_draw_frame_begin(SDL3Ui* ui)
     ui_draw_cmd_list_clear(&ui->ui_draw_list_overlay);
     ui->ui_text_arena_used = 0;
 
-    float mouse_x = 0.f;
-    float mouse_y = 0.f;
-    SDL_MouseButtonFlags buttons = SDL_GetMouseState(&mouse_x, &mouse_y);
+    float m_x = 0.f;
+    float m_y = 0.f;
+    SDL_MouseButtonFlags buttons = SDL_GetMouseState(&m_x, &m_y);
     bool is_down = (buttons & SDL_BUTTON_LMASK) != 0;
+    // Clamp between 0 and size_t_max/2 (ptrdiff)
+    size_t mouse_x = (size_t)medit_clampf(m_x, 0.f, (float)PTRDIFF_MAX);
+    size_t mouse_y = (size_t)medit_clampf(m_y, 0.f, (float)PTRDIFF_MAX);
 
     ui->ui_ctx_bg = (UiCtx) {
         .draw_list    = &ui->ui_draw_list_bg,
         .scroll_speed = (float)ui->font_editor.line_spacing,
         .input = {
-            .x            = (size_t)mouse_x,
-            .y            = (size_t)mouse_y,
+            .x            = mouse_x,
+            .y            = mouse_y,
             .left_down    = is_down,
             .left_clicked = ui->ui_mouse_was_down && !is_down,
             .scroll_x     = ui->ui_scroll_delta_x,
@@ -281,8 +284,8 @@ static void ui_sdl3_draw_frame_begin(SDL3Ui* ui)
         .draw_list    = &ui->ui_draw_list_overlay,
         .scroll_speed = (float)ui->font_editor.line_spacing,
         .input = {
-            .x            = (size_t)mouse_x,
-            .y            = (size_t)mouse_y,
+            .x            = mouse_x,
+            .y            = mouse_y,
             .left_down    = is_down,
             .left_clicked = ui->ui_mouse_was_down && !is_down,
             .scroll_x     = ui->ui_scroll_delta_x,
@@ -927,7 +930,7 @@ static void ui_sdl3_compute_line_number_gutter_width(SDL3Ui* ui, FileViewGroup* 
         return;
     }
     ui->line_nr_cached_line_count = line_count;
-    ui->line_nr_max_digits = digits_count(line_count);
+    ui->line_nr_max_digits = medit_digits_count(line_count);
 
     char buffer[INT64_DIGITS_COUNT] = { 0 };
     int written = snprintf(buffer, sizeof(buffer), "%d ", line_count);

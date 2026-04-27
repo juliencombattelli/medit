@@ -18,7 +18,7 @@
 
 char* medit_strdup(const char* str);
 
-static inline int digits_count(int n)
+static inline int medit_digits_count(int n)
 {
     // NOLINTBEGIN(*magic-numbers*,*braces-around-statement*)
     // clang-format off
@@ -42,5 +42,17 @@ static inline int digits_count(int n)
 enum {
     INT64_DIGITS_COUNT = 22u,
 };
+
+// Clamp a float to [lo, hi]
+static inline float medit_clampf(float v, float lo, float hi)
+{
+    if (v < lo) {
+        return lo;
+    }
+    if (v > hi) {
+        return hi;
+    }
+    return v;
+}
 
 #endif // MEDIT_CORE_UTILS_H_
