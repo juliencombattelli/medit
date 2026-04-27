@@ -251,7 +251,6 @@ UiWidgetState ui_scrollbar_h(
         &scroll_pos,
         &thumb_ratio);
 
-    // Thumb geometry in UI-dependent coordinates
     float thumb_w = thumb_ratio * viewport_w;
     float thumb_x = (float)track.x + (scroll_pos * (viewport_w - thumb_w));
     Rect thumb_rect = {

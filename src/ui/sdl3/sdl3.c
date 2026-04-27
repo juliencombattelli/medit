@@ -84,6 +84,10 @@ typedef struct {
     bool ui_scroll_valid;
     // Mouse state from previous frame, to detect clicks (press+release)
     bool ui_mouse_was_down;
+    // Set by any widget whose state changed during the draw phase; triggers the rendering of a new
+    // frame immediately after the current one so the rendering reflects the updated state without a
+    // noticeable delay
+    bool needs_redraw;
 } SDL3Ui;
 
 enum {
@@ -1038,12 +1042,7 @@ static void ui_sdl3_format_file_view_tab_text(
     tab_text->width = w;
 }
 
-static void ui_sdl3_draw_tab_bar_tabs(
-    SDL3Ui* ui,
-    FileViewGroup* group,
-    Rect tabs_viewport,
-    Rect hover_rect,
-    float max_offset_x)
+static void ui_sdl3_draw_tab_bar_tabs(SDL3Ui* ui, FileViewGroup* group, Rect tabs_viewport)
 {
     const LayoutSizes s = ui->layout.sizes;
 
@@ -1111,21 +1110,27 @@ static void ui_sdl3_draw_tab_bar_tabs(
         cursor_x = tab_right + s.separator_size;
     }
 
-    // Pop clip rect and apply trackpad / horizontal-wheel delta to offset_x
-    const bool hovered = rect_contains(hover_rect, ui->ui_ctx_bg.input.x, ui->ui_ctx_bg.input.y);
+    // Pop clip rect; also handle horizontal scroll wheel (trackpad or mapped vertical wheel)
+    const bool hovered = rect_contains(tabs_viewport, ui->ui_ctx_bg.input.x, ui->ui_ctx_bg.input.y);
+    const float offset_before_scroll = group->tab_bar_scroll.offset_x;
     ui_scroll_end(&ui->ui_ctx_bg, tabs_viewport, &group->tab_bar_scroll, hovered);
 
-    // Also map vertical wheel to horizontal scroll — standard tab bar behavior for mice
+    // Map vertical wheel to horizontal scroll — standard tab bar behavior for mice
     if (hovered && ui->ui_ctx_bg.input.scroll_valid && ui->ui_ctx_bg.input.scroll_y != 0.0f) {
-        const float delta = ui->ui_ctx_bg.input.scroll_y * ui->ui_ctx_bg.scroll_speed;
-        float new_offset = group->tab_bar_scroll.offset_x - delta;
-        if (new_offset < 0.0f) {
-            new_offset = 0.0f;
+        float viewport_w = (float)tabs_viewport.w;
+        float content_w = group->tab_bar_scroll.content_w;
+        float max_x = content_w - viewport_w;
+        if (max_x > 0.0f) {
+            const float delta = ui->ui_ctx_bg.input.scroll_y * ui->ui_ctx_bg.scroll_speed;
+            group->tab_bar_scroll.offset_x = medit_clampf(
+                group->tab_bar_scroll.offset_x - delta,
+                0.0f,
+                max_x);
         }
-        if (new_offset > max_offset_x) {
-            new_offset = max_offset_x;
-        }
-        group->tab_bar_scroll.offset_x = new_offset;
+    }
+
+    if (group->tab_bar_scroll.offset_x != offset_before_scroll) {
+        ui->needs_redraw = true;
     }
 }
 
@@ -1173,19 +1178,25 @@ static void ui_sdl3_draw_file_view_group_tab_bar(SDL3Ui* ui, FileViewGroup* grou
         group->tab_bar_scroll.offset_x = max_offset_x;
     }
 
-    ui_sdl3_draw_tab_bar_tabs(ui, group, tabs_viewport, tab_bar.area, max_offset_x);
+    // ---- Render phase ----
+    ui_sdl3_draw_tab_bar_tabs(ui, group, tabs_viewport);
 
-    // Draw the horizontal scrollbar when tabs overflow the viewport
+    // Draw the horizontal scrollbar on top of the rendered tabs.
+    // The input update (drag/click) happens inside ui_scrollbar_h. If offset_x changed this frame,
+    // set needs_redraw so the main loop re-runs the build phase and tabs render with the new
+    // offset.
     if (overflow) {
-        // Transparent track so the tab background colors show through;
-        // semi-transparent thumb as an overlay on top
         static const Color track_transparent = { 0, 0, 0, 0 };
+        const float offset_before = group->tab_bar_scroll.offset_x;
         ui_scrollbar_h(
             &ui->ui_ctx_bg,
             scrollbar_track,
             &group->tab_bar_scroll,
             track_transparent,
             medit->config.color_theme.scrollbar_thumb);
+        if (group->tab_bar_scroll.offset_x != offset_before) {
+            ui->needs_redraw = true;
+        }
     }
 }
 
@@ -1311,7 +1322,17 @@ void medit_ui_sdl3_run(Meditor* medit)
 
     medit->running = true;
     while (medit->running) {
-        bool should_render = ui_sdl3_handle_event(&ui);
+        bool should_render = false;
+        if (ui.needs_redraw) {
+            // A previous frame detected a scroll state change; render immediately with the same
+            // input so the content catches up to the updated offset without waiting for a new
+            // event.
+            ui.needs_redraw = false;
+            should_render = true;
+            perf_counter_frame_begin(&ui.perf_counter);
+        } else {
+            should_render = ui_sdl3_handle_event(&ui);
+        }
         if (ui.editor_font_size != medit->config.editor_font_size) {
             ui_sdl3_unload_editor_font(&ui);
             ui_sdl3_load_editor_font(&ui);
