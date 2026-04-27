@@ -1,28 +1,10 @@
 #include <core/unicode.h>
 
+#include "test_utils.h"
+
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
-
-static int g_failures = 0;
-
-#define CHECK_EQ(a, b)                                                                             \
-    do {                                                                                           \
-        size_t _a = (size_t)(a);                                                                   \
-        size_t _b = (size_t)(b);                                                                   \
-        if (_a != _b) {                                                                            \
-            (void)fprintf(                                                                         \
-                stderr,                                                                            \
-                "%s:%d: FAIL  %s == %s  (%zu != %zu)\n",                                           \
-                __FILE__,                                                                          \
-                __LINE__,                                                                          \
-                #a,                                                                                \
-                #b,                                                                                \
-                _a,                                                                                \
-                _b);                                                                               \
-            ++g_failures;                                                                          \
-        }                                                                                          \
-    } while (0)
 
 static const char* word_kind_name(UcWordKind k)
 {

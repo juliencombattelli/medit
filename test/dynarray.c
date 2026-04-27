@@ -1,5 +1,7 @@
 #include <core/dynarray.h>
 
+#include "test_utils.h"
+
 typedef struct {
     int* items;
     unsigned count;
@@ -12,11 +14,11 @@ int main(void)
 
     for (int i = 0; i < 5; ++i) {
         dynarray_append(&ints, i);
-        assert(ints.items[i] == i);
+        CHECK_EQ(ints.items[i], i);
     }
 
     for (int i = 0; i < 5; ++i) {
-        assert(ints.items[i] == i);
+        CHECK_EQ(ints.items[i], i);
     }
 
     dynarray_remove(&ints, 1);
@@ -25,17 +27,18 @@ int main(void)
         printf("%d,", *i);
     }
     printf("\n");
-    assert(ints.count == 4);
-    assert(ints.items[0] == 0);
-    assert(ints.items[1] == 2);
-    assert(ints.items[2] == 3);
-    assert(ints.items[3] == 4);
+    CHECK_EQ(ints.count, 4u);
+    CHECK_EQ(ints.items[0], 0);
+    CHECK_EQ(ints.items[1], 2);
+    CHECK_EQ(ints.items[2], 3);
+    CHECK_EQ(ints.items[3], 4);
 
     dynarray_remove(&ints, 3);
-    assert(ints.count == 3);
-    assert(ints.items[0] == 0);
-    assert(ints.items[1] == 2);
-    assert(ints.items[2] == 3);
+    CHECK_EQ(ints.count, 3u);
+    CHECK_EQ(ints.items[0], 0);
+    CHECK_EQ(ints.items[1], 2);
+    CHECK_EQ(ints.items[2], 3);
 
     dynarray_free(ints);
+    return g_failures != 0;
 }
