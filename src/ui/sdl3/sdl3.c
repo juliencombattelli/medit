@@ -792,6 +792,8 @@ static void ui_sdl3_draw_status_bar_text(SDL3Ui* ui)
                   .h = status_bar->area.h },
         .color = ui->medit->config.color_theme.editor_fg,
         .text = status_text,
+        .text_x = (ptrdiff_t)text_x,
+        .text_y = (ptrdiff_t)text_y,
     };
     dynarray_append(&ui->ui_draw_list_bg, text_cmd);
 }
@@ -865,7 +867,7 @@ static void ui_sdl3_flush_draw_list(SDL3Ui* ui, const UiDrawCmdList* list)
                     cmd->text,
                     strlen(cmd->text),
                     &ui->font_editor,
-                    (PixelPos) { .x = (int)cmd->rect.x, .y = (int)cmd->rect.y },
+                    (PixelPos) { .x = (int)cmd->text_x, .y = (int)cmd->text_y },
                     cmd->color);
             } break;
             case UI_CMD_CLIP_PUSH: {
@@ -876,17 +878,29 @@ static void ui_sdl3_flush_draw_list(SDL3Ui* ui, const UiDrawCmdList* list)
                 SDL_SetRenderClipRect(ui->renderer, NULL);
             } break;
             case UI_CMD_SCROLLBAR: {
-                float track_len = (float)cmd->rect.h;
-                float thumb_h = cmd->thumb_ratio * track_len;
                 SDL_FRect track = rect_to_sdl_frect(cmd->rect);
                 SDL_SetRenderDrawColor(ui->renderer, color_to_RGBA_args(cmd->color));
                 SDL_RenderFillRect(ui->renderer, &track);
-                SDL_FRect thumb = {
-                    .x = track.x,
-                    .y = track.y + (cmd->scroll_pos * (track_len - thumb_h)),
-                    .w = track.w,
-                    .h = thumb_h,
-                };
+                SDL_FRect thumb;
+                if (cmd->is_horizontal) {
+                    float track_w = (float)cmd->rect.w;
+                    float thumb_w = cmd->thumb_ratio * track_w;
+                    thumb = (SDL_FRect) {
+                        .x = track.x + (cmd->scroll_pos * (track_w - thumb_w)),
+                        .y = track.y,
+                        .w = thumb_w,
+                        .h = track.h,
+                    };
+                } else {
+                    float track_h = (float)cmd->rect.h;
+                    float thumb_h = cmd->thumb_ratio * track_h;
+                    thumb = (SDL_FRect) {
+                        .x = track.x,
+                        .y = track.y + (cmd->scroll_pos * (track_h - thumb_h)),
+                        .w = track.w,
+                        .h = thumb_h,
+                    };
+                }
                 SDL_SetRenderDrawColor(ui->renderer, color_to_RGBA_args(cmd->thumb_color));
                 SDL_RenderFillRect(ui->renderer, &thumb);
             } break;
@@ -1021,6 +1035,100 @@ static void ui_sdl3_format_file_view_tab_text(
     tab_text->width = int_to_size(w);
 }
 
+static void ui_sdl3_draw_tab_bar_tabs(
+    SDL3Ui* ui,
+    FileViewGroup* group,
+    Rect tabs_viewport,
+    Rect hover_rect,
+    float max_offset_x)
+{
+    const LayoutSizes s = ui->layout.sizes;
+
+    // Push clip rect; origin_x gives the true signed content origin even when
+    // the scroll offset exceeds tabs_viewport.x (where Rect.x would saturate to 0)
+    UiScrollContent sc = ui_scroll_begin(&ui->ui_ctx_bg, tabs_viewport, &group->tab_bar_scroll);
+    ptrdiff_t cursor_x = sc.origin_x;
+    const int font_h = TTF_GetFontHeight(ui->font_editor.main);
+
+    for (size_t i = 0; i < group->count; ++i) {
+        FileView* file_view = &group->items[i];
+        FileViewTabText tab_text = { 0 };
+        ui_sdl3_format_file_view_tab_text(ui, file_view, &tab_text);
+        const ptrdiff_t tab_w = (ptrdiff_t)SDL_max(tab_text.width, 128);
+        const ptrdiff_t tab_right = cursor_x + tab_w;
+
+        // Skip tabs fully off-screen to the left
+        if (tab_right <= (ptrdiff_t)tabs_viewport.x) {
+            cursor_x = tab_right + (ptrdiff_t)s.separator_size;
+            continue;
+        }
+        // Stop when fully off-screen to the right
+        if (cursor_x >= (ptrdiff_t)(tabs_viewport.x + tabs_viewport.w)) {
+            break;
+        }
+
+        // Clamp x to 0 for the Rect; the clip rect handles the visible boundary
+        Rect tab_area = {
+            .x = (cursor_x >= 0) ? (size_t)cursor_x : 0,
+            .y = tabs_viewport.y,
+            .w = (size_t)tab_w,
+            .h = tabs_viewport.h,
+        };
+        const Color tab_color = i == group->displayed ? ui->medit->config.color_theme.editor_bg
+                                                      : ui->medit->config.color_theme.tab_bar_bg;
+        ui_panel(&ui->ui_ctx_bg, tab_area, tab_color);
+
+        if (s.separator_size > 0 && i + 1 < group->count) {
+            Rect sep_area = {
+                .x = (tab_right >= 0) ? (size_t)tab_right : 0,
+                .y = tabs_viewport.y,
+                .w = s.separator_size,
+                .h = tabs_viewport.h,
+            };
+            ui_panel(&ui->ui_ctx_bg, sep_area, ui->medit->config.color_theme.panel_border);
+        }
+
+        const int tab_text_y = size_to_int(tabs_viewport.y)
+            + ((size_to_int(tabs_viewport.h) - font_h) / 2);
+        const char* tab_label = ui_sdl3_arena_str(ui, tab_text.content, tab_text.length);
+        if (tab_label) {
+            UiDrawCmd cmd = {
+                .kind = UI_CMD_TEXT,
+                .rect = {
+                    .x = tab_area.x,
+                    .y = int_to_size(tab_text_y),
+                    .w = tab_area.w,
+                    .h = tab_area.h,
+                },
+                .color = ui->medit->config.color_theme.editor_fg,
+                .text = tab_label,
+                .text_x = cursor_x, // may be negative for partially-visible left-edge tabs
+                .text_y = tab_text_y,
+            };
+            dynarray_append(&ui->ui_draw_list_bg, cmd);
+        }
+
+        cursor_x = tab_right + (ptrdiff_t)s.separator_size;
+    }
+
+    // Pop clip rect and apply trackpad / horizontal-wheel delta to offset_x
+    const bool hovered = rect_contains(hover_rect, ui->ui_ctx_bg.input.x, ui->ui_ctx_bg.input.y);
+    ui_scroll_end(&ui->ui_ctx_bg, tabs_viewport, &group->tab_bar_scroll, hovered);
+
+    // Also map vertical wheel to horizontal scroll — standard tab bar behavior for mice
+    if (hovered && ui->ui_ctx_bg.input.scroll_valid && ui->ui_ctx_bg.input.scroll_y != 0.0f) {
+        const float delta = ui->ui_ctx_bg.input.scroll_y * ui->ui_ctx_bg.scroll_speed;
+        float new_offset = group->tab_bar_scroll.offset_x - delta;
+        if (new_offset < 0.0f) {
+            new_offset = 0.0f;
+        }
+        if (new_offset > max_offset_x) {
+            new_offset = max_offset_x;
+        }
+        group->tab_bar_scroll.offset_x = new_offset;
+    }
+}
+
 static void ui_sdl3_draw_file_view_group_tab_bar(SDL3Ui* ui, FileViewGroup* group)
 {
     Meditor* medit = ui->medit;
@@ -1029,32 +1137,50 @@ static void ui_sdl3_draw_file_view_group_tab_bar(SDL3Ui* ui, FileViewGroup* grou
     Panel tab_bar = panel_cut_top(&tab_bar_area, s.tab_bar_height, s.separator_size);
     ui_sdl3_draw_panel(ui, tab_bar, medit->config.color_theme.tab_bar_bg);
 
-    Panel tab = { .area = tab_bar.area };
-    Rect remaining = tab_bar.area;
+    // First pass: compute total pixel width of all tabs and their separators
+    size_t total_tabs_w = 0;
     for (size_t i = 0; i < group->count; ++i) {
-        FileView* file_view = &group->items[i];
         FileViewTabText tab_text = { 0 };
-        ui_sdl3_format_file_view_tab_text(ui, file_view, &tab_text);
-        tab = panel_cut_left(&remaining, SDL_max(tab_text.width, 128), s.separator_size);
-        const Color tab_color = i == group->displayed ? medit->config.color_theme.editor_bg
-                                                      : medit->config.color_theme.tab_bar_bg;
-        ui_sdl3_draw_panel(ui, tab, tab_color);
-
-        int font_h = TTF_GetFontHeight(ui->font_editor.main);
-        int tab_text_y = size_to_int(tab.area.y) + ((size_to_int(tab.area.h) - font_h) / 2);
-        const char* tab_label = ui_sdl3_arena_str(ui, tab_text.content, tab_text.length);
-        if (tab_label) {
-            UiDrawCmd tab_text_cmd = {
-                .kind = UI_CMD_TEXT,
-                .rect = { .x = tab.area.x,
-                          .y = int_to_size(tab_text_y),
-                          .w = tab.area.w,
-                          .h = tab.area.h },
-                .color = ui->medit->config.color_theme.editor_fg,
-                .text = tab_label,
-            };
-            dynarray_append(&ui->ui_draw_list_bg, tab_text_cmd);
+        ui_sdl3_format_file_view_tab_text(ui, &group->items[i], &tab_text);
+        total_tabs_w += SDL_max(tab_text.width, 128);
+        if (i + 1 < group->count) {
+            total_tabs_w += s.separator_size;
         }
+    }
+
+    const bool overflow = total_tabs_w > tab_bar.area.w;
+
+    // Reserve a thin strip at the bottom for the scrollbar when tabs overflow
+    enum {
+        TAB_SCROLLBAR_H = 6
+    };
+    Rect tabs_viewport = tab_bar.area;
+    Rect scrollbar_track = { 0 };
+    if (overflow) {
+        scrollbar_track = rect_cut_bottom(&tabs_viewport, TAB_SCROLLBAR_H);
+    }
+
+    // Keep scroll state dimensions current and clamp offset to [0, max]
+    group->tab_bar_scroll.content_w = (float)total_tabs_w;
+    group->tab_bar_scroll.content_h = (float)tabs_viewport.h;
+    const float max_offset_x = overflow ? (float)total_tabs_w - (float)tabs_viewport.w : 0.0f;
+    if (group->tab_bar_scroll.offset_x < 0.0f) {
+        group->tab_bar_scroll.offset_x = 0.0f;
+    }
+    if (group->tab_bar_scroll.offset_x > max_offset_x) {
+        group->tab_bar_scroll.offset_x = max_offset_x;
+    }
+
+    ui_sdl3_draw_tab_bar_tabs(ui, group, tabs_viewport, tab_bar.area, max_offset_x);
+
+    // Draw the horizontal scrollbar when tabs overflow the viewport
+    if (overflow) {
+        ui_scrollbar_h(
+            &ui->ui_ctx_bg,
+            scrollbar_track,
+            &group->tab_bar_scroll,
+            medit->config.color_theme.tab_bar_bg,
+            medit->config.color_theme.panel_border);
     }
 }
 

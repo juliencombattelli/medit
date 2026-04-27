@@ -134,6 +134,8 @@ UiWidgetState ui_button(
             .rect = rect,
             .color = label_color,
             .text = label,
+            .text_x = (ptrdiff_t)rect.x,
+            .text_y = (ptrdiff_t)rect.y,
         };
         draw_cmd_list_push(ctx->draw_list, text_label);
     }
@@ -332,13 +334,14 @@ UiWidgetState ui_scrollbar_h(
         .thumb_color = thumb_color,
         .scroll_pos = scroll_pos,
         .thumb_ratio = thumb_ratio,
+        .is_horizontal = true,
     };
     draw_cmd_list_push(ctx->draw_list, scrollbar);
 
     return state;
 }
 
-Rect ui_scroll_begin(UiCtx* ctx, Rect viewport, UiScrollState* scroll_state)
+UiScrollContent ui_scroll_begin(UiCtx* ctx, Rect viewport, UiScrollState* scroll_state)
 {
     UiDrawCmd clip = {
         .kind = UI_CMD_CLIP_PUSH,
@@ -346,22 +349,23 @@ Rect ui_scroll_begin(UiCtx* ctx, Rect viewport, UiScrollState* scroll_state)
     };
     draw_cmd_list_push(ctx->draw_list, clip);
 
-    // Return a content rect whose origin is shifted by the scroll offset
-    // Widgets laid out relative to this rect will be clipped to viewport
-    Rect content = viewport;
+    // Clamp offsets to valid content range
     size_t ox = (size_t)clampf(scroll_state->offset_x, 0.0f, scroll_state->content_w);
     size_t oy = (size_t)clampf(scroll_state->offset_y, 0.0f, scroll_state->content_h);
 
-    // Subtract offset: content origin moves up/left so content appears scrolled
-    content.x = viewport.x - ox;
-    content.y = viewport.y - oy;
+    // Compute the true (possibly negative) content origin in screen space
+    ptrdiff_t origin_x = (ptrdiff_t)viewport.x - (ptrdiff_t)ox;
+    ptrdiff_t origin_y = (ptrdiff_t)viewport.y - (ptrdiff_t)oy;
 
-    // Width/height here represent the remaining space for layout cuts
-    // Set to content dimensions so callers can cut the full content height
+    // Build the safe content Rect: x/y are saturated to 0 so size_t never wraps on underflow.
+    // Callers whose scroll offset can exceed viewport.x/y must use origin_x/y instead.
+    Rect content = viewport;
+    content.x = (origin_x >= 0) ? (size_t)origin_x : 0;
+    content.y = (origin_y >= 0) ? (size_t)origin_y : 0;
     content.w = (scroll_state->content_w > 0.0f) ? (size_t)scroll_state->content_w : viewport.w;
     content.h = (scroll_state->content_h > 0.0f) ? (size_t)scroll_state->content_h : viewport.h;
 
-    return content;
+    return (UiScrollContent) { .rect = content, .origin_x = origin_x, .origin_y = origin_y };
 }
 
 void ui_scroll_end(UiCtx* ctx, Rect viewport, UiScrollState* scroll_state, bool hovered)

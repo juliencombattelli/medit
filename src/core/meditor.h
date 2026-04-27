@@ -5,6 +5,7 @@
 #include "color.h"
 #include "keybind.h"
 #include "rect.h"
+#include "ui.h"
 
 #include <stdbool.h>
 
@@ -79,6 +80,7 @@ typedef struct {
     size_t displayed;
     Rect area; // area covered by the group on screen (including tab bar)
     Rect content_area; // area for editor content (area minus tab bar)
+    UiScrollState tab_bar_scroll; // horizontal scroll state for the tab bar
 } FileViewGroup;
 
 typedef struct {
