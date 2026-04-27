@@ -6,7 +6,7 @@ project(Medit C)
 ################################################################################
 
 # Address sanitizer
-# AUTO enable ASan only in Debug and RelWithDebInfo
+# AUTO enables ASan only in Debug and RelWithDebInfo
 set(MEDIT_ENABLE_ASAN "AUTO" CACHE STRING "Enable sanitizers (AUTO, ON, OFF)")
 set_property(CACHE MEDIT_ENABLE_ASAN PROPERTY STRINGS AUTO ON OFF)
 
@@ -169,7 +169,13 @@ target_link_options(test_string_view PRIVATE ${LINK_OPTIONS})
 target_include_directories(test_string_view PRIVATE src)
 add_test(NAME StringView COMMAND test_string_view)
 
-# Sanitizers are not supported by all toolchains (especially MinGW), so check if it works.
+install(
+    TARGETS
+        test_dynarray test_layout test_unicode test_string_view
+    RUNTIME DESTINATION ./test
+)
+
+# Sanitizers are not supported by all toolchains (especially MinGW), so check if it works
 include(cmake/Modules/CheckAddressSanitizerSupported.cmake)
 check_asan_supported(
     RESULT HAVE_ASAN
