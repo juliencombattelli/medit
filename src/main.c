@@ -17,6 +17,7 @@ int main(int argc, char** argv)
         .tab_bar_bg = color_from_u32(0x181818FF),
         .bottom_panel_bg = color_from_u32(0x181818FF),
         .panel_border = color_from_u32(0x2B2B2BFF),
+        .scrollbar_thumb = color_from_u32(0x7F7F7F7F),
     };
 
     MEDIT_UNUSED(argc), MEDIT_UNUSED(argv);

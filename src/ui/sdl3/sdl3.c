@@ -878,6 +878,7 @@ static void ui_sdl3_flush_draw_list(SDL3Ui* ui, const UiDrawCmdList* list)
                 SDL_SetRenderClipRect(ui->renderer, NULL);
             } break;
             case UI_CMD_SCROLLBAR: {
+                SDL_SetRenderDrawBlendMode(ui->renderer, SDL_BLENDMODE_BLEND);
                 SDL_FRect track = rect_to_sdl_frect(cmd->rect);
                 SDL_SetRenderDrawColor(ui->renderer, color_to_RGBA_args(cmd->color));
                 SDL_RenderFillRect(ui->renderer, &track);
@@ -903,6 +904,7 @@ static void ui_sdl3_flush_draw_list(SDL3Ui* ui, const UiDrawCmdList* list)
                 }
                 SDL_SetRenderDrawColor(ui->renderer, color_to_RGBA_args(cmd->thumb_color));
                 SDL_RenderFillRect(ui->renderer, &thumb);
+                SDL_SetRenderDrawBlendMode(ui->renderer, SDL_BLENDMODE_NONE);
             } break;
         }
     }
@@ -1150,15 +1152,20 @@ static void ui_sdl3_draw_file_view_group_tab_bar(SDL3Ui* ui, FileViewGroup* grou
 
     const bool overflow = total_tabs_w > tab_bar.area.w;
 
-    // Reserve a thin strip at the bottom for the scrollbar when tabs overflow
+    // Reserve a thin strip at the bottom for the scrollbar.
+    // tabs_viewport covers the FULL tab bar height so tab backgrounds fill the strip correctly.
+    // scrollbar_track is computed independently as the bottom TAB_SCROLLBAR_H pixels.
+    // When overflow is true the scrollbar is drawn on top of the tab backgrounds in that strip.
     enum {
         TAB_SCROLLBAR_H = 6
     };
     Rect tabs_viewport = tab_bar.area;
-    Rect scrollbar_track = { 0 };
-    if (overflow) {
-        scrollbar_track = rect_cut_bottom(&tabs_viewport, TAB_SCROLLBAR_H);
-    }
+    Rect scrollbar_track = {
+        .x = tab_bar.area.x,
+        .y = tab_bar.area.y + tab_bar.area.h - TAB_SCROLLBAR_H,
+        .w = tab_bar.area.w,
+        .h = TAB_SCROLLBAR_H,
+    };
 
     // Keep scroll state dimensions current and clamp offset to [0, max]
     group->tab_bar_scroll.content_w = (float)total_tabs_w;
@@ -1175,12 +1182,15 @@ static void ui_sdl3_draw_file_view_group_tab_bar(SDL3Ui* ui, FileViewGroup* grou
 
     // Draw the horizontal scrollbar when tabs overflow the viewport
     if (overflow) {
+        // Transparent track so the tab background colors show through;
+        // semi-transparent thumb as an overlay on top
+        static const Color track_transparent = { 0, 0, 0, 0 };
         ui_scrollbar_h(
             &ui->ui_ctx_bg,
             scrollbar_track,
             &group->tab_bar_scroll,
-            medit->config.color_theme.tab_bar_bg,
-            medit->config.color_theme.panel_border);
+            track_transparent,
+            medit->config.color_theme.scrollbar_thumb);
     }
 }
 
