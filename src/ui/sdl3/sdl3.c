@@ -1080,7 +1080,7 @@ static void ui_sdl3_draw_tab_bar_tabs(
                                                       : ui->medit->config.color_theme.tab_bar_bg;
         ui_panel(&ui->ui_ctx_bg, tab_area, tab_color);
 
-        if (s.separator_size > 0 && i + 1 < group->count) {
+        if (s.separator_size > 0) {
             Rect sep_area = {
                 .x = (tab_right >= 0) ? (size_t)tab_right : 0,
                 .y = tabs_viewport.y,
@@ -1144,10 +1144,7 @@ static void ui_sdl3_draw_file_view_group_tab_bar(SDL3Ui* ui, FileViewGroup* grou
     for (size_t i = 0; i < group->count; ++i) {
         FileViewTabText tab_text = { 0 };
         ui_sdl3_format_file_view_tab_text(ui, &group->items[i], &tab_text);
-        total_tabs_w += SDL_max(tab_text.width, 128);
-        if (i + 1 < group->count) {
-            total_tabs_w += s.separator_size;
-        }
+        total_tabs_w += SDL_max(tab_text.width, 128) + s.separator_size;
     }
 
     const bool overflow = total_tabs_w > tab_bar.area.w;
