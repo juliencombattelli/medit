@@ -462,6 +462,16 @@ void medit_save_file(Meditor* medit)
     medit_file_view_file(medit, file_view)->dirty = false;
 }
 
+void medit_close_file(File* file)
+{
+    dynarray_foreach(Line, line, &file->lines)
+    {
+        dynarray_free(*line);
+    }
+    dynarray_free(file->lines);
+    free((void*)file->name);
+}
+
 void medit_close_files(Meditor* medit)
 {
     dynarray_foreach(FileViewGroup, group, &medit->file_views)
@@ -476,11 +486,7 @@ void medit_close_files(Meditor* medit)
 
     dynarray_foreach(File, file, &medit->opened_files)
     {
-        dynarray_foreach(Line, line, &file->lines)
-        {
-            dynarray_free(*line);
-        }
-        dynarray_free(file->lines);
+        medit_close_file(file);
     }
     dynarray_free(medit->opened_files);
 }
