@@ -99,31 +99,43 @@ UiWidgetState ui_button(
     const char* label,
     Color label_color);
 
-// Vertical scrollbar - emits UI_CMD_SCROLLBAR
-// Handles click-on-track to jump and drag-to-scroll on the thumb
-// Updates scroll_state->offset_y on interaction
-// Returns a bitmask UiWidgetState flags
-// NOTE: pass left_clicked=true for the single frame the mouse button is released so drag state is
-//       cleared correctly
-UiWidgetState ui_scrollbar_v(
-    UiCtx* ctx,
-    Rect track,
-    UiScrollState* scroll_state,
-    Color track_color,
-    Color thumb_color);
-
-// Horizontal scrollbar - mirror of ui_scrollbar_v for offset_x
-UiWidgetState ui_scrollbar_h(
-    UiCtx* ctx,
-    Rect track,
-    UiScrollState* scroll_state,
-    Color track_color,
-    Color thumb_color);
+// Scrolling API general usage (when z-order doesn't matter, e.g. scrollbar beside content):
+//
+//   scroll_state.content_w = total_content_width;
+//   scroll_state.content_h = total_content_height;
+//   ui_scrollbar_v(&ctx, scrollbar_rect, &scroll_state, track_color, thumb_color);
+//   Rect content = ui_scroll_begin(&ctx, viewport, &scroll_state);
+//   ... draw child widgets using content.x / content.y as origin ...
+//   ui_scroll_end(&ctx, viewport, &scroll_state, hovered);
+//
+// The scrollbar is placed outside the viewport so it never overlaps content — z-order is fine
+// even though input and draw happen before ui_scroll_begin.
+//
+// NOTE about scroll widget z-ordering:
+//
+// Scrollbars can be drawn on top of (i.e. overlapping) the scrollable content - so the scrollbar
+// draw call must come AFTER the content elements in the draw sequence. However, the scrollbar also
+// processes user input to update the scroll offset, and the scrollable content must use that
+// updated offset to render at the correct position. This creates a conflict:
+// - if you call ui_scrollbar_{v,h} (input + draw) BEFORE the content, the thumb renders under the
+//   content (wrong z-order) but the offset is fresh
+// - if you call ui_scrollbar_{v,h} AFTER the content, the thumb overlays correctly but the content
+//   was rendered with the previous frame's offset (one-frame lag)
+//
+// To resolve this, use the split API:
+// - ui_scrollbar_{v,h}_update  <- call BEFORE ui_scroll_begin (processes input, no draw)
+// - ui_scroll_begin
+// - ... draw child widgets ...
+// - ui_scroll_end
+// - ui_scrollbar_{v,h}_draw    <- call AFTER ui_scroll_end (emits draw command, no input)
+//
+// This way the content and the thumb both use the same up-to-date offset within the same frame,
+// and the thumb is drawn on top.
 
 // Begin a scrollable region
 // Pushes a clip rect matching viewport, then returns the inner content rect whose origin is offset
 // by scroll_state so child widgets lay out in content-space coordinates.
-// With int32_t coordinates, rect.x/y can be negative — no saturation needed.
+// With int32_t coordinates, rect.x/y can be negative - no saturation needed.
 Rect ui_scroll_begin(UiCtx* ctx, Rect viewport, UiScrollState* scroll_state);
 
 // End a scrollable region
@@ -131,5 +143,57 @@ Rect ui_scroll_begin(UiCtx* ctx, Rect viewport, UiScrollState* scroll_state);
 // NOTE: scroll_state->content_w / content_h must be set by the caller before this call so clamping
 //       works correctly
 void ui_scroll_end(UiCtx* ctx, Rect viewport, UiScrollState* scroll_state, bool hovered);
+
+// Vertical scrollbar - input phase only (no draw command emitted).
+// Updates scroll_state->offset_y from drag and click-on-track interactions.
+// Call this BEFORE ui_scroll_begin so the scrollable content renders with the fresh offset.
+// Returns a bitmask of UiWidgetState flags.
+UiWidgetState ui_scrollbar_v_update(UiCtx* ctx, Rect track, UiScrollState* scroll_state);
+
+// Vertical scrollbar - draw phase only (no input processing).
+// Emits UI_CMD_SCROLLBAR using the current offset_y.
+// Call this AFTER drawing the scrollable content so the thumb overlays it correctly.
+void ui_scrollbar_v_draw(
+    UiCtx* ctx,
+    Rect track,
+    UiScrollState* scroll_state,
+    Color track_color,
+    Color thumb_color);
+
+// Vertical scrollbar - combined convenience wrapper (input + draw in one call).
+// Handles click-on-track to jump and drag-to-scroll on the thumb.
+// Updates scroll_state->offset_y on interaction.
+// Returns a bitmask of UiWidgetState flags.
+UiWidgetState ui_scrollbar_v(
+    UiCtx* ctx,
+    Rect track,
+    UiScrollState* scroll_state,
+    Color track_color,
+    Color thumb_color);
+
+// Horizontal scrollbar - input phase only (no draw command emitted)
+// Updates scroll_state->offset_x from drag and click-on-track interactions
+// Call this BEFORE ui_scroll_begin so the scrollable content renders with the fresh offset.
+// Returns a bitmask of UiWidgetState flags.
+UiWidgetState ui_scrollbar_h_update(UiCtx* ctx, Rect track, UiScrollState* scroll_state);
+
+// Horizontal scrollbar - draw phase only (no input processing).
+// Emits UI_CMD_SCROLLBAR using the current offset_x.
+// Call this AFTER drawing the scrollable content so the thumb overlays it correctly.
+void ui_scrollbar_h_draw(
+    UiCtx* ctx,
+    Rect track,
+    UiScrollState* scroll_state,
+    Color track_color,
+    Color thumb_color);
+
+// Horizontal scrollbar - combined convenience wrapper (input + draw in one call).
+// Use when z-ordering relative to the scrollable content doesn't matter.
+UiWidgetState ui_scrollbar_h(
+    UiCtx* ctx,
+    Rect track,
+    UiScrollState* scroll_state,
+    Color track_color,
+    Color thumb_color);
 
 #endif // MEDIT_CORE_UI_H_

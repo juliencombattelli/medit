@@ -131,12 +131,7 @@ UiWidgetState ui_button(
     return state;
 }
 
-UiWidgetState ui_scrollbar_v(
-    UiCtx* ctx,
-    Rect track,
-    UiScrollState* scroll_state,
-    Color track_color,
-    Color thumb_color)
+UiWidgetState ui_scrollbar_v_update(UiCtx* ctx, Rect track, UiScrollState* scroll_state)
 {
     float viewport_h = (float)track.h;
     float content_h = scroll_state->content_h;
@@ -152,7 +147,6 @@ UiWidgetState ui_scrollbar_v(
         &scroll_pos,
         &thumb_ratio);
 
-    // Thumb geometry in UI-dependent coordinates
     float thumb_h = thumb_ratio * viewport_h;
     float thumb_y = (float)track.y + (scroll_pos * (viewport_h - thumb_h));
     Rect thumb_rect = {
@@ -176,15 +170,13 @@ UiWidgetState ui_scrollbar_v(
         state |= UI_STATE_CLICKED;
     }
 
-    // Drag start: mouse pressed on the thumb this frame
     if (ctx->input.left_down && mouse_on_thumb && !scroll_state->drag_active_v
-        && !ctx->input.left_clicked /* not a release frame */) {
+        && !ctx->input.left_clicked) {
         scroll_state->drag_active_v = true;
         scroll_state->drag_start_mouse = ctx->input.y;
         scroll_state->drag_start_offset = scroll_state->offset_y;
     }
 
-    // Continue drag
     if (scroll_state->drag_active_v) {
         if (ctx->input.left_down) {
             float delta_px = (float)(ctx->input.y - scroll_state->drag_start_mouse);
@@ -195,11 +187,9 @@ UiWidgetState ui_scrollbar_v(
                 scroll_state->offset_y = medit_clampf(new_offset, 0.0f, max_offset);
             }
         } else {
-            // Button released - end drag
             scroll_state->drag_active_v = false;
         }
     } else if ((state & UI_STATE_PRESSED) && !mouse_on_thumb) {
-        // Click on track outside thumb - jump
         float rel = ((float)ctx->input.y - (float)track.y - (thumb_h / 2.f))
             / (viewport_h - thumb_h);
         rel = medit_clampf(rel, 0.0f, 1.0f);
@@ -208,7 +198,21 @@ UiWidgetState ui_scrollbar_v(
         }
     }
 
-    // Recompute for draw command after potential offset change
+    return state;
+}
+
+void ui_scrollbar_v_draw(
+    UiCtx* ctx,
+    Rect track,
+    UiScrollState* scroll_state,
+    Color track_color,
+    Color thumb_color)
+{
+    float viewport_h = (float)track.h;
+    float content_h = scroll_state->content_h;
+
+    float thumb_ratio = 0.f;
+    float scroll_pos = 0.f;
     scrollbar_geometry(
         scroll_state->offset_y,
         content_h,
@@ -226,16 +230,21 @@ UiWidgetState ui_scrollbar_v(
         .thumb_ratio = thumb_ratio,
     };
     draw_cmd_list_push(ctx->draw_list, scrollbar);
-
-    return state;
 }
 
-UiWidgetState ui_scrollbar_h(
+UiWidgetState ui_scrollbar_v(
     UiCtx* ctx,
     Rect track,
     UiScrollState* scroll_state,
     Color track_color,
     Color thumb_color)
+{
+    UiWidgetState state = ui_scrollbar_v_update(ctx, track, scroll_state);
+    ui_scrollbar_v_draw(ctx, track, scroll_state, track_color, thumb_color);
+    return state;
+}
+
+UiWidgetState ui_scrollbar_h_update(UiCtx* ctx, Rect track, UiScrollState* scroll_state)
 {
     float viewport_w = (float)track.w;
     float content_w = scroll_state->content_w;
@@ -305,7 +314,21 @@ UiWidgetState ui_scrollbar_h(
         }
     }
 
-    // Recompute for draw command after potential offset change
+    return state;
+}
+
+void ui_scrollbar_h_draw(
+    UiCtx* ctx,
+    Rect track,
+    UiScrollState* scroll_state,
+    Color track_color,
+    Color thumb_color)
+{
+    float viewport_w = (float)track.w;
+    float content_w = scroll_state->content_w;
+
+    float thumb_ratio = 0.f;
+    float scroll_pos = 0.f;
     scrollbar_geometry(
         scroll_state->offset_x,
         content_w,
@@ -324,7 +347,17 @@ UiWidgetState ui_scrollbar_h(
         .is_horizontal = true,
     };
     draw_cmd_list_push(ctx->draw_list, scrollbar);
+}
 
+UiWidgetState ui_scrollbar_h(
+    UiCtx* ctx,
+    Rect track,
+    UiScrollState* scroll_state,
+    Color track_color,
+    Color thumb_color)
+{
+    UiWidgetState state = ui_scrollbar_h_update(ctx, track, scroll_state);
+    ui_scrollbar_h_draw(ctx, track, scroll_state, track_color, thumb_color);
     return state;
 }
 
@@ -336,7 +369,6 @@ Rect ui_scroll_begin(UiCtx* ctx, Rect viewport, UiScrollState* scroll_state)
     };
     draw_cmd_list_push(ctx->draw_list, clip);
 
-    // With int32_t coordinates, subtraction is naturally signed — no saturation needed.
     int32_t ox = float_to_i32(medit_clampf(scroll_state->offset_x, 0.0f, scroll_state->content_w));
     int32_t oy = float_to_i32(medit_clampf(scroll_state->offset_y, 0.0f, scroll_state->content_h));
 
