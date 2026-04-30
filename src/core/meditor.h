@@ -140,6 +140,7 @@ typedef struct {
     Color bottom_panel_bg;
     Color panel_border;
     Color scrollbar_thumb;
+    Color scrollbar_thumb_scroll_area_hovered;
     Color scrollbar_thumb_hovered;
 } ColorTheme;
 
