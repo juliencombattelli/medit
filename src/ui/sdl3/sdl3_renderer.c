@@ -64,6 +64,10 @@ void ui_sdl3_draw_frame_begin(SDL3Ui* ui)
         },
     };
 
+    if (ui->ui_mouse_was_down && !is_down) {
+        ui->ui_scrollbar_dragged = false;
+    }
+
     ui->ui_scroll_delta_x = 0;
     ui->ui_scroll_delta_y = 0;
     ui->ui_scroll_valid = false;

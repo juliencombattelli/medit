@@ -164,12 +164,17 @@ static void ui_sdl3_draw_file_view_group_tab_bar(SDL3Ui* ui, FileViewGroup* grou
         }
     }
 
+    const bool no_scrollbar_dragged = !ui->ui_scrollbar_dragged;
+    const bool current_scrollbar_dragged = ui->ui_scrollbar_dragged
+        && group->tab_bar_scroll.drag_active_h;
+
     UiWidgetState scrollbar_state = { 0 };
-    if (overflow) {
+    if (overflow && (no_scrollbar_dragged || current_scrollbar_dragged)) {
         scrollbar_state = ui_scrollbar_h_update(
             &ui->ui_ctx_bg,
             scrollbar_track,
             &group->tab_bar_scroll);
+        ui->ui_scrollbar_dragged = group->tab_bar_scroll.drag_active_h;
     }
 
     ui_sdl3_draw_tab_bar_tabs(ui, group, tabs_viewport);
@@ -177,10 +182,10 @@ static void ui_sdl3_draw_file_view_group_tab_bar(SDL3Ui* ui, FileViewGroup* grou
     if (overflow) {
         const Color track_transparent = { 0, 0, 0, 0 };
         Color thumb_color = medit->config.color_theme.scrollbar_thumb;
-        if (hovered) {
+        if (hovered && no_scrollbar_dragged) {
             thumb_color = medit->config.color_theme.scrollbar_thumb_scroll_area_hovered;
         }
-        if (scrollbar_state & UI_STATE_HOVERED || group->tab_bar_scroll.drag_active_h) {
+        if (scrollbar_state & UI_STATE_HOVERED || current_scrollbar_dragged) {
             thumb_color = medit->config.color_theme.scrollbar_thumb_hovered;
         }
         ui_scrollbar_h_draw(

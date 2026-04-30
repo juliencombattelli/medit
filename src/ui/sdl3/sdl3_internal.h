@@ -87,6 +87,7 @@ typedef struct {
     float ui_scroll_delta_x;
     float ui_scroll_delta_y;
     bool ui_scroll_valid;
+    bool ui_scrollbar_dragged; // Whether a scrollbar is being dragged in the whole UI
     // Mouse state from previous frame, to detect clicks (press+release)
     bool ui_mouse_was_down;
 } SDL3Ui;
