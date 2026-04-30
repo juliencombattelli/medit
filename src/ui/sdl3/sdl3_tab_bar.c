@@ -172,12 +172,14 @@ static void ui_sdl3_draw_file_view_group_tab_bar(SDL3Ui* ui, FileViewGroup* grou
 
     if (overflow) {
         static const Color track_transparent = { 0, 0, 0, 0 };
+        const Color thumb_color = hovered ? medit->config.color_theme.scrollbar_thumb_hovered
+                                          : medit->config.color_theme.scrollbar_thumb;
         ui_scrollbar_h_draw(
             &ui->ui_ctx_bg,
             scrollbar_track,
             &group->tab_bar_scroll,
             track_transparent,
-            medit->config.color_theme.scrollbar_thumb);
+            thumb_color);
     }
 }
 
