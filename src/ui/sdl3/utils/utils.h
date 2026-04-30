@@ -1,5 +1,5 @@
-#ifndef MEDIT_UI_SDL3_SDL3_UTILS_H_
-#define MEDIT_UI_SDL3_SDL3_UTILS_H_
+#ifndef MEDIT_UI_SDL3_UTILS_UTILS_H_
+#define MEDIT_UI_SDL3_UTILS_UTILS_H_
 
 #include <core/color.h>
 #include <core/rect.h>
@@ -44,4 +44,4 @@ static inline SDL_FRect rect_to_sdl_frect(Rect r)
     };
 }
 
-#endif // MEDIT_UI_SDL3_SDL3_UTILS_H_
+#endif // MEDIT_UI_SDL3_UTILS_UTILS_H_

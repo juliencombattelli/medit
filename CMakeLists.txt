@@ -36,7 +36,13 @@ add_executable(medit
     src/core/meditor.c src/core/keybind.c src/core/unicode.c src/core/utils.c
     src/core/rect.c src/core/action.c src/core/ui.c src/core/string_view.c
     # SDL3 UI modules
-    src/ui/sdl3/sdl3.c src/ui/sdl3/font.c src/ui/sdl3/keybind_sdl3.c src/ui/sdl3/perf_counter.c
+    src/ui/sdl3/sdl3.c
+    src/ui/sdl3/sdl3_renderer.c src/ui/sdl3/sdl3_layout.c src/ui/sdl3/sdl3_actions.c
+    src/ui/sdl3/sdl3_core.c src/ui/sdl3/sdl3_font.c src/ui/sdl3/sdl3_file_view.c
+    src/ui/sdl3/sdl3_tab_bar.c src/ui/sdl3/sdl3_keybind.c
+    # SDL3 utils modules
+    src/ui/sdl3/utils/perf_counter.c
+    src/ui/sdl3/utils/font.c
 )
 target_compile_options(medit PRIVATE ${COMPILE_OPTIONS})
 target_include_directories(medit PRIVATE src)

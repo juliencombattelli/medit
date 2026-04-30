@@ -1,4 +1,4 @@
-#include "sdl3.h"
+#include <core/keybind.h>
 
 #include <SDL3/SDL.h>
 
@@ -145,7 +145,7 @@ static uint32_t sdl3_keymod_to_keybind_mod(SDL_Keymod sdl_mods)
     return result;
 }
 
-KeybindEvent keybind_sdl3_translate_event(void* native_event)
+KeybindEvent ui_sdl3_keybind_translate_event(void* native_event)
 {
     KeybindEvent result = { 0 };
 

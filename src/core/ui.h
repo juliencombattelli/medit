@@ -108,8 +108,8 @@ UiWidgetState ui_button(
 //   ... draw child widgets using content.x / content.y as origin ...
 //   ui_scroll_end(&ctx, viewport, &scroll_state, hovered);
 //
-// The scrollbar is placed outside the viewport so it never overlaps content — z-order is fine
-// even though input and draw happen before ui_scroll_begin.
+// The scrollbar is placed outside the viewport so it never overlaps content; z-order is fine even
+// though input and draw happen before ui_scroll_begin.
 //
 // NOTE about scroll widget z-ordering:
 //
