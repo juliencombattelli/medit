@@ -41,12 +41,15 @@ static void ui_sdl3_format_file_view_tab_text(
     tab_text->width = w;
 }
 
-static void ui_sdl3_draw_tab_bar_tabs(SDL3Ui* ui, FileViewGroup* group, Rect tabs_viewport)
+static void ui_sdl3_draw_tab_bar_tabs(
+    SDL3Ui* ui,
+    FileViewGroup* group,
+    Rect tabs_viewport,
+    Rect scroll_area)
 {
     const LayoutSizes s = ui->layout.sizes;
 
-    Rect sc = ui_scroll_begin(&ui->ui_ctx_bg, tabs_viewport, &group->tab_bar_scroll);
-    int32_t cursor_x = sc.x;
+    int32_t cursor_x = scroll_area.x;
     const int font_h = TTF_GetFontHeight(ui->font_editor.main);
 
     for (size_t i = 0; i < group->count; ++i) {
@@ -106,9 +109,28 @@ static void ui_sdl3_draw_tab_bar_tabs(SDL3Ui* ui, FileViewGroup* group, Rect tab
 
         cursor_x = tab_right + s.separator_size;
     }
+}
 
-    // Pop clip rect; wheel input is processed by the caller before this render call
-    ui_scroll_end(&ui->ui_ctx_bg, tabs_viewport, &group->tab_bar_scroll, false);
+static Color get_thumb_color(
+    SDL3Ui* ui,
+    FileViewGroup* group,
+    bool tab_bar_hovered,
+    bool scrollbar_hovered)
+{
+    const ColorTheme* color_theme = &ui->medit->config.color_theme;
+
+    const bool no_scrollbar_dragged = !ui->ui_scrollbar_dragged;
+    const bool current_scrollbar_dragged = ui->ui_scrollbar_dragged
+        && group->tab_bar_scroll.drag_active_h;
+
+    Color thumb_color = color_theme->scrollbar_thumb;
+    if (tab_bar_hovered && no_scrollbar_dragged) {
+        thumb_color = color_theme->scrollbar_thumb_scroll_area_hovered;
+    }
+    if (scrollbar_hovered || current_scrollbar_dragged) {
+        thumb_color = color_theme->scrollbar_thumb_hovered;
+    }
+    return thumb_color;
 }
 
 static void ui_sdl3_draw_file_view_group_tab_bar(SDL3Ui* ui, FileViewGroup* group)
@@ -126,50 +148,42 @@ static void ui_sdl3_draw_file_view_group_tab_bar(SDL3Ui* ui, FileViewGroup* grou
         total_tabs_w += SDL_max(tab_text.width, 128) + s.separator_size;
     }
 
-    const bool overflow = total_tabs_w > tab_bar.area.w;
+    const bool tab_bar_overflow = total_tabs_w > tab_bar.area.w;
+    const bool tab_bar_hovered = rect_contains(
+        tab_bar.area,
+        ui->ui_ctx_bg.input.x,
+        ui->ui_ctx_bg.input.y);
 
     enum {
         TAB_SCROLLBAR_H = 6
     };
-    Rect tabs_viewport = tab_bar.area;
-    Rect scrollbar_track = {
+    const Rect tabs_viewport = tab_bar.area;
+    const Rect scrollbar_track = {
         .x = tab_bar.area.x,
         .y = tab_bar.area.y + tab_bar.area.h - TAB_SCROLLBAR_H,
         .w = tab_bar.area.w,
         .h = TAB_SCROLLBAR_H,
     };
 
+    const float max_offset_x = tab_bar_overflow ? (float)(total_tabs_w - tabs_viewport.w) : 0.0f;
     group->tab_bar_scroll.content_w = (float)total_tabs_w;
     group->tab_bar_scroll.content_h = (float)tabs_viewport.h;
-    const float max_offset_x = overflow ? (float)total_tabs_w - (float)tabs_viewport.w : 0.0f;
-    if (group->tab_bar_scroll.offset_x < 0.0f) {
-        group->tab_bar_scroll.offset_x = 0.0f;
+    float delta = 0;
+    if (tab_bar_hovered && ui->ui_ctx_bg.input.scroll_valid) {
+        const float speed = ui->ui_ctx_bg.scroll_speed;
+        delta = (ui->ui_ctx_bg.input.scroll_x * speed) + (ui->ui_ctx_bg.input.scroll_y * speed);
     }
-    if (group->tab_bar_scroll.offset_x > max_offset_x) {
-        group->tab_bar_scroll.offset_x = max_offset_x;
-    }
-
-    const bool hovered = rect_contains(tab_bar.area, ui->ui_ctx_bg.input.x, ui->ui_ctx_bg.input.y);
-
-    if (hovered && ui->ui_ctx_bg.input.scroll_valid) {
-        float max_x = max_offset_x;
-        if (max_x > 0.0f) {
-            const float speed = ui->ui_ctx_bg.scroll_speed;
-            const float delta = (ui->ui_ctx_bg.input.scroll_x * speed)
-                + (ui->ui_ctx_bg.input.scroll_y * speed);
-            group->tab_bar_scroll.offset_x = medit_clampf(
-                group->tab_bar_scroll.offset_x - delta,
-                0.0f,
-                max_x);
-        }
-    }
+    group->tab_bar_scroll.offset_x = medit_clampf(
+        group->tab_bar_scroll.offset_x - delta,
+        0.0f,
+        max_offset_x);
 
     const bool no_scrollbar_dragged = !ui->ui_scrollbar_dragged;
     const bool current_scrollbar_dragged = ui->ui_scrollbar_dragged
         && group->tab_bar_scroll.drag_active_h;
 
     UiWidgetState scrollbar_state = { 0 };
-    if (overflow && (no_scrollbar_dragged || current_scrollbar_dragged)) {
+    if (tab_bar_overflow && (no_scrollbar_dragged || current_scrollbar_dragged)) {
         scrollbar_state = ui_scrollbar_h_update(
             &ui->ui_ctx_bg,
             scrollbar_track,
@@ -177,17 +191,14 @@ static void ui_sdl3_draw_file_view_group_tab_bar(SDL3Ui* ui, FileViewGroup* grou
         ui->ui_scrollbar_dragged = group->tab_bar_scroll.drag_active_h;
     }
 
-    ui_sdl3_draw_tab_bar_tabs(ui, group, tabs_viewport);
+    Rect scroll_area = ui_scroll_begin(&ui->ui_ctx_bg, tabs_viewport, &group->tab_bar_scroll);
+    ui_sdl3_draw_tab_bar_tabs(ui, group, tabs_viewport, scroll_area);
+    ui_scroll_end(&ui->ui_ctx_bg, tabs_viewport, &group->tab_bar_scroll, false);
 
-    if (overflow) {
+    if (tab_bar_overflow) {
         const Color track_transparent = { 0, 0, 0, 0 };
-        Color thumb_color = medit->config.color_theme.scrollbar_thumb;
-        if (hovered && no_scrollbar_dragged) {
-            thumb_color = medit->config.color_theme.scrollbar_thumb_scroll_area_hovered;
-        }
-        if (scrollbar_state & UI_STATE_HOVERED || current_scrollbar_dragged) {
-            thumb_color = medit->config.color_theme.scrollbar_thumb_hovered;
-        }
+        const bool scrollbar_hovered = scrollbar_state & UI_STATE_HOVERED;
+        Color thumb_color = get_thumb_color(ui, group, tab_bar_hovered, scrollbar_hovered);
         ui_scrollbar_h_draw(
             &ui->ui_ctx_bg,
             scrollbar_track,
