@@ -100,6 +100,7 @@ UiWidgetState ui_button(
     Color hover_bg,
     Color press_bg,
     const char* label,
+    Rect* label_rect_opt,
     Color label_color)
 {
     UiWidgetState state = widget_state(&ctx->input, rect);
@@ -119,9 +120,13 @@ UiWidgetState ui_button(
     draw_cmd_list_push(ctx->draw_list, button_rect);
 
     if (label) {
+        Rect label_rect = rect;
+        if (label_rect_opt) {
+            label_rect = *label_rect_opt;
+        }
         UiDrawCmd text_label = {
             .kind = UI_CMD_TEXT,
-            .rect = rect,
+            .rect = label_rect,
             .color = label_color,
             .text = label,
         };

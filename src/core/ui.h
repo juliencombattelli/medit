@@ -97,6 +97,7 @@ UiWidgetState ui_button(
     Color hover_bg,
     Color press_bg,
     const char* label,
+    Rect* label_rect_opt,
     Color label_color);
 
 // Scrolling API general usage (when z-order doesn't matter, e.g. scrollbar beside content):

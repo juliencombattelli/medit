@@ -15,6 +15,9 @@ int main(int argc, char** argv)
         .menu_bar_bg = color_from_u32(0x181818FF),
         .status_bar_bg = color_from_u32(0x181818FF),
         .tab_bar_bg = color_from_u32(0x181818FF),
+        .tab_bar_bg_hovered = color_from_u32(0x1F1F1FFF),
+        .tab_bar_bg_displayed = color_from_u32(
+            0x00001FFF), // TODO dark blue while we don't have the accent bar
         .bottom_panel_bg = color_from_u32(0x181818FF),
         .panel_border = color_from_u32(0x2B2B2BFF),
         .scrollbar_thumb = color_from_u32(0xFFFFFF1F),

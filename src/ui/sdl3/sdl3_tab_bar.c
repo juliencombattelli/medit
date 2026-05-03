@@ -41,6 +41,27 @@ static void ui_sdl3_format_file_view_tab_text(
     tab_text->width = w;
 }
 
+static Color get_tab_color(SDL3Ui* ui, FileViewGroup* group, size_t file_view_index)
+{
+    if (file_view_index == group->displayed) {
+        return ui->medit->config.color_theme.tab_bar_bg_displayed;
+    }
+    return ui->medit->config.color_theme.tab_bar_bg;
+}
+
+static Color get_tab_hovered_color(SDL3Ui* ui, FileViewGroup* group, size_t file_view_index)
+{
+    if (file_view_index == group->displayed) {
+        return ui->medit->config.color_theme.tab_bar_bg_displayed;
+    }
+    return ui->medit->config.color_theme.tab_bar_bg_hovered;
+}
+
+static Color get_tab_displayed_color(SDL3Ui* ui)
+{
+    return ui->medit->config.color_theme.tab_bar_bg_displayed;
+}
+
 static void ui_sdl3_draw_tab_bar_tabs(
     SDL3Ui* ui,
     FileViewGroup* group,
@@ -76,9 +97,25 @@ static void ui_sdl3_draw_tab_bar_tabs(
             .w = tab_w,
             .h = tabs_viewport.h,
         };
-        const Color tab_color = i == group->displayed ? ui->medit->config.color_theme.editor_bg
-                                                      : ui->medit->config.color_theme.tab_bar_bg;
-        ui_panel(&ui->ui_ctx_bg, tab_area, tab_color);
+        const char* tab_label = ui_sdl3_arena_str(ui, tab_text.content, tab_text.length);
+        Rect label_rect = {
+            .x = cursor_x,
+            .y = tabs_viewport.y + ((tabs_viewport.h - font_h) / 2),
+            .w = tab_area.w,
+            .h = tab_area.h,
+        };
+        UiWidgetState state = ui_button(
+            &ui->ui_ctx_bg,
+            tab_area,
+            get_tab_color(ui, group, i),
+            get_tab_hovered_color(ui, group, i),
+            get_tab_displayed_color(ui),
+            tab_label,
+            &label_rect,
+            ui->medit->config.color_theme.editor_fg);
+        if (state & UI_STATE_PRESSED) {
+            group->displayed = i;
+        }
 
         if (s.separator_size > 0) {
             Rect sep_area = {
@@ -88,23 +125,6 @@ static void ui_sdl3_draw_tab_bar_tabs(
                 .h = tabs_viewport.h,
             };
             ui_panel(&ui->ui_ctx_bg, sep_area, ui->medit->config.color_theme.panel_border);
-        }
-
-        const int tab_text_y = tabs_viewport.y + ((tabs_viewport.h - font_h) / 2);
-        const char* tab_label = ui_sdl3_arena_str(ui, tab_text.content, tab_text.length);
-        if (tab_label) {
-            UiDrawCmd cmd = {
-                .kind = UI_CMD_TEXT,
-                .rect = {
-                    .x = cursor_x,
-                    .y = tab_text_y,
-                    .w = tab_area.w,
-                    .h = tab_area.h,
-                },
-                .color = ui->medit->config.color_theme.editor_fg,
-                .text = tab_label,
-            };
-            dynarray_append(&ui->ui_draw_list_bg, cmd);
         }
 
         cursor_x = tab_right + s.separator_size;

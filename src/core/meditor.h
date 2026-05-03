@@ -137,6 +137,8 @@ typedef struct {
     Color menu_bar_bg;
     Color status_bar_bg;
     Color tab_bar_bg;
+    Color tab_bar_bg_hovered;
+    Color tab_bar_bg_displayed;
     Color bottom_panel_bg;
     Color panel_border;
     Color scrollbar_thumb;
