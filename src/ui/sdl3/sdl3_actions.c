@@ -138,7 +138,6 @@ void ui_sdl3_handle_save_of_dirty_files(SDL3Ui* ui)
         if (cancel_exit) {
             break;
         }
-        ui->medit->running = false;
     }
 }
 

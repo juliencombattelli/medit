@@ -83,7 +83,10 @@ static void ui_sdl3_dispatch_event(SDL3Ui* ui, SDL_Event* event)
     Meditor* medit = ui->medit;
 
     switch (event->type) {
-        case SDL_EVENT_QUIT: ui_sdl3_handle_save_of_dirty_files(ui); break;
+        case SDL_EVENT_QUIT:
+            ui_sdl3_handle_save_of_dirty_files(ui);
+            ui->medit->running = false;
+            break;
         case SDL_EVENT_WINDOW_RESIZED:
             ui_sdl3_on_window_resized(ui, event->window.data1, event->window.data2);
             break;
