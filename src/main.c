@@ -12,7 +12,7 @@ int main(int argc, char** argv)
 
     medit.config.editor_font_size = FONT_SIZE_DEFAULT;
     medit.config.editor_font_path = FONT_PATH_DEFAULT;
-    medit.config.color_theme = default_color_theme;
+    medit.config.color_theme = default_color_theme();
 
     medit_ui_sdl3_run(&medit);
     medit_close_all_files(&medit);

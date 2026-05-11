@@ -10,7 +10,7 @@ int main(void)
 
     medit.config.editor_font_size = FONT_SIZE_DEFAULT;
     medit.config.editor_font_path = FONT_PATH_DEFAULT;
-    medit.config.color_theme = default_color_theme;
+    medit.config.color_theme = default_color_theme();
 
     SDL3Ui ui = { 0 };
     assert(ui_sdl3_create(&ui, &medit));

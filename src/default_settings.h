@@ -3,6 +3,6 @@
 
 #include <core/meditor.h>
 
-extern const ColorTheme default_color_theme;
+ColorTheme default_color_theme(void);
 
 #endif // MEDIT_DEFAULT_SETTINGS_H_
