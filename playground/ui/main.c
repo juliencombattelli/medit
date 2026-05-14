@@ -1,11 +1,18 @@
-#include <ui/sdl3/sdl3_internal.h>
-#include <ui/sdl3/utils/utils.h>
-
 #include <core/assert.h>
 
 #include <default_settings.h>
 
 #include "ui2.h"
+
+#include <SDL3/SDL.h>
+#include <SDL3_ttf/SDL_ttf.h>
+
+typedef struct {
+    SDL_Window* window;
+    SDL_Renderer* renderer;
+    TTF_TextEngine* text_engine;
+    TTF_Font* font;
+} AppState;
 
 SDL_Rect ui2_bb_to_sdl_rect(Ui2BoundingBox bb)
 {
@@ -37,43 +44,43 @@ Color ui2_color_to_sdl_color(Ui2Color color)
     };
 }
 
-void ui2_sdl3_flush_draw_list(SDL3Ui* ui, Ui2DrawCmdList list)
-{
-    for (size_t i = 0; i < list.count; i++) {
-        const Ui2DrawCmd* cmd = &list.items[i];
-        switch (cmd->kind) {
-            case UI2_DRAW_CMD_RECT_FILLED: {
-                SDL_FRect r = ui2_bb_to_sdl_frect(cmd->bounding_box);
-                SDL_SetRenderDrawColor(
-                    ui->renderer,
-                    color_to_RGBA_args(cmd->rect.background_color));
-                SDL_RenderFillRect(ui->renderer, &r);
-            } break;
-            case UI2_DRAW_CMD_TEXT: {
-                ui_sdl3_draw_text(
-                    ui,
-                    cmd->text.text,
-                    cmd->text.length,
-                    &ui->font_editor,
-                    (PixelPos) { .x = (int)cmd->bounding_box.pos.x,
-                                 .y = (int)cmd->bounding_box.pos.y },
-                    ui2_color_to_sdl_color(cmd->text.color));
-            } break;
-            case UI2_DRAW_CMD_CLIP_PUSH: {
-                SDL_Rect r = ui2_bb_to_sdl_rect(cmd->bounding_box);
-                SDL_SetRenderClipRect(ui->renderer, &r);
-            } break;
-            case UI2_DRAW_CMD_CLIP_POP: {
-                SDL_SetRenderClipRect(ui->renderer, NULL);
-            } break;
-            default: abort();
-        }
-    }
-}
+// void ui2_sdl3_flush_draw_list(SDL3Ui* ui, Ui2DrawCmdList list)
+// {
+//     for (size_t i = 0; i < list.count; i++) {
+//         const Ui2DrawCmd* cmd = &list.items[i];
+//         switch (cmd->kind) {
+//             case UI2_DRAW_CMD_RECT_FILLED: {
+//                 SDL_FRect r = ui2_bb_to_sdl_frect(cmd->bounding_box);
+//                 SDL_SetRenderDrawColor(
+//                     ui->renderer,
+//                     color_to_RGBA_args(cmd->rect.background_color));
+//                 SDL_RenderFillRect(ui->renderer, &r);
+//             } break;
+//             case UI2_DRAW_CMD_TEXT: {
+//                 ui_sdl3_draw_text(
+//                     ui,
+//                     cmd->text.text,
+//                     cmd->text.length,
+//                     &ui->font_editor,
+//                     (PixelPos) { .x = (int)cmd->bounding_box.pos.x,
+//                                  .y = (int)cmd->bounding_box.pos.y },
+//                     ui2_color_to_sdl_color(cmd->text.color));
+//             } break;
+//             case UI2_DRAW_CMD_CLIP_PUSH: {
+//                 SDL_Rect r = ui2_bb_to_sdl_rect(cmd->bounding_box);
+//                 SDL_SetRenderClipRect(ui->renderer, &r);
+//             } break;
+//             case UI2_DRAW_CMD_CLIP_POP: {
+//                 SDL_SetRenderClipRect(ui->renderer, NULL);
+//             } break;
+//             default: abort();
+//         }
+//     }
+// }
 
 Ui2DrawCmdList editor_layout(Ui2Context* ctx)
 {
-    ui2_frame_begin(&ctx);
+    ui2_frame_begin(ctx);
 
     // CLAY(CLAY_ID("window_frame"), {
     //         .layout = {
@@ -120,36 +127,56 @@ Ui2DrawCmdList editor_layout(Ui2Context* ctx)
 
 int main(void)
 {
-    Meditor medit = { 0 };
+    AppState state = { 0 };
 
-    medit.config.editor_font_size = FONT_SIZE_DEFAULT;
-    medit.config.editor_font_path = FONT_PATH_DEFAULT;
-    medit.config.color_theme = default_color_theme();
+    assert(SDL_Init(SDL_INIT_VIDEO));
+    assert(TTF_Init());
 
-    Ui2Context ctx;
-    ui2_init(&ctx, (Ui2Arena) { 0 });
+    state.window = SDL_CreateWindow(
+        "UI Playground",
+        1280,
+        720,
+        SDL_WINDOW_HIDDEN | SDL_WINDOW_RESIZABLE);
+    assert(state.window);
 
-    SDL3Ui ui = { 0 };
-    assert(ui_sdl3_create(&ui, &medit));
+    state.renderer = SDL_CreateRenderer(state.window, NULL);
+    assert(state.renderer);
 
-    ui_sdl3_load_editor_font(&ui);
+    assert(SDL_SetRenderVSync(state.renderer, 1));
 
-    ui_sdl3_enable_cursor_blink(&ui);
+    state.text_engine = TTF_CreateRendererTextEngine(state.renderer);
+    assert(state.text_engine);
 
-    medit.running = true;
-    while (medit.running) {
-        bool should_render = ui_sdl3_handle_event(&ui);
-        if (!should_render) {
-            continue;
+    assert(SDL_ShowWindow(state.window));
+    assert(SDL_StartTextInput(state.window));
+
+    bool running = true;
+    while (running) {
+        SDL_Event event = { 0 };
+        while (SDL_PollEvent(&event)) {
+            switch (event.type) {
+                case SDL_EVENT_QUIT: running = false; break;
+                case SDL_EVENT_WINDOW_RESIZED: break;
+                case SDL_EVENT_KEY_DOWN: break;
+                case SDL_EVENT_TEXT_INPUT: break;
+                case SDL_EVENT_KEYMAP_CHANGED: break;
+                case SDL_EVENT_MOUSE_WHEEL: break;
+                default: break;
+            }
         }
 
-        Ui2DrawCmdList draw_cmd_list = editor_layout(&ctx);
+        SDL_SetRenderDrawColor(state.renderer, 0, 128, 0, 255);
+        SDL_RenderClear(state.renderer);
 
-        ui_sdl3_clear(&ui);
-        ui2_sdl3_flush_draw_list(&ui, draw_cmd_list);
-        ui_sdl3_render_frame(&ui);
+        SDL_RenderPresent(state.renderer);
     }
 
-    ui_sdl3_unload_editor_font(&ui);
-    ui_sdl3_destroy(&ui);
+    SDL_StopTextInput(state.window);
+
+    TTF_DestroyRendererTextEngine(state.text_engine);
+    SDL_DestroyRenderer(state.renderer);
+    SDL_DestroyWindow(state.window);
+
+    TTF_Quit();
+    SDL_Quit();
 }

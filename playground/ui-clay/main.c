@@ -1,17 +1,24 @@
 #define CLAY_IMPLEMENTATION
 #include "clay.h"
 
-#include <ui/sdl3/sdl3_internal.h>
-#include <ui/sdl3/utils/utils.h>
-
 #include <core/assert.h>
 
 #include <default_settings.h>
 
+#include <SDL3/SDL.h>
+#include <SDL3_ttf/SDL_ttf.h>
+
+typedef struct {
+    SDL_Window* window;
+    SDL_Renderer* renderer;
+    TTF_TextEngine* text_engine;
+    TTF_Font* font;
+} AppState;
+
 static int NUM_CIRCLE_SEGMENTS = 16;
 
 static void SDL_Clay_RenderFillRoundedRect(
-    SDL3Ui* ui,
+    AppState* app_state,
     const SDL_FRect rect,
     const float cornerRadius,
     const Clay_Color _color)
@@ -195,10 +202,10 @@ static void SDL_Clay_RenderFillRoundedRect(
     indices[indexCount++] = vertexCount - 1; // LT
 
     // Render everything
-    SDL_RenderGeometry(ui->renderer, NULL, vertices, vertexCount, indices, indexCount);
+    SDL_RenderGeometry(app_state->renderer, NULL, vertices, vertexCount, indices, indexCount);
 }
 
-void ui_sdl3_draw(SDL3Ui* ui, Clay_RenderCommandArray draw_commands)
+void SDL_Clay_RenderClayCommands(AppState* app_state, Clay_RenderCommandArray draw_commands)
 {
     for (int32_t i = 0; i < draw_commands.length; i++) {
         Clay_RenderCommand* rcmd = Clay_RenderCommandArray_Get(&draw_commands, i);
@@ -211,18 +218,17 @@ void ui_sdl3_draw(SDL3Ui* ui, Clay_RenderCommandArray draw_commands)
         switch (rcmd->commandType) {
             case CLAY_RENDER_COMMAND_TYPE_RECTANGLE: {
                 Clay_RectangleRenderData* config = &rcmd->renderData.rectangle;
-                SDL_SetRenderDrawBlendMode(ui->renderer, SDL_BLENDMODE_BLEND);
-                SDL_SetRenderDrawColor(
-                    ui->renderer,
-                    color_to_RGBA_args(rcmd->renderData.rectangle.backgroundColor));
+                SDL_SetRenderDrawBlendMode(app_state->renderer, SDL_BLENDMODE_BLEND);
+                Clay_Color bg = rcmd->renderData.rectangle.backgroundColor;
+                SDL_SetRenderDrawColor(app_state->renderer, bg.r, bg.g, bg.b, bg.a);
                 if (config->cornerRadius.topLeft > 0) {
                     SDL_Clay_RenderFillRoundedRect(
-                        ui,
+                        app_state,
                         rect,
                         config->cornerRadius.topLeft,
                         config->backgroundColor);
                 } else {
-                    SDL_RenderFillRect(ui->renderer, &rect);
+                    SDL_RenderFillRect(app_state->renderer, &rect);
                 }
             } break;
             case CLAY_RENDER_COMMAND_TYPE_SCISSOR_START: {
@@ -233,12 +239,100 @@ void ui_sdl3_draw(SDL3Ui* ui, Clay_RenderCommandArray draw_commands)
                     .w = boundingBox.width,
                     .h = boundingBox.height,
                 };
-                SDL_SetRenderClipRect(ui->renderer, &currentClippingRectangle);
+                SDL_SetRenderClipRect(app_state->renderer, &currentClippingRectangle);
             } break;
             case CLAY_RENDER_COMMAND_TYPE_SCISSOR_END: {
-                SDL_SetRenderClipRect(ui->renderer, NULL);
+                SDL_SetRenderClipRect(app_state->renderer, NULL);
             } break;
         }
+    }
+}
+
+static const Clay_Color background_color = { 0x18, 0x18, 0x18, 0xFF };
+static const Clay_Color sidebars_background_color = { 0x18, 0x7f, 0x18, 0xFF };
+static const Clay_Color editor_background_color = { 0x1F, 0x1F, 0x5F, 0xFF };
+
+void menu_bar_layout(void)
+{
+    CLAY(CLAY_ID("menu_bar"), {
+            .layout = {
+                .sizing = { .height = CLAY_SIZING_FIXED(60), .width = CLAY_SIZING_GROW(0), },
+            },
+            .backgroundColor = sidebars_background_color,
+            .cornerRadius = CLAY_CORNER_RADIUS(8),
+        })
+    {
+    }
+}
+
+void left_panel_layout(void)
+{
+    CLAY(CLAY_ID("left_panel"), {
+            .layout = {
+                .sizing = { .height = CLAY_SIZING_GROW(0), .width = CLAY_SIZING_FIXED(100), },
+            },
+            .backgroundColor = sidebars_background_color,
+            .cornerRadius = CLAY_CORNER_RADIUS(8),
+        })
+    {
+    }
+}
+
+void editor_area_layout(void)
+{
+    CLAY(CLAY_ID("editor_area"), {
+            .layout = {
+                .sizing = { .height = CLAY_SIZING_GROW(0), .width = CLAY_SIZING_GROW(0), },
+            },
+            .backgroundColor = editor_background_color,
+            .cornerRadius = CLAY_CORNER_RADIUS(8),
+        })
+    {
+    }
+}
+
+void right_panel_layout(void)
+{
+    CLAY(CLAY_ID("right_panel"), {
+            .layout = {
+                .sizing = { .height = CLAY_SIZING_GROW(0), .width = CLAY_SIZING_FIXED(100), },
+            },
+            .backgroundColor = sidebars_background_color,
+            .cornerRadius = CLAY_CORNER_RADIUS(8),
+        })
+    {
+    }
+}
+
+void middle_area_layout(void)
+{
+    CLAY(CLAY_ID("middle_area"), {
+            .layout = {
+                .layoutDirection = CLAY_LEFT_TO_RIGHT,
+                .sizing = { .height = CLAY_SIZING_GROW(0), .width = CLAY_SIZING_GROW(0), },
+                .padding = CLAY_PADDING_ALL(16),
+                .childGap = 16,
+            },
+            .backgroundColor = background_color,
+            .cornerRadius = CLAY_CORNER_RADIUS(8),
+        })
+    {
+        left_panel_layout();
+        editor_area_layout();
+        right_panel_layout();
+    }
+}
+
+void status_bar_layout(void)
+{
+    CLAY(CLAY_ID("status_bar"), {
+            .layout = {
+                .sizing = { .height = CLAY_SIZING_FIXED(30), .width = CLAY_SIZING_GROW(0), },
+            },
+            .backgroundColor = sidebars_background_color,
+            .cornerRadius = CLAY_CORNER_RADIUS(8),
+        })
+    {
     }
 }
 
@@ -246,111 +340,112 @@ Clay_RenderCommandArray editor_layout(void)
 {
     Clay_BeginLayout();
 
-    Clay_Sizing layout_expand = {
-        .width = CLAY_SIZING_GROW(0),
-        .height = CLAY_SIZING_GROW(0),
-    };
-    Clay_Color sidebars_background_color = { 0x18, 0x18, 0x18, 0xFF };
-    Clay_Color editor_background_color = { 0x1F, 0x1F, 0x5F, 0xFF };
-
     CLAY(CLAY_ID("window_frame"), {
             .layout = {
-              .layoutDirection = CLAY_TOP_TO_BOTTOM,
-              .sizing = layout_expand,
-              .padding = CLAY_PADDING_ALL(16),
-              .childGap = 16,
+                .layoutDirection = CLAY_TOP_TO_BOTTOM,
+                .sizing = {
+                    .width = CLAY_SIZING_GROW(0),
+                    .height = CLAY_SIZING_GROW(0),
+                },
+                .padding = CLAY_PADDING_ALL(16),
+                .childGap = 16,
             },
-            .backgroundColor = { 0xFF, 0xFF, 0xFF, 0xFF},
-        }) {
-        CLAY(
-            CLAY_ID("menu_bar"), {
-                .layout = {
-                    .sizing = { .height = CLAY_SIZING_FIXED(60), .width = CLAY_SIZING_GROW(0), },
-                },
-                .backgroundColor = sidebars_background_color,
-                .cornerRadius = CLAY_CORNER_RADIUS(8),
-            })
-        {
-        }
-        CLAY(
-            CLAY_ID("editor_area"), {
-                .layout = {
-                    .sizing = { .height = CLAY_SIZING_GROW(0), .width = CLAY_SIZING_GROW(0), },
-                },
-                .backgroundColor = editor_background_color,
-                .cornerRadius = CLAY_CORNER_RADIUS(8),
-            })
-        {
-        }
-        CLAY(
-            CLAY_ID("status_bar"), {
-                .layout = {
-                    .sizing = { .height = CLAY_SIZING_FIXED(30), .width = CLAY_SIZING_GROW(0), },
-                },
-                .backgroundColor = sidebars_background_color,
-                .cornerRadius = CLAY_CORNER_RADIUS(8),
-            })
-        {
-        }
+            .backgroundColor = { 0x7F, 0x00, 0x00, 0xFF},
+        })
+    {
+        menu_bar_layout();
+        middle_area_layout();
+        status_bar_layout();
     }
     return Clay_EndLayout(0);
 }
 
+void HandleClayErrors(Clay_ErrorData errorData)
+{
+    printf("%s", errorData.errorText.chars);
+}
+
 int main(void)
 {
-    Meditor medit = { 0 };
+    AppState state = { 0 };
 
-    medit.config.editor_font_size = FONT_SIZE_DEFAULT;
-    medit.config.editor_font_path = FONT_PATH_DEFAULT;
-    medit.config.color_theme = default_color_theme();
+    assert(SDL_Init(SDL_INIT_VIDEO));
+    assert(TTF_Init());
 
-    SDL3Ui ui = { 0 };
-    assert(ui_sdl3_create(&ui, &medit));
+    state.window = SDL_CreateWindow(
+        "UI Playground",
+        1280,
+        720,
+        SDL_WINDOW_HIDDEN | SDL_WINDOW_RESIZABLE);
+    assert(state.window);
 
-    ui_sdl3_load_editor_font(&ui);
+    state.renderer = SDL_CreateRenderer(state.window, NULL);
+    assert(state.renderer);
 
-    ui_sdl3_enable_cursor_blink(&ui);
+    assert(SDL_SetRenderVSync(state.renderer, 1));
+
+    state.text_engine = TTF_CreateRendererTextEngine(state.renderer);
+    assert(state.text_engine);
+
+    assert(SDL_ShowWindow(state.window));
+    assert(SDL_StartTextInput(state.window));
 
     uint32_t mem_size = Clay_MinMemorySize();
     Clay_Arena arena = Clay_CreateArenaWithCapacityAndMemory(mem_size, malloc(mem_size));
-
+    int width, height;
+    SDL_GetWindowSize(state.window, &width, &height);
     Clay_Initialize(
         arena,
-        (Clay_Dimensions) {
-            .width = (float)ui.window_size.width,
-            .height = (float)ui.window_size.height,
-        },
-        (Clay_ErrorHandler) { 0 });
+        (Clay_Dimensions) { .width = (float)width, .height = (float)height },
+        (Clay_ErrorHandler) { .errorHandlerFunction = HandleClayErrors });
 
-    medit.running = true;
-    while (medit.running) {
-        bool should_render = ui_sdl3_handle_event(&ui);
-        if (!should_render) {
-            continue;
+    bool running = true;
+    while (running) {
+        SDL_Event event = { 0 };
+        while (SDL_PollEvent(&event)) {
+            switch (event.type) {
+                case SDL_EVENT_QUIT: running = false; break;
+                case SDL_EVENT_WINDOW_RESIZED:
+                    Clay_SetLayoutDimensions((Clay_Dimensions) {
+                        (float)event.window.data1,
+                        (float)event.window.data2,
+                    });
+                    break;
+                case SDL_EVENT_MOUSE_WHEEL:
+                    Clay_UpdateScrollContainers(
+                        true,
+                        (Clay_Vector2) { event.wheel.x, event.wheel.y },
+                        0.01f);
+                    break;
+                case SDL_EVENT_KEY_DOWN: break;
+                case SDL_EVENT_TEXT_INPUT: break;
+                case SDL_EVENT_KEYMAP_CHANGED: break;
+                default: break;
+            }
         }
 
-        Clay_SetLayoutDimensions((Clay_Dimensions) {
-            .width = (float)ui.window_size.width,
-            .height = (float)ui.window_size.height,
-        });
-
-        float mouse_x = 0;
-        float mouse_y = 0;
+        float mouse_x, mouse_y;
         Uint32 buttons = SDL_GetMouseState(&mouse_x, &mouse_y);
         Clay_SetPointerState(
-            (Clay_Vector2) {
-                .x = mouse_x,
-                .y = mouse_y,
-            },
+            (Clay_Vector2) { .x = mouse_x, .y = mouse_y },
             buttons & SDL_BUTTON_LMASK);
 
-        Clay_RenderCommandArray draw_commands = editor_layout();
+        Clay_RenderCommandArray render_commands = editor_layout();
 
-        ui_sdl3_clear(&ui);
-        ui_sdl3_draw(&ui, draw_commands);
-        ui_sdl3_render_frame(&ui);
+        SDL_SetRenderDrawColor(state.renderer, 0, 128, 0, 255);
+        SDL_RenderClear(state.renderer);
+
+        SDL_Clay_RenderClayCommands(&state, render_commands);
+
+        SDL_RenderPresent(state.renderer);
     }
 
-    ui_sdl3_unload_editor_font(&ui);
-    ui_sdl3_destroy(&ui);
+    SDL_StopTextInput(state.window);
+
+    TTF_DestroyRendererTextEngine(state.text_engine);
+    SDL_DestroyRenderer(state.renderer);
+    SDL_DestroyWindow(state.window);
+
+    TTF_Quit();
+    SDL_Quit();
 }
