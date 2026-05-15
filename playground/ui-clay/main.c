@@ -260,8 +260,22 @@ void menu_bar_layout(void)
             },
             .backgroundColor = sidebars_background_color,
             .cornerRadius = CLAY_CORNER_RADIUS(8),
+            .clip = { .horizontal = true, .childOffset = Clay_GetScrollOffset() },
         })
     {
+        for (size_t i = 0; i < 10; i++) {
+            Clay_Color menu_color = editor_background_color;
+            menu_color.r += 0xF * i;
+            CLAY_AUTO_ID({
+                    .layout = {
+                        .sizing = { .height = CLAY_SIZING_FIXED(60), .width = CLAY_SIZING_FIXED(200), },
+                    },
+                    .backgroundColor = menu_color,
+                    .cornerRadius = CLAY_CORNER_RADIUS(8),
+                })
+            {
+            }
+        }
     }
 }
 
@@ -412,10 +426,21 @@ int main(void)
                     });
                     break;
                 case SDL_EVENT_MOUSE_WHEEL:
-                    Clay_UpdateScrollContainers(
-                        true,
-                        (Clay_Vector2) { event.wheel.x, event.wheel.y },
-                        0.01f);
+                    printf("mouse wheel: x=%f, y=%f\n", event.wheel.x, event.wheel.y);
+                    if ((int)event.wheel.x == 0) {
+                        // vertical scrolling
+                        Clay_UpdateScrollContainers(
+                            true,
+                            (Clay_Vector2) { event.wheel.y, event.wheel.y },
+                            0.01f);
+                    } else if ((int)event.wheel.y == 0) {
+                        // horizontal scrolling
+                        Clay_UpdateScrollContainers(
+                            true,
+                            (Clay_Vector2) { event.wheel.x, event.wheel.x },
+                            0.01f);
+                    }
+
                     break;
                 case SDL_EVENT_KEY_DOWN: break;
                 case SDL_EVENT_TEXT_INPUT: break;
