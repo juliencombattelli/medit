@@ -210,17 +210,24 @@ void SDL_Clay_RenderClayCommands(AppState* app_state, Clay_RenderCommandArray dr
     for (int32_t i = 0; i < draw_commands.length; i++) {
         Clay_RenderCommand* rcmd = Clay_RenderCommandArray_Get(&draw_commands, i);
         const Clay_BoundingBox bounding_box = rcmd->boundingBox;
-        const SDL_FRect rect = { (int)bounding_box.x,
-                                 (int)bounding_box.y,
-                                 (int)bounding_box.width,
-                                 (int)bounding_box.height };
+        const SDL_FRect rect = {
+            (float)bounding_box.x,
+            (float)bounding_box.y,
+            (float)bounding_box.width,
+            (float)bounding_box.height,
+        };
 
         switch (rcmd->commandType) {
             case CLAY_RENDER_COMMAND_TYPE_RECTANGLE: {
                 Clay_RectangleRenderData* config = &rcmd->renderData.rectangle;
                 SDL_SetRenderDrawBlendMode(app_state->renderer, SDL_BLENDMODE_BLEND);
                 Clay_Color bg = rcmd->renderData.rectangle.backgroundColor;
-                SDL_SetRenderDrawColor(app_state->renderer, bg.r, bg.g, bg.b, bg.a);
+                SDL_SetRenderDrawColor(
+                    app_state->renderer,
+                    (Uint8)bg.r,
+                    (Uint8)bg.g,
+                    (Uint8)bg.b,
+                    (Uint8)bg.a);
                 if (config->cornerRadius.topLeft > 0) {
                     SDL_Clay_RenderFillRoundedRect(
                         app_state,
@@ -234,10 +241,10 @@ void SDL_Clay_RenderClayCommands(AppState* app_state, Clay_RenderCommandArray dr
             case CLAY_RENDER_COMMAND_TYPE_SCISSOR_START: {
                 Clay_BoundingBox boundingBox = rcmd->boundingBox;
                 SDL_Rect currentClippingRectangle = {
-                    .x = boundingBox.x,
-                    .y = boundingBox.y,
-                    .w = boundingBox.width,
-                    .h = boundingBox.height,
+                    .x = (int)boundingBox.x,
+                    .y = (int)boundingBox.y,
+                    .w = (int)boundingBox.width,
+                    .h = (int)boundingBox.height,
                 };
                 SDL_SetRenderClipRect(app_state->renderer, &currentClippingRectangle);
             } break;
