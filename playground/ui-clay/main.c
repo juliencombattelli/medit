@@ -267,8 +267,31 @@ void menu_bar_layout(void)
             },
             .backgroundColor = sidebars_background_color,
             .cornerRadius = CLAY_CORNER_RADIUS(8),
-            .clip = { .horizontal = true, .use_both_wheels = true, .childOffset = Clay_GetScrollOffset() },
+            .clip = { .horizontal = true, .childOffset = Clay_GetScrollOffset() },
         })
+    {
+        for (size_t i = 0; i < 10; i++) {
+            Clay_Color menu_color = editor_background_color;
+            menu_color.r += 0xF * i;
+            CLAY_AUTO_ID({
+                    .layout = {
+                        .sizing = { .height = CLAY_SIZING_FIXED(60), .width = CLAY_SIZING_FIXED(200), },
+                    },
+                    .backgroundColor = menu_color,
+                    .cornerRadius = CLAY_CORNER_RADIUS(8),
+                })
+            {
+            }
+        }
+    }
+    CLAY(CLAY_ID("menu_bar2"), {
+        .layout = {
+            .sizing = { .height = CLAY_SIZING_FIXED(60), .width = CLAY_SIZING_GROW(0), },
+        },
+        .backgroundColor = sidebars_background_color,
+        .cornerRadius = CLAY_CORNER_RADIUS(8),
+        .clip = { .horizontal = true, .childOffset = Clay_GetScrollOffset() },
+    })
     {
         for (size_t i = 0; i < 10; i++) {
             Clay_Color menu_color = editor_background_color;
@@ -386,6 +409,52 @@ void HandleClayErrors(Clay_ErrorData errorData)
     printf("%s", errorData.errorText.chars);
 }
 
+typedef struct {
+    float sensitivity;
+    bool use_both_wheels;
+} ScrollContainerData;
+
+// Apply wheel scroll to a specific element with a custom sensitivity and potential axis combination.
+// Clay internally multiplies delta by 10, so we replicate that here, sensitivity = 1.0 matches Clay's default speed.
+// Returns true if the mouse was over the element and the scroll was applied.
+static bool clay_scroll_apply(Clay_ElementId id, Clay_Vector2 mouse_pos, Clay_Vector2 delta, ScrollContainerData scroll_container_data)
+{
+    if (delta.x == 0 && delta.y == 0) return false;
+
+    Clay_ElementData elem = Clay_GetElementData(id);
+    if (!elem.found) return false;
+    Clay_BoundingBox bb = elem.boundingBox;
+    if (mouse_pos.x < bb.x || mouse_pos.x > bb.x + bb.width ||
+        mouse_pos.y < bb.y || mouse_pos.y > bb.y + bb.height) return false;
+
+    Clay_ScrollContainerData scroll = Clay_GetScrollContainerData(id);
+    if (!scroll.found) return false;
+
+    if (scroll_container_data.use_both_wheels) {
+        assert((scroll.config.horizontal != scroll.config.vertical)
+            && "Exactly one of horizontal/vertical scrolling should be enabled when use_both_wheels is true");
+        if (scroll.config.horizontal) {
+            delta.x += delta.y;
+        } else if (scroll.config.vertical) {
+            delta.y += delta.x;
+        }
+    }
+
+    const float scale = scroll_container_data.sensitivity * 10.0f;
+
+    if (scroll.config.horizontal) {
+        scroll.scrollPosition->x += delta.x * scale;
+        float min_x = -(SDL_max(scroll.contentDimensions.width - scroll.scrollContainerDimensions.width, 0));
+        scroll.scrollPosition->x = SDL_clamp(scroll.scrollPosition->x, min_x, 0);
+    }
+    if (scroll.config.vertical) {
+        scroll.scrollPosition->y += delta.y * scale;
+        float min_y = -(SDL_max(scroll.contentDimensions.height - scroll.scrollContainerDimensions.height, 0));
+        scroll.scrollPosition->y = SDL_clamp(scroll.scrollPosition->y, min_y, 0);
+    }
+    return true;
+}
+
 int main(void)
 {
     AppState state = { 0 };
@@ -443,10 +512,19 @@ int main(void)
                 default: break;
             }
         }
-        Clay_UpdateScrollContainers(true, scroll_delta, 0.016f);
 
         float mouse_x, mouse_y;
         Uint32 buttons = SDL_GetMouseState(&mouse_x, &mouse_y);
+        Clay_Vector2 mouse_pos = { mouse_x, mouse_y };
+
+        // Custom scroll handling for the menu bar with a different sensitivity and both axes enabled
+        bool scroll_consumed = clay_scroll_apply(CLAY_ID("menu_bar"), mouse_pos, scroll_delta, (ScrollContainerData){
+            .sensitivity = 5.f,
+            .use_both_wheels = true,
+        });
+        // Pass {0,0} if already handled above (preserves drag/momentum for other areas), or the real delta as the default fallback
+        Clay_UpdateScrollContainers(true, scroll_consumed ? (Clay_Vector2){ 0, 0 } : scroll_delta, 0.016f);
+
         Clay_SetPointerState(
             (Clay_Vector2) { .x = mouse_x, .y = mouse_y },
             buttons & SDL_BUTTON_LMASK);
