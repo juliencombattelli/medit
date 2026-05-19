@@ -536,6 +536,7 @@ CLAY__WRAPPER_STRUCT(Clay_CustomElementConfig);
 typedef struct Clay_ClipElementConfig {
     bool horizontal; // Clip overflowing elements on the X axis.
     bool vertical; // Clip overflowing elements on the Y axis.
+    bool use_both_wheels;
     Clay_Vector2 childOffset; // Offsets the x,y positions of all child elements. Used primarily for scrolling containers.
 } Clay_ClipElementConfig;
 
@@ -4310,10 +4311,16 @@ void Clay_UpdateScrollContainers(bool enableDragScrolling, Clay_Vector2 scrollDe
         bool canScrollHorizontally = clipConfig->horizontal && highestPriorityScrollData->contentSize.width > scrollElement->dimensions.width;
         // Handle wheel scroll
         if (canScrollVertically) {
-            highestPriorityScrollData->scrollPosition.y = highestPriorityScrollData->scrollPosition.y + scrollDelta.y * 10;
+            float delta = scrollDelta.y;
+            if (clipConfig->use_both_wheels && scrollDelta.y == 0)
+                delta = scrollDelta.x;
+            highestPriorityScrollData->scrollPosition.y = highestPriorityScrollData->scrollPosition.y + delta * 10;
         }
         if (canScrollHorizontally) {
-            highestPriorityScrollData->scrollPosition.x = highestPriorityScrollData->scrollPosition.x + scrollDelta.x * 10;
+            float delta = scrollDelta.x;
+            if (clipConfig->use_both_wheels && scrollDelta.x == 0)
+                delta = scrollDelta.y;
+            highestPriorityScrollData->scrollPosition.x = highestPriorityScrollData->scrollPosition.x + delta * 10;
         }
         // Handle click / touch scroll
         if (isPointerActive) {

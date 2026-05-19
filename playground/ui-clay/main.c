@@ -267,7 +267,7 @@ void menu_bar_layout(void)
             },
             .backgroundColor = sidebars_background_color,
             .cornerRadius = CLAY_CORNER_RADIUS(8),
-            .clip = { .horizontal = true, .childOffset = Clay_GetScrollOffset() },
+            .clip = { .horizontal = true, .use_both_wheels = true, .childOffset = Clay_GetScrollOffset() },
         })
     {
         for (size_t i = 0; i < 10; i++) {
@@ -434,19 +434,23 @@ int main(void)
                     break;
                 case SDL_EVENT_MOUSE_WHEEL:
                     printf("mouse wheel: x=%f, y=%f\n", event.wheel.x, event.wheel.y);
-                    if ((int)event.wheel.x == 0) {
-                        // vertical scrolling
-                        Clay_UpdateScrollContainers(
+                    Clay_UpdateScrollContainers(
                             true,
-                            (Clay_Vector2) { event.wheel.y, event.wheel.y },
+                            (Clay_Vector2) { event.wheel.x, event.wheel.y },
                             0.01f);
-                    } else if ((int)event.wheel.y == 0) {
-                        // horizontal scrolling
-                        Clay_UpdateScrollContainers(
-                            true,
-                            (Clay_Vector2) { event.wheel.x, event.wheel.x },
-                            0.01f);
-                    }
+                    // if ((int)event.wheel.x == 0) {
+                    //     // vertical scrolling
+                    //     Clay_UpdateScrollContainers(
+                    //         true,
+                    //         (Clay_Vector2) { event.wheel.y, event.wheel.y },
+                    //         0.01f);
+                    // } else if ((int)event.wheel.y == 0) {
+                    //     // horizontal scrolling
+                    //     Clay_UpdateScrollContainers(
+                    //         true,
+                    //         (Clay_Vector2) { event.wheel.x, event.wheel.x },
+                    //         0.01f);
+                    // }
 
                     break;
                 case SDL_EVENT_KEY_DOWN: break;
