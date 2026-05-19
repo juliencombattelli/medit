@@ -423,6 +423,7 @@ int main(void)
     bool running = true;
     while (running) {
         SDL_Event event = { 0 };
+        Clay_Vector2 scroll_delta = { 0, 0 };
         while (SDL_PollEvent(&event)) {
             switch (event.type) {
                 case SDL_EVENT_QUIT: running = false; break;
@@ -433,25 +434,8 @@ int main(void)
                     });
                     break;
                 case SDL_EVENT_MOUSE_WHEEL:
-                    printf("mouse wheel: x=%f, y=%f\n", event.wheel.x, event.wheel.y);
-                    Clay_UpdateScrollContainers(
-                            true,
-                            (Clay_Vector2) { event.wheel.x, event.wheel.y },
-                            0.01f);
-                    // if ((int)event.wheel.x == 0) {
-                    //     // vertical scrolling
-                    //     Clay_UpdateScrollContainers(
-                    //         true,
-                    //         (Clay_Vector2) { event.wheel.y, event.wheel.y },
-                    //         0.01f);
-                    // } else if ((int)event.wheel.y == 0) {
-                    //     // horizontal scrolling
-                    //     Clay_UpdateScrollContainers(
-                    //         true,
-                    //         (Clay_Vector2) { event.wheel.x, event.wheel.x },
-                    //         0.01f);
-                    // }
-
+                    scroll_delta.x += event.wheel.x;
+                    scroll_delta.y += event.wheel.y;
                     break;
                 case SDL_EVENT_KEY_DOWN: break;
                 case SDL_EVENT_TEXT_INPUT: break;
@@ -459,6 +443,7 @@ int main(void)
                 default: break;
             }
         }
+        Clay_UpdateScrollContainers(true, scroll_delta, 0.016f);
 
         float mouse_x, mouse_y;
         Uint32 buttons = SDL_GetMouseState(&mouse_x, &mouse_y);
