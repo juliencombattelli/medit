@@ -273,7 +273,7 @@ void menu_bar_layout(void)
         for (size_t i = 0; i < 10; i++) {
             Clay_Color menu_color = editor_background_color;
             menu_color.r += 0xF * i;
-            CLAY_AUTO_ID({
+            CLAY(CLAY_IDI("menu_bar_element", i), {
                     .layout = {
                         .sizing = { .height = CLAY_SIZING_FIXED(60), .width = CLAY_SIZING_FIXED(200), },
                     },
@@ -284,6 +284,36 @@ void menu_bar_layout(void)
             }
         }
     }
+
+    Clay_ScrollContainerData scrollData = Clay_GetScrollContainerData(
+        Clay_GetElementId(CLAY_STRING("menu_bar")));
+    if (scrollData.found) {
+        CLAY(CLAY_ID("ScrollBar"), {
+                .floating = {
+                    .attachTo = CLAY_ATTACH_TO_ELEMENT_WITH_ID,
+                    .offset = {.x = -(scrollData.scrollPosition->x / scrollData.contentDimensions.width) * scrollData.scrollContainerDimensions.width},
+                    .zIndex = 1,
+                    .parentId = Clay_GetElementId(CLAY_STRING("menu_bar")).id,
+                    .attachPoints = { .element = CLAY_ATTACH_POINT_LEFT_BOTTOM, .parent = CLAY_ATTACH_POINT_LEFT_BOTTOM },
+                },
+                .backgroundColor = Clay_PointerOver(Clay_GetElementId(CLAY_STRING("ScrollBar"))) ? (Clay_Color){80, 80, 120, 150} : (Clay_Color){100, 100, 140, 150},
+            })
+        {
+            CLAY(CLAY_ID("ScrollBarButton"), {
+                    .layout = {
+                        .sizing = {
+                            .width = CLAY_SIZING_FIXED((scrollData.scrollContainerDimensions.width / scrollData.contentDimensions.width) * scrollData.scrollContainerDimensions.width),
+                            .height = CLAY_SIZING_FIXED(12),
+                        }
+                    },
+                    .backgroundColor = Clay_PointerOver(Clay_GetElementId(CLAY_STRING("ScrollBar"))) ? (Clay_Color){100, 100, 140, 150} : (Clay_Color){120, 120, 160, 150},
+                    .cornerRadius = CLAY_CORNER_RADIUS(6),
+                })
+            {
+            }
+        }
+    }
+
     CLAY(CLAY_ID("menu_bar2"), {
         .layout = {
             .sizing = { .height = CLAY_SIZING_FIXED(60), .width = CLAY_SIZING_GROW(0), },
@@ -296,7 +326,7 @@ void menu_bar_layout(void)
         for (size_t i = 0; i < 10; i++) {
             Clay_Color menu_color = editor_background_color;
             menu_color.r += 0xF * i;
-            CLAY_AUTO_ID({
+            CLAY(CLAY_IDI("menu_bar2_element", i), {
                     .layout = {
                         .sizing = { .height = CLAY_SIZING_FIXED(60), .width = CLAY_SIZING_FIXED(200), },
                     },
@@ -414,25 +444,40 @@ typedef struct {
     bool use_both_wheels;
 } ScrollContainerData;
 
-// Apply wheel scroll to a specific element with a custom sensitivity and potential axis combination.
-// Clay internally multiplies delta by 10, so we replicate that here, sensitivity = 1.0 matches Clay's default speed.
-// Returns true if the mouse was over the element and the scroll was applied.
-static bool clay_scroll_apply(Clay_ElementId id, Clay_Vector2 mouse_pos, Clay_Vector2 delta, ScrollContainerData scroll_container_data)
+// Apply wheel scroll to a specific element with a custom sensitivity and potential axis
+// combination. Clay internally multiplies delta by 10, so we replicate that here, sensitivity = 1.0
+// matches Clay's default speed. Returns true if the mouse was over the element and the scroll was
+// applied.
+static bool clay_scroll_apply(
+    Clay_ElementId id,
+    Clay_Vector2 mouse_pos,
+    Clay_Vector2 delta,
+    ScrollContainerData scroll_container_data)
 {
-    if (delta.x == 0 && delta.y == 0) return false;
+    if (delta.x == 0 && delta.y == 0) {
+        return false;
+    }
 
     Clay_ElementData elem = Clay_GetElementData(id);
-    if (!elem.found) return false;
+    if (!elem.found) {
+        return false;
+    }
     Clay_BoundingBox bb = elem.boundingBox;
-    if (mouse_pos.x < bb.x || mouse_pos.x > bb.x + bb.width ||
-        mouse_pos.y < bb.y || mouse_pos.y > bb.y + bb.height) return false;
+    if (mouse_pos.x < bb.x || mouse_pos.x > bb.x + bb.width || mouse_pos.y < bb.y
+        || mouse_pos.y > bb.y + bb.height) {
+        return false;
+    }
 
     Clay_ScrollContainerData scroll = Clay_GetScrollContainerData(id);
-    if (!scroll.found) return false;
+    if (!scroll.found) {
+        return false;
+    }
 
     if (scroll_container_data.use_both_wheels) {
-        assert((scroll.config.horizontal != scroll.config.vertical)
-            && "Exactly one of horizontal/vertical scrolling should be enabled when use_both_wheels is true");
+        assert(
+            (scroll.config.horizontal != scroll.config.vertical)
+            && "Exactly one of horizontal/vertical scrolling should be enabled when "
+               "use_both_wheels is true");
         if (scroll.config.horizontal) {
             delta.x += delta.y;
         } else if (scroll.config.vertical) {
@@ -444,16 +489,26 @@ static bool clay_scroll_apply(Clay_ElementId id, Clay_Vector2 mouse_pos, Clay_Ve
 
     if (scroll.config.horizontal) {
         scroll.scrollPosition->x += delta.x * scale;
-        float min_x = -(SDL_max(scroll.contentDimensions.width - scroll.scrollContainerDimensions.width, 0));
+        float min_x = -(
+            SDL_max(scroll.contentDimensions.width - scroll.scrollContainerDimensions.width, 0));
         scroll.scrollPosition->x = SDL_clamp(scroll.scrollPosition->x, min_x, 0);
     }
     if (scroll.config.vertical) {
         scroll.scrollPosition->y += delta.y * scale;
-        float min_y = -(SDL_max(scroll.contentDimensions.height - scroll.scrollContainerDimensions.height, 0));
+        float min_y = -(
+            SDL_max(scroll.contentDimensions.height - scroll.scrollContainerDimensions.height, 0));
         scroll.scrollPosition->y = SDL_clamp(scroll.scrollPosition->y, min_y, 0);
     }
     return true;
 }
+
+typedef struct {
+    Clay_Vector2 clickOrigin;
+    Clay_Vector2 positionOrigin;
+    bool mouseDown;
+} ScrollbarData;
+
+ScrollbarData scrollbarData = { 0 };
 
 int main(void)
 {
@@ -517,13 +572,53 @@ int main(void)
         Uint32 buttons = SDL_GetMouseState(&mouse_x, &mouse_y);
         Clay_Vector2 mouse_pos = { mouse_x, mouse_y };
 
-        // Custom scroll handling for the menu bar with a different sensitivity and both axes enabled
-        bool scroll_consumed = clay_scroll_apply(CLAY_ID("menu_bar"), mouse_pos, scroll_delta, (ScrollContainerData){
-            .sensitivity = 5.f,
-            .use_both_wheels = true,
-        });
-        // Pass {0,0} if already handled above (preserves drag/momentum for other areas), or the real delta as the default fallback
-        Clay_UpdateScrollContainers(true, scroll_consumed ? (Clay_Vector2){ 0, 0 } : scroll_delta, 0.016f);
+        if (!(buttons & SDL_BUTTON_LMASK)) {
+            scrollbarData.mouseDown = false;
+        }
+        if ((buttons & SDL_BUTTON_LMASK) && !scrollbarData.mouseDown
+            && Clay_PointerOver(Clay_GetElementId(CLAY_STRING("ScrollBar")))) {
+            Clay_ScrollContainerData scrollContainerData = Clay_GetScrollContainerData(
+                Clay_GetElementId(CLAY_STRING("menu_bar")));
+            scrollbarData.clickOrigin = mouse_pos;
+            scrollbarData.positionOrigin = *scrollContainerData.scrollPosition;
+            scrollbarData.mouseDown = true;
+        } else if (scrollbarData.mouseDown) {
+            Clay_ScrollContainerData scrollContainerData = Clay_GetScrollContainerData(
+                Clay_GetElementId(CLAY_STRING("menu_bar")));
+            if (scrollContainerData.contentDimensions.height > 0) {
+                Clay_Vector2 ratio = (Clay_Vector2) {
+                    scrollContainerData.contentDimensions.width
+                        / scrollContainerData.scrollContainerDimensions.width,
+                    scrollContainerData.contentDimensions.height
+                        / scrollContainerData.scrollContainerDimensions.height,
+                };
+                if (scrollContainerData.config.vertical) {
+                    scrollContainerData.scrollPosition->y = scrollbarData.positionOrigin.y
+                        + (scrollbarData.clickOrigin.y - mouse_pos.y) * ratio.y;
+                }
+                if (scrollContainerData.config.horizontal) {
+                    scrollContainerData.scrollPosition->x = scrollbarData.positionOrigin.x
+                        + (scrollbarData.clickOrigin.x - mouse_pos.x) * ratio.x;
+                }
+            }
+        }
+
+        // Custom scroll handling for the menu bar with a different sensitivity and both axes
+        // enabled
+        bool scroll_consumed = clay_scroll_apply(
+            CLAY_ID("menu_bar"),
+            mouse_pos,
+            scroll_delta,
+            (ScrollContainerData) {
+                .sensitivity = 5.f,
+                .use_both_wheels = true,
+            });
+        // Pass {0,0} if already handled above (preserves drag/momentum for other areas), or the
+        // real delta as the default fallback
+        Clay_UpdateScrollContainers(
+            true,
+            scroll_consumed ? (Clay_Vector2) { 0, 0 } : scroll_delta,
+            0.016f);
 
         Clay_SetPointerState(
             (Clay_Vector2) { .x = mouse_x, .y = mouse_y },
