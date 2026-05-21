@@ -259,6 +259,28 @@ static const Clay_Color background_color = { 0x18, 0x18, 0x18, 0xFF };
 static const Clay_Color sidebars_background_color = { 0x18, 0x7f, 0x18, 0xFF };
 static const Clay_Color editor_background_color = { 0x1F, 0x1F, 0x5F, 0xFF };
 
+static size_t dragged_menu_bar_element = (size_t)-1;
+
+typedef struct {
+    Clay_Color color;
+    float width;
+} MenuBarElementData;
+
+static MenuBarElementData menu_bar_elements[] = {
+    { { 0x1F, 0x1F, 0x5F, 0xFF }, 200 }, //
+    { { 0x2E, 0x2E, 0x6E, 0xFF }, 250 }, //
+    { { 0x3D, 0x3D, 0x7D, 0xFF }, 200 }, //
+    { { 0x4C, 0x4C, 0x8C, 0xFF }, 400 }, //
+    { { 0x5B, 0x5B, 0x9B, 0xFF }, 300 }, //
+    { { 0x6A, 0x6A, 0xAA, 0xFF }, 200 }, //
+    { { 0x79, 0x79, 0xB9, 0xFF }, 500 }, //
+    { { 0x88, 0x88, 0xC8, 0xFF }, 350 }, //
+    { { 0x97, 0x97, 0xD7, 0xFF }, 200 }, //
+    { { 0xa6, 0xa6, 0xe6, 0xFF }, 250 }, //
+};
+static const size_t menu_bar_element_count = sizeof(menu_bar_elements)
+    / sizeof(menu_bar_elements[0]);
+
 void menu_bar_layout(void)
 {
     CLAY(CLAY_ID("menu_bar"), {
@@ -270,33 +292,37 @@ void menu_bar_layout(void)
             .clip = { .horizontal = true, .childOffset = Clay_GetScrollOffset() },
         })
     {
-        for (size_t i = 0; i < 10; i++) {
-            Clay_Color menu_color = editor_background_color;
-            menu_color.r += 0xF * i;
+        for (size_t i = 0; i < menu_bar_element_count; i++) {
+            MenuBarElementData element_data = menu_bar_elements[i];
             CLAY(CLAY_IDI("menu_bar_element", i), {
                     .layout = {
-                        .sizing = { .height = CLAY_SIZING_FIXED(60), .width = CLAY_SIZING_FIXED(200), },
+                        .sizing = { .height = CLAY_SIZING_FIXED(60), .width = CLAY_SIZING_FIXED(element_data.width), },
                     },
-                    .backgroundColor = menu_color,
+                    .backgroundColor = element_data.color,
                     .cornerRadius = CLAY_CORNER_RADIUS(8),
                 })
             {
+                Clay_PointerData pointer = Clay_GetPointerState();
+                if (Clay_Hovered() && pointer.state == CLAY_POINTER_DATA_PRESSED_THIS_FRAME) {
+                    dragged_menu_bar_element = i;
+                } else if (pointer.state == CLAY_POINTER_DATA_RELEASED_THIS_FRAME) {
+                    dragged_menu_bar_element = (size_t)-1;
+                }
             }
         }
     }
 
-    Clay_ScrollContainerData scrollData = Clay_GetScrollContainerData(
-        Clay_GetElementId(CLAY_STRING("menu_bar")));
+    Clay_ElementId menu_bar_id = Clay_GetElementId(CLAY_STRING("menu_bar"));
+    Clay_ScrollContainerData scrollData = Clay_GetScrollContainerData(menu_bar_id);
     if (scrollData.found) {
         CLAY(CLAY_ID("ScrollBar"), {
                 .floating = {
                     .attachTo = CLAY_ATTACH_TO_ELEMENT_WITH_ID,
                     .offset = {.x = -(scrollData.scrollPosition->x / scrollData.contentDimensions.width) * scrollData.scrollContainerDimensions.width},
                     .zIndex = 1,
-                    .parentId = Clay_GetElementId(CLAY_STRING("menu_bar")).id,
+                    .parentId = menu_bar_id.id,
                     .attachPoints = { .element = CLAY_ATTACH_POINT_LEFT_BOTTOM, .parent = CLAY_ATTACH_POINT_LEFT_BOTTOM },
                 },
-                .backgroundColor = Clay_PointerOver(Clay_GetElementId(CLAY_STRING("ScrollBar"))) ? (Clay_Color){80, 80, 120, 150} : (Clay_Color){100, 100, 140, 150},
             })
         {
             CLAY(CLAY_ID("ScrollBarButton"), {
@@ -306,7 +332,7 @@ void menu_bar_layout(void)
                             .height = CLAY_SIZING_FIXED(12),
                         }
                     },
-                    .backgroundColor = Clay_PointerOver(Clay_GetElementId(CLAY_STRING("ScrollBar"))) ? (Clay_Color){100, 100, 140, 150} : (Clay_Color){120, 120, 160, 150},
+                    .backgroundColor = Clay_PointerOver(Clay_GetElementId(CLAY_STRING("ScrollBar"))) && dragged_menu_bar_element == (size_t)-1 ? (Clay_Color){100, 100, 140, 150} : (Clay_Color){120, 120, 160, 150},
                     .cornerRadius = CLAY_CORNER_RADIUS(6),
                 })
             {
@@ -323,14 +349,16 @@ void menu_bar_layout(void)
         .clip = { .horizontal = true, .childOffset = Clay_GetScrollOffset() },
     })
     {
-        for (size_t i = 0; i < 10; i++) {
-            Clay_Color menu_color = editor_background_color;
-            menu_color.r += 0xF * i;
+        for (size_t i = 0; i < menu_bar_element_count; i++) {
+            MenuBarElementData element_data = menu_bar_elements[i];
             CLAY(CLAY_IDI("menu_bar2_element", i), {
                     .layout = {
-                        .sizing = { .height = CLAY_SIZING_FIXED(60), .width = CLAY_SIZING_FIXED(200), },
+                        .sizing = {
+                            .height = CLAY_SIZING_FIXED(60),
+                            .width = CLAY_SIZING_FIXED(element_data.width),
+                        },
                     },
-                    .backgroundColor = menu_color,
+                    .backgroundColor = element_data.color,
                     .cornerRadius = CLAY_CORNER_RADIUS(8),
                 })
             {
@@ -410,6 +438,83 @@ void status_bar_layout(void)
     }
 }
 
+void dragged_menu_bar_element_layout(void)
+{
+    MenuBarElementData element_data = menu_bar_elements[dragged_menu_bar_element];
+    Clay_PointerData pointer = Clay_GetPointerState();
+    CLAY(
+            CLAY_ID("dragged_menu_bar_element"),
+            {
+                .floating = {
+                    .offset = {.x = pointer.position.x, .y = pointer.position.y},
+                    .attachTo = CLAY_ATTACH_TO_ROOT,
+                    .attachPoints = {
+                        .element = CLAY_ATTACH_POINT_LEFT_TOP,
+                        .parent = CLAY_ATTACH_POINT_LEFT_TOP,
+                    },
+                    .zIndex = 1,
+                },
+            })
+    {
+        CLAY(CLAY_ID("dragged_menu_bar_element_inner"), {
+            .layout = {
+                .sizing = {
+                    .width = CLAY_SIZING_FIXED(element_data.width),
+                    .height = CLAY_SIZING_FIXED(60),
+                },
+            },
+            .backgroundColor = element_data.color,
+            .cornerRadius = CLAY_CORNER_RADIUS(8),
+        })
+        {
+        }
+    }
+
+    // Display a white vertical line at the nearest side of the element under the pointer
+    Clay_ElementData bar_element_data = Clay_GetElementData(CLAY_ID("menu_bar"));
+    float bar_x = bar_element_data.found ? bar_element_data.boundingBox.x : 0.f;
+    float pointer_x = pointer.position.x;
+    float line_x = 0.f;
+    for (size_t i = 0; i < menu_bar_element_count; i++) {
+        Clay_ElementData elementData = Clay_GetElementData(CLAY_IDI("menu_bar_element", i));
+        if (!elementData.found) {
+            continue;
+        }
+        float left = elementData.boundingBox.x;
+        float right = left + elementData.boundingBox.width;
+        float mid = left + elementData.boundingBox.width / 2.f;
+        if (pointer_x >= left && pointer_x < right) {
+            line_x = (pointer_x < mid ? left : right) - bar_x;
+            break;
+        }
+    }
+    CLAY(CLAY_ID("drop_indicator"), {
+            .floating = {
+                .offset = { .x = line_x, .y = 0 },
+                .attachTo = CLAY_ATTACH_TO_ELEMENT_WITH_ID,
+                .parentId = Clay_GetElementId(CLAY_STRING("menu_bar")).id,
+                .attachPoints = {
+                    .element = CLAY_ATTACH_POINT_LEFT_TOP,
+                    .parent = CLAY_ATTACH_POINT_LEFT_TOP,
+                },
+                .zIndex = 1,
+            },
+        })
+    {
+        CLAY(CLAY_ID("drop_indicator_line"), {
+                .layout = {
+                    .sizing = {
+                        .width = CLAY_SIZING_FIXED(2),
+                        .height = CLAY_SIZING_FIXED(60),
+                    },
+                },
+                .backgroundColor = (Clay_Color){255, 255, 255, 255},
+            })
+        {
+        }
+    }
+}
+
 Clay_RenderCommandArray editor_layout(void)
 {
     Clay_BeginLayout();
@@ -431,6 +536,11 @@ Clay_RenderCommandArray editor_layout(void)
         middle_area_layout();
         status_bar_layout();
     }
+
+    if (dragged_menu_bar_element != (size_t)-1) {
+        dragged_menu_bar_element_layout();
+    }
+
     return Clay_EndLayout(0);
 }
 
@@ -454,7 +564,7 @@ static bool clay_scroll_apply(
     Clay_Vector2 delta,
     ScrollContainerData scroll_container_data)
 {
-    if (delta.x == 0 && delta.y == 0) {
+    if (delta.x == 0 && delta.y == 0 && dragged_menu_bar_element == (size_t)-1) {
         return false;
     }
 
@@ -463,8 +573,7 @@ static bool clay_scroll_apply(
         return false;
     }
     Clay_BoundingBox bb = elem.boundingBox;
-    if (mouse_pos.x < bb.x || mouse_pos.x > bb.x + bb.width || mouse_pos.y < bb.y
-        || mouse_pos.y > bb.y + bb.height) {
+    if (!Clay__PointIsInsideRect(mouse_pos, bb)) {
         return false;
     }
 
@@ -482,6 +591,22 @@ static bool clay_scroll_apply(
             delta.x += delta.y;
         } else if (scroll.config.vertical) {
             delta.y += delta.x;
+        }
+    }
+
+    if (dragged_menu_bar_element != (size_t)-1) {
+#define DRAG_SCROLL_MARGIN 48
+#define DRAG_SCROLL_SPEED 0.1f
+        // If dragging, apply additional scroll when close to the edges to allow dragging beyond the
+        // current view. The closer to the edge, the faster the scroll.
+        float distance_to_left_edge = mouse_pos.x - bb.x;
+        float distance_to_right_edge = (bb.x + bb.width) - mouse_pos.x;
+        if (distance_to_left_edge < DRAG_SCROLL_MARGIN) {
+            delta.x += (DRAG_SCROLL_MARGIN - distance_to_left_edge) * DRAG_SCROLL_SPEED
+                / distance_to_left_edge;
+        } else if (distance_to_right_edge < DRAG_SCROLL_MARGIN) {
+            delta.x -= (DRAG_SCROLL_MARGIN - distance_to_right_edge) * DRAG_SCROLL_SPEED
+                / distance_to_right_edge;
         }
     }
 
@@ -576,7 +701,8 @@ int main(void)
             scrollbarData.mouseDown = false;
         }
         if ((buttons & SDL_BUTTON_LMASK) && !scrollbarData.mouseDown
-            && Clay_PointerOver(Clay_GetElementId(CLAY_STRING("ScrollBar")))) {
+            && Clay_PointerOver(Clay_GetElementId(CLAY_STRING("ScrollBar")))
+            && dragged_menu_bar_element == (size_t)-1) {
             Clay_ScrollContainerData scrollContainerData = Clay_GetScrollContainerData(
                 Clay_GetElementId(CLAY_STRING("menu_bar")));
             scrollbarData.clickOrigin = mouse_pos;
@@ -616,7 +742,7 @@ int main(void)
         // Pass {0,0} if already handled above (preserves drag/momentum for other areas), or the
         // real delta as the default fallback
         Clay_UpdateScrollContainers(
-            true,
+            false,
             scroll_consumed ? (Clay_Vector2) { 0, 0 } : scroll_delta,
             0.016f);
 
