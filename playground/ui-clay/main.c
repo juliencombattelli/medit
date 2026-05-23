@@ -292,6 +292,8 @@ void menu_bar_layout(void)
             .clip = { .horizontal = true, .childOffset = Clay_GetScrollOffset() },
         })
     {
+        Clay_PointerData pointer = Clay_GetPointerState();
+
         for (size_t i = 0; i < menu_bar_element_count; i++) {
             MenuBarElementData element_data = menu_bar_elements[i];
             CLAY(CLAY_IDI("menu_bar_element", i), {
@@ -302,11 +304,8 @@ void menu_bar_layout(void)
                     .cornerRadius = CLAY_CORNER_RADIUS(8),
                 })
             {
-                Clay_PointerData pointer = Clay_GetPointerState();
                 if (Clay_Hovered() && pointer.state == CLAY_POINTER_DATA_PRESSED_THIS_FRAME) {
                     dragged_menu_bar_element = i;
-                } else if (pointer.state == CLAY_POINTER_DATA_RELEASED_THIS_FRAME) {
-                    dragged_menu_bar_element = (size_t)-1;
                 }
             }
         }
@@ -475,8 +474,9 @@ void dragged_menu_bar_element_layout(void)
     float bar_x = bar_element_data.found ? bar_element_data.boundingBox.x : 0.f;
     float pointer_x = pointer.position.x;
     float line_x = 0.f;
-    for (size_t i = 0; i < menu_bar_element_count; i++) {
-        Clay_ElementData elementData = Clay_GetElementData(CLAY_IDI("menu_bar_element", i));
+    size_t tab_i = 0;
+    for (; tab_i < menu_bar_element_count; tab_i++) {
+        Clay_ElementData elementData = Clay_GetElementData(CLAY_IDI("menu_bar_element", tab_i));
         if (!elementData.found) {
             continue;
         }
@@ -484,7 +484,13 @@ void dragged_menu_bar_element_layout(void)
         float right = left + elementData.boundingBox.width;
         float mid = left + elementData.boundingBox.width / 2.f;
         if (pointer_x >= left && pointer_x < right) {
-            line_x = (pointer_x < mid ? left : right) - bar_x;
+            if (pointer_x < mid) {
+                line_x = left;
+            } else {
+                line_x = right;
+                tab_i++;
+            }
+            line_x -= bar_x;
             break;
         }
     }
@@ -512,6 +518,13 @@ void dragged_menu_bar_element_layout(void)
             })
         {
         }
+    }
+    if (pointer.state == CLAY_POINTER_DATA_RELEASED_THIS_FRAME) {
+        MenuBarElementData temp = { 0 };
+        temp = menu_bar_elements[dragged_menu_bar_element];
+        menu_bar_elements[dragged_menu_bar_element] = menu_bar_elements[tab_i];
+        menu_bar_elements[tab_i] = temp;
+        dragged_menu_bar_element = (size_t)-1;
     }
 }
 
@@ -769,3 +782,12 @@ int main(void)
     TTF_Quit();
     SDL_Quit();
 }
+
+/*
+TODO:
+
+1. tab bar
+- [x] implement the dropping of tabs (just swap entries)
+- [ ] add clipping to the scrollable area to avoid having the drop indicator drawn outside
+- [ ] start dragging only when clicking AND moving the mouse by a threshold
+*/
