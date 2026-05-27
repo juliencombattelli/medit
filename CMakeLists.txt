@@ -216,7 +216,7 @@ if(MEDIT_ENABLE_ASAN STREQUAL ON AND NOT HAVE_ASAN)
     )
 elseif(HAVE_ASAN)
     # Enable AddressSanitizer for all targets built if requested
-    foreach(_target medit test_dynarray test_layout test_unicode)
+    foreach(_target medit test_dynarray test_layout test_unicode playground_ui_clay)
         if(MEDIT_ENABLE_ASAN STREQUAL "ON")
             target_compile_options(${_target} PRIVATE ${ASAN_COMPILE_OPTIONS})
             target_link_options(${_target} PRIVATE ${ASAN_LINK_OPTIONS})
