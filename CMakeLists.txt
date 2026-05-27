@@ -189,7 +189,7 @@ target_include_directories(playground_ui PRIVATE src)
 target_link_libraries(playground_ui PRIVATE SDL3::SDL3 SDL3_ttf::SDL3_ttf utf8proc::utf8proc)
 
 add_executable(playground_ui_clay
-    playground/ui-clay/main.c src/default_settings.c
+    playground/ui-clay/main.c playground/ui-clay/clay.c src/default_settings.c
 )
 target_compile_options(playground_ui_clay PRIVATE ${COMPILE_OPTIONS})
 target_include_directories(playground_ui_clay PRIVATE src)
