@@ -254,6 +254,12 @@ void SDL_Clay_RenderClayCommands(AppState* app_state, Clay_RenderCommandArray dr
     }
 }
 
+static bool point_inside_rect(Clay_Vector2 point, Clay_BoundingBox rect)
+{
+    return point.x >= rect.x && point.x <= rect.x + rect.width && point.y >= rect.y
+        && point.y <= rect.y + rect.height;
+}
+
 static const Clay_Color background_color = { 0x18, 0x18, 0x18, 0xFF };
 static const Clay_Color sidebars_background_color = { 0x18, 0x7f, 0x18, 0xFF };
 static const Clay_Color editor_background_color = { 0x1F, 0x1F, 0x5F, 0xFF };
@@ -279,6 +285,115 @@ static MenuBarElementData menu_bar_elements[] = {
 };
 static const size_t menu_bar_element_count = sizeof(menu_bar_elements)
     / sizeof(menu_bar_elements[0]);
+
+void dragged_menu_bar_element_layout(void)
+{
+    MenuBarElementData element_data = menu_bar_elements[dragged_menu_bar_element];
+    Clay_PointerData pointer = Clay_GetPointerState();
+    CLAY(
+            CLAY_ID("dragged_menu_bar_element"),
+            {
+                .floating = {
+                    .offset = {.x = pointer.position.x, .y = pointer.position.y},
+                    .attachTo = CLAY_ATTACH_TO_ROOT,
+                    .attachPoints = {
+                        .element = CLAY_ATTACH_POINT_LEFT_TOP,
+                        .parent = CLAY_ATTACH_POINT_LEFT_TOP,
+                    },
+                    .zIndex = 1,
+                },
+            })
+    {
+        CLAY(CLAY_ID("dragged_menu_bar_element_inner"), {
+            .layout = {
+                .sizing = {
+                    .width = CLAY_SIZING_FIXED(element_data.width),
+                    .height = CLAY_SIZING_FIXED(60),
+                },
+            },
+            .backgroundColor = element_data.color,
+            .cornerRadius = CLAY_CORNER_RADIUS(8),
+        })
+        {
+        }
+    }
+}
+
+void dragged_menu_bar_element_drop_indicator_layout(void)
+{
+    Clay_PointerData pointer = Clay_GetPointerState();
+
+    // Display a white vertical line at the nearest side of the element under the pointer
+    Clay_ElementData bar_element_data = Clay_GetElementData(CLAY_ID("menu_bar"));
+    float bar_x = bar_element_data.found ? bar_element_data.boundingBox.x : 0.f;
+    float pointer_x = pointer.position.x;
+    float line_x = 0.f;
+    size_t tab_i = 0;
+    for (; tab_i < menu_bar_element_count; tab_i++) {
+        Clay_ElementData elementData = Clay_GetElementData(CLAY_IDI("menu_bar_element", tab_i));
+        if (!elementData.found) {
+            continue;
+        }
+        float left = elementData.boundingBox.x;
+        float right = left + elementData.boundingBox.width;
+        float mid = left + elementData.boundingBox.width / 2.f;
+        if (pointer_x >= left && pointer_x < right) {
+            if (pointer_x < mid) {
+                line_x = left;
+            } else {
+                line_x = right;
+                tab_i++;
+            }
+            line_x -= bar_x;
+            break;
+        }
+    }
+    CLAY(CLAY_ID("drop_indicator"), {
+            .floating = {
+                .offset = { .x = line_x, .y = 0 },
+                .attachTo = CLAY_ATTACH_TO_ELEMENT_WITH_ID,
+                .parentId = Clay_GetElementId(CLAY_STRING("menu_bar")).id,
+                .attachPoints = {
+                    .element = CLAY_ATTACH_POINT_LEFT_TOP,
+                    .parent = CLAY_ATTACH_POINT_LEFT_TOP,
+                },
+                .zIndex = 1,
+            },
+        })
+    {
+        CLAY(CLAY_ID("drop_indicator_line"), {
+                .layout = {
+                    .sizing = {
+                        .width = CLAY_SIZING_FIXED(2),
+                        .height = CLAY_SIZING_FIXED(60),
+                    },
+                },
+                .backgroundColor = (Clay_Color){255, 255, 255, 255},
+            })
+        {
+        }
+    }
+    if (pointer.state == CLAY_POINTER_DATA_RELEASED_THIS_FRAME) {
+        size_t src = dragged_menu_bar_element;
+        size_t dst = tab_i;
+        if (src != dst && src + 1 != dst) {
+            MenuBarElementData elem = menu_bar_elements[src];
+            if (src < dst) {
+                // Moving right: close the gap by shifting [src+1 .. dst-1] left
+                for (size_t i = src; i < dst - 1; i++) {
+                    menu_bar_elements[i] = menu_bar_elements[i + 1];
+                }
+                menu_bar_elements[dst - 1] = elem;
+            } else {
+                // Moving left: open a slot by shifting [dst .. src-1] right
+                for (size_t i = src; i > dst; i--) {
+                    menu_bar_elements[i] = menu_bar_elements[i - 1];
+                }
+                menu_bar_elements[dst] = elem;
+            }
+        }
+    }
+}
 
 void menu_bar_layout(void)
 {
@@ -308,12 +423,12 @@ void menu_bar_layout(void)
                 }
             }
         }
-    }
 
-    Clay_ElementId menu_bar_id = Clay_GetElementId(CLAY_STRING("menu_bar"));
-    Clay_ScrollContainerData scrollData = Clay_GetScrollContainerData(menu_bar_id);
-    if (scrollData.found) {
-        CLAY(CLAY_ID("ScrollBar"), {
+        Clay_ElementId menu_bar_id = Clay_GetElementId(CLAY_STRING("menu_bar"));
+        Clay_ScrollContainerData scrollData = Clay_GetScrollContainerData(menu_bar_id);
+        if (scrollData.found) {
+
+            CLAY(CLAY_ID("ScrollBar"), {
                 .floating = {
                     .attachTo = CLAY_ATTACH_TO_ELEMENT_WITH_ID,
                     .offset = {.x = -(scrollData.scrollPosition->x / scrollData.contentDimensions.width) * scrollData.scrollContainerDimensions.width},
@@ -322,8 +437,8 @@ void menu_bar_layout(void)
                     .attachPoints = { .element = CLAY_ATTACH_POINT_LEFT_BOTTOM, .parent = CLAY_ATTACH_POINT_LEFT_BOTTOM },
                 },
             })
-        {
-            CLAY(CLAY_ID("ScrollBarButton"), {
+            {
+                CLAY(CLAY_ID("ScrollBarButton"), {
                     .layout = {
                         .sizing = {
                             .width = CLAY_SIZING_FIXED((scrollData.scrollContainerDimensions.width / scrollData.contentDimensions.width) * scrollData.scrollContainerDimensions.width),
@@ -333,7 +448,8 @@ void menu_bar_layout(void)
                     .backgroundColor = Clay_PointerOver(Clay_GetElementId(CLAY_STRING("ScrollBar"))) && dragged_menu_bar_element == (size_t)-1 ? (Clay_Color){100, 100, 140, 150} : (Clay_Color){120, 120, 160, 150},
                     .cornerRadius = CLAY_CORNER_RADIUS(6),
                 })
-            {
+                {
+                }
             }
         }
     }
@@ -436,97 +552,6 @@ void status_bar_layout(void)
     }
 }
 
-void dragged_menu_bar_element_layout(void)
-{
-    MenuBarElementData element_data = menu_bar_elements[dragged_menu_bar_element];
-    Clay_PointerData pointer = Clay_GetPointerState();
-    CLAY(
-            CLAY_ID("dragged_menu_bar_element"),
-            {
-                .floating = {
-                    .offset = {.x = pointer.position.x, .y = pointer.position.y},
-                    .attachTo = CLAY_ATTACH_TO_ROOT,
-                    .attachPoints = {
-                        .element = CLAY_ATTACH_POINT_LEFT_TOP,
-                        .parent = CLAY_ATTACH_POINT_LEFT_TOP,
-                    },
-                    .zIndex = 1,
-                },
-            })
-    {
-        CLAY(CLAY_ID("dragged_menu_bar_element_inner"), {
-            .layout = {
-                .sizing = {
-                    .width = CLAY_SIZING_FIXED(element_data.width),
-                    .height = CLAY_SIZING_FIXED(60),
-                },
-            },
-            .backgroundColor = element_data.color,
-            .cornerRadius = CLAY_CORNER_RADIUS(8),
-        })
-        {
-        }
-    }
-
-    // Display a white vertical line at the nearest side of the element under the pointer
-    Clay_ElementData bar_element_data = Clay_GetElementData(CLAY_ID("menu_bar"));
-    float bar_x = bar_element_data.found ? bar_element_data.boundingBox.x : 0.f;
-    float pointer_x = pointer.position.x;
-    float line_x = 0.f;
-    size_t tab_i = 0;
-    for (; tab_i < menu_bar_element_count; tab_i++) {
-        Clay_ElementData elementData = Clay_GetElementData(CLAY_IDI("menu_bar_element", tab_i));
-        if (!elementData.found) {
-            continue;
-        }
-        float left = elementData.boundingBox.x;
-        float right = left + elementData.boundingBox.width;
-        float mid = left + elementData.boundingBox.width / 2.f;
-        if (pointer_x >= left && pointer_x < right) {
-            if (pointer_x < mid) {
-                line_x = left;
-            } else {
-                line_x = right;
-                tab_i++;
-            }
-            line_x -= bar_x;
-            break;
-        }
-    }
-    CLAY(CLAY_ID("drop_indicator"), {
-            .floating = {
-                .offset = { .x = line_x, .y = 0 },
-                .attachTo = CLAY_ATTACH_TO_ELEMENT_WITH_ID,
-                .parentId = Clay_GetElementId(CLAY_STRING("menu_bar")).id,
-                .attachPoints = {
-                    .element = CLAY_ATTACH_POINT_LEFT_TOP,
-                    .parent = CLAY_ATTACH_POINT_LEFT_TOP,
-                },
-                .zIndex = 1,
-            },
-        })
-    {
-        CLAY(CLAY_ID("drop_indicator_line"), {
-                .layout = {
-                    .sizing = {
-                        .width = CLAY_SIZING_FIXED(2),
-                        .height = CLAY_SIZING_FIXED(60),
-                    },
-                },
-                .backgroundColor = (Clay_Color){255, 255, 255, 255},
-            })
-        {
-        }
-    }
-    if (pointer.state == CLAY_POINTER_DATA_RELEASED_THIS_FRAME) {
-        MenuBarElementData temp = { 0 };
-        temp = menu_bar_elements[dragged_menu_bar_element];
-        menu_bar_elements[dragged_menu_bar_element] = menu_bar_elements[tab_i];
-        menu_bar_elements[tab_i] = temp;
-        dragged_menu_bar_element = (size_t)-1;
-    }
-}
-
 Clay_RenderCommandArray editor_layout(void)
 {
     Clay_BeginLayout();
@@ -551,6 +576,16 @@ Clay_RenderCommandArray editor_layout(void)
 
     if (dragged_menu_bar_element != (size_t)-1) {
         dragged_menu_bar_element_layout();
+        Clay_ElementData bar_elem = Clay_GetElementData(Clay_GetElementId(CLAY_STRING("menu_bar")));
+        Clay_PointerData ptr = Clay_GetPointerState();
+        bool inside = bar_elem.found && point_inside_rect(ptr.position, bar_elem.boundingBox);
+        if (inside) {
+            dragged_menu_bar_element_drop_indicator_layout();
+        }
+        Clay_PointerData pointer = Clay_GetPointerState();
+        if (pointer.state == CLAY_POINTER_DATA_RELEASED_THIS_FRAME) {
+            dragged_menu_bar_element = (size_t)-1;
+        }
     }
 
     return Clay_EndLayout(0);
@@ -585,7 +620,7 @@ static bool clay_scroll_apply(
         return false;
     }
     Clay_BoundingBox bb = elem.boundingBox;
-    if (!Clay__PointIsInsideRect(mouse_pos, bb)) {
+    if (!point_inside_rect(mouse_pos, bb)) {
         return false;
     }
 
