@@ -348,6 +348,9 @@ void dragged_menu_bar_element_drop_indicator_layout(void)
             break;
         }
     }
+    if (line_x < 0 || line_x > bar_element_data.boundingBox.width) {
+        return;
+    }
     CLAY(CLAY_ID("drop_indicator"), {
             .floating = {
                 .offset = { .x = line_x, .y = 0 },
@@ -822,6 +825,6 @@ TODO:
 
 1. tab bar
 - [x] implement the dropping of tabs (just swap entries)
-- [ ] add clipping to the scrollable area to avoid having the drop indicator drawn outside
+- [x] add clipping to the scrollable area to avoid having the drop indicator drawn outside
 - [ ] start dragging only when clicking AND moving the mouse by a threshold
 */
