@@ -679,6 +679,7 @@ static bool clay_scroll_apply(
 
 typedef struct {
     Clay_Vector2 positionOrigin;
+    bool active;
 } ScrollbarData;
 
 ScrollbarData scrollbarData = { 0 };
@@ -835,13 +836,19 @@ int main(void)
 
         Clay_SetPointerState(mouse_state.pos, mouse_state.button_left.state);
 
-        if (mouse_state.button_left.state == MOUSE_BUTTON_PRESSED_THIS_FRAME
+        if (mouse_state.button_left.state != MOUSE_BUTTON_PRESSED) {
+            scrollbarData.active = false;
+        }
+
+        if (!scrollbarData.active
+            && mouse_state.button_left.state == MOUSE_BUTTON_PRESSED_THIS_FRAME
             && Clay_PointerOver(Clay_GetElementId(CLAY_STRING("ScrollBar")))
             && dragged_menu_bar_element == (size_t)-1) {
             Clay_ScrollContainerData scrollContainerData = Clay_GetScrollContainerData(
                 Clay_GetElementId(CLAY_STRING("menu_bar")));
             scrollbarData.positionOrigin = *scrollContainerData.scrollPosition;
-        } else if (mouse_state.button_left.state == MOUSE_BUTTON_PRESSED) {
+            scrollbarData.active = true;
+        } else if (scrollbarData.active && mouse_state.button_left.state == MOUSE_BUTTON_PRESSED) {
             Clay_ScrollContainerData scrollContainerData = Clay_GetScrollContainerData(
                 Clay_GetElementId(CLAY_STRING("menu_bar")));
             if (scrollContainerData.contentDimensions.height > 0) {
