@@ -677,13 +677,6 @@ static bool clay_scroll_apply(
     return true;
 }
 
-typedef struct {
-    Clay_Vector2 positionOrigin;
-    bool active;
-} ScrollbarData;
-
-ScrollbarData scrollbarData = { 0 };
-
 typedef enum {
     // A mouse button is not currently down / was released at some point in the past.
     MOUSE_BUTTON_RELEASED,
@@ -710,6 +703,53 @@ typedef struct {
     MouseButtonData button_side_1;
     MouseButtonData button_side_2;
 } MouseState;
+
+typedef struct {
+    Clay_Vector2 positionOrigin;
+    uint32_t active_id; // 0 = none active
+} ScrollbarDragState;
+
+// Call once per scrollbar per frame. scrollbar_id is the draggable thumb element;
+// container_id is the associated clip/scroll container.
+static void clay_scrollbar_drag_update(
+    Clay_ElementId scrollbar_id,
+    Clay_ElementId container_id,
+    const MouseState* mouse,
+    ScrollbarDragState* state)
+{
+    if (mouse->button_left.state != MOUSE_BUTTON_PRESSED
+        && mouse->button_left.state != MOUSE_BUTTON_PRESSED_THIS_FRAME) {
+        if (state->active_id == scrollbar_id.id) {
+            state->active_id = 0;
+        }
+        return;
+    }
+
+    Clay_ScrollContainerData scroll_data = Clay_GetScrollContainerData(container_id);
+    if (!scroll_data.found) {
+        return;
+    }
+
+    if (state->active_id == 0 && mouse->button_left.state == MOUSE_BUTTON_PRESSED_THIS_FRAME
+        && Clay_PointerOver(scrollbar_id)) {
+        state->positionOrigin = *scroll_data.scrollPosition;
+        state->active_id = scrollbar_id.id;
+
+    } else if (state->active_id == scrollbar_id.id) {
+        Clay_Vector2 ratio = {
+            scroll_data.contentDimensions.width / scroll_data.scrollContainerDimensions.width,
+            scroll_data.contentDimensions.height / scroll_data.scrollContainerDimensions.height,
+        };
+        if (scroll_data.config.horizontal) {
+            scroll_data.scrollPosition->x = state->positionOrigin.x
+                + (mouse->button_left.click_origin_x - mouse->pos.x) * ratio.x;
+        }
+        if (scroll_data.config.vertical) {
+            scroll_data.scrollPosition->y = state->positionOrigin.y
+                + (mouse->button_left.click_origin_y - mouse->pos.y) * ratio.y;
+        }
+    }
+}
 
 void set_mouse_button_state(MouseButtonData* button, bool pressed_this_frame, float x, float y)
 {
@@ -807,6 +847,7 @@ int main(void)
         (Clay_ErrorHandler) { .errorHandlerFunction = HandleClayErrors });
 
     MouseState mouse_state = { 0 };
+    ScrollbarDragState scrollbar_drag_state = { 0 };
 
     bool running = true;
     while (running) {
@@ -836,37 +877,12 @@ int main(void)
 
         Clay_SetPointerState(mouse_state.pos, mouse_state.button_left.state);
 
-        if (mouse_state.button_left.state != MOUSE_BUTTON_PRESSED) {
-            scrollbarData.active = false;
-        }
-
-        if (!scrollbarData.active
-            && mouse_state.button_left.state == MOUSE_BUTTON_PRESSED_THIS_FRAME
-            && Clay_PointerOver(Clay_GetElementId(CLAY_STRING("ScrollBar")))
-            && dragged_menu_bar_element == (size_t)-1) {
-            Clay_ScrollContainerData scrollContainerData = Clay_GetScrollContainerData(
-                Clay_GetElementId(CLAY_STRING("menu_bar")));
-            scrollbarData.positionOrigin = *scrollContainerData.scrollPosition;
-            scrollbarData.active = true;
-        } else if (scrollbarData.active && mouse_state.button_left.state == MOUSE_BUTTON_PRESSED) {
-            Clay_ScrollContainerData scrollContainerData = Clay_GetScrollContainerData(
-                Clay_GetElementId(CLAY_STRING("menu_bar")));
-            if (scrollContainerData.contentDimensions.height > 0) {
-                Clay_Vector2 ratio = (Clay_Vector2) {
-                    scrollContainerData.contentDimensions.width
-                        / scrollContainerData.scrollContainerDimensions.width,
-                    scrollContainerData.contentDimensions.height
-                        / scrollContainerData.scrollContainerDimensions.height,
-                };
-                if (scrollContainerData.config.vertical) {
-                    scrollContainerData.scrollPosition->y = scrollbarData.positionOrigin.y
-                        + (mouse_state.button_left.click_origin_y - mouse_state.pos.y) * ratio.y;
-                }
-                if (scrollContainerData.config.horizontal) {
-                    scrollContainerData.scrollPosition->x = scrollbarData.positionOrigin.x
-                        + (mouse_state.button_left.click_origin_x - mouse_state.pos.x) * ratio.x;
-                }
-            }
+        if (dragged_menu_bar_element == (size_t)-1) {
+            clay_scrollbar_drag_update(
+                Clay_GetElementId(CLAY_STRING("ScrollBar")),
+                Clay_GetElementId(CLAY_STRING("menu_bar")),
+                &mouse_state,
+                &scrollbar_drag_state);
         }
 
         // Custom scroll handling for the menu bar with a different sensitivity and both axes
@@ -913,4 +929,5 @@ TODO:
 - [x] implement the dropping of tabs (just swap entries)
 - [x] add clipping to the scrollable area to avoid having the drop indicator drawn outside
 - [ ] start dragging only when clicking AND moving the mouse by a threshold
+- [ ] keep scrollbar pressed color while dragged even when pointer is not hovering
 */
