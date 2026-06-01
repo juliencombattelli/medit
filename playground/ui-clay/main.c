@@ -260,11 +260,104 @@ static bool point_inside_rect(Clay_Vector2 point, Clay_BoundingBox rect)
         && point.y <= rect.y + rect.height;
 }
 
+typedef enum {
+    // A mouse button is not currently down / was released at some point in the past.
+    MOUSE_BUTTON_RELEASED,
+    // A mouse button click was released this frame.
+    MOUSE_BUTTON_RELEASED_THIS_FRAME,
+    // A mouse button click occurred in a previous frame and is still currently held down this
+    // frame.
+    MOUSE_BUTTON_PRESSED,
+    // A mouse button click occurred this frame.
+    MOUSE_BUTTON_PRESSED_THIS_FRAME,
+} MouseButtonState;
+
+typedef struct {
+    MouseButtonState state;
+    Clay_Vector2 click_origin;
+} MouseButtonData;
+
+typedef struct {
+    Clay_Vector2 pos;
+    Clay_Vector2 scroll_delta;
+    MouseButtonData button_left;
+    MouseButtonData button_middle;
+    MouseButtonData button_right;
+    MouseButtonData button_side_1;
+    MouseButtonData button_side_2;
+} MouseState;
+
+void set_mouse_button_state(
+    MouseButtonData* button,
+    bool pressed_this_frame,
+    Clay_Vector2 pointer_pos)
+{
+    if (pressed_this_frame) {
+        if (button->state == MOUSE_BUTTON_PRESSED_THIS_FRAME) {
+            button->state = MOUSE_BUTTON_PRESSED;
+        } else if (button->state != MOUSE_BUTTON_PRESSED) {
+            button->state = MOUSE_BUTTON_PRESSED_THIS_FRAME;
+            button->click_origin.x = pointer_pos.x;
+            button->click_origin.y = pointer_pos.y;
+        }
+    } else {
+        if (button->state == MOUSE_BUTTON_RELEASED_THIS_FRAME) {
+            button->state = MOUSE_BUTTON_RELEASED;
+        } else if (button->state != MOUSE_BUTTON_RELEASED) {
+            button->state = MOUSE_BUTTON_RELEASED_THIS_FRAME;
+            button->click_origin.x = 0;
+            button->click_origin.y = 0;
+        }
+    }
+}
+
+void mouse_state_reset(MouseState* mouse_state)
+{
+    mouse_state->scroll_delta = (Clay_Vector2) { 0 };
+}
+
+void mouse_state_update(MouseState* mouse_state)
+{
+    Uint32 buttons = SDL_GetMouseState(&mouse_state->pos.x, &mouse_state->pos.y);
+
+    set_mouse_button_state( //
+        &mouse_state->button_left,
+        buttons & SDL_BUTTON_LMASK,
+        mouse_state->pos);
+
+    set_mouse_button_state(
+        &mouse_state->button_middle,
+        buttons & SDL_BUTTON_MMASK,
+        mouse_state->pos);
+
+    set_mouse_button_state(
+        &mouse_state->button_right,
+        buttons & SDL_BUTTON_RMASK,
+        mouse_state->pos);
+
+    set_mouse_button_state(
+        &mouse_state->button_side_1,
+        buttons & SDL_BUTTON_X1MASK,
+        mouse_state->pos);
+
+    set_mouse_button_state(
+        &mouse_state->button_side_2,
+        buttons & SDL_BUTTON_X2MASK,
+        mouse_state->pos);
+}
+
+typedef struct {
+    Clay_Vector2 positionOrigin;
+    uint32_t active_id; // 0 = none active
+} ScrollbarDragState;
+
 static const Clay_Color background_color = { 0x18, 0x18, 0x18, 0xFF };
 static const Clay_Color sidebars_background_color = { 0x18, 0x7f, 0x18, 0xFF };
 static const Clay_Color editor_background_color = { 0x1F, 0x1F, 0x5F, 0xFF };
 
 static size_t dragged_menu_bar_element = (size_t)-1;
+static MouseState mouse_state = { 0 };
+static ScrollbarDragState scrollbar_drag_state = { 0 };
 
 typedef struct {
     Clay_Color color;
@@ -398,6 +491,11 @@ void dragged_menu_bar_element_drop_indicator_layout(void)
     }
 }
 
+float distance(Clay_Vector2 a, Clay_Vector2 b)
+{
+    return SDL_sqrtf(SDL_powf((b.x - a.x), 2) + SDL_powf((b.y - a.y), 2));
+}
+
 void menu_bar_layout(void)
 {
     CLAY(CLAY_ID("menu_bar"), {
@@ -421,8 +519,13 @@ void menu_bar_layout(void)
                     .cornerRadius = CLAY_CORNER_RADIUS(8),
                 })
             {
-                if (Clay_Hovered() && pointer.state == CLAY_POINTER_DATA_PRESSED_THIS_FRAME) {
-                    dragged_menu_bar_element = i;
+                if (Clay_Hovered() && mouse_state.button_left.state == MOUSE_BUTTON_PRESSED) {
+                    float distance_from_click_origin = distance(
+                        mouse_state.button_left.click_origin,
+                        mouse_state.pos);
+                    if (distance_from_click_origin > 4) {
+                        dragged_menu_bar_element = i;
+                    }
                 }
             }
         }
@@ -677,50 +780,14 @@ static bool clay_scroll_apply(
     return true;
 }
 
-typedef enum {
-    // A mouse button is not currently down / was released at some point in the past.
-    MOUSE_BUTTON_RELEASED,
-    // A mouse button click was released this frame.
-    MOUSE_BUTTON_RELEASED_THIS_FRAME,
-    // A mouse button click occurred in a previous frame and is still currently held down this
-    // frame.
-    MOUSE_BUTTON_PRESSED,
-    // A mouse button click occurred this frame.
-    MOUSE_BUTTON_PRESSED_THIS_FRAME,
-} MouseButtonState;
-
-typedef struct {
-    MouseButtonState state;
-    float click_origin_x, click_origin_y;
-} MouseButtonData;
-
-typedef struct {
-    Clay_Vector2 pos;
-    Clay_Vector2 scroll_delta;
-    MouseButtonData button_left;
-    MouseButtonData button_middle;
-    MouseButtonData button_right;
-    MouseButtonData button_side_1;
-    MouseButtonData button_side_2;
-} MouseState;
-
-typedef struct {
-    Clay_Vector2 positionOrigin;
-    uint32_t active_id; // 0 = none active
-} ScrollbarDragState;
-
 // Call once per scrollbar per frame. scrollbar_id is the draggable thumb element;
 // container_id is the associated clip/scroll container.
-static void clay_scrollbar_drag_update(
-    Clay_ElementId scrollbar_id,
-    Clay_ElementId container_id,
-    const MouseState* mouse,
-    ScrollbarDragState* state)
+static void clay_scrollbar_drag_update(Clay_ElementId scrollbar_id, Clay_ElementId container_id)
 {
-    if (mouse->button_left.state != MOUSE_BUTTON_PRESSED
-        && mouse->button_left.state != MOUSE_BUTTON_PRESSED_THIS_FRAME) {
-        if (state->active_id == scrollbar_id.id) {
-            state->active_id = 0;
+    if (mouse_state.button_left.state != MOUSE_BUTTON_PRESSED
+        && mouse_state.button_left.state != MOUSE_BUTTON_PRESSED_THIS_FRAME) {
+        if (scrollbar_drag_state.active_id == scrollbar_id.id) {
+            scrollbar_drag_state.active_id = 0;
         }
         return;
     }
@@ -730,86 +797,26 @@ static void clay_scrollbar_drag_update(
         return;
     }
 
-    if (state->active_id == 0 && mouse->button_left.state == MOUSE_BUTTON_PRESSED_THIS_FRAME
+    if (scrollbar_drag_state.active_id == 0
+        && mouse_state.button_left.state == MOUSE_BUTTON_PRESSED_THIS_FRAME
         && Clay_PointerOver(scrollbar_id)) {
-        state->positionOrigin = *scroll_data.scrollPosition;
-        state->active_id = scrollbar_id.id;
+        scrollbar_drag_state.positionOrigin = *scroll_data.scrollPosition;
+        scrollbar_drag_state.active_id = scrollbar_id.id;
 
-    } else if (state->active_id == scrollbar_id.id) {
+    } else if (scrollbar_drag_state.active_id == scrollbar_id.id) {
         Clay_Vector2 ratio = {
             scroll_data.contentDimensions.width / scroll_data.scrollContainerDimensions.width,
             scroll_data.contentDimensions.height / scroll_data.scrollContainerDimensions.height,
         };
         if (scroll_data.config.horizontal) {
-            scroll_data.scrollPosition->x = state->positionOrigin.x
-                + (mouse->button_left.click_origin_x - mouse->pos.x) * ratio.x;
+            scroll_data.scrollPosition->x = scrollbar_drag_state.positionOrigin.x
+                + (mouse_state.button_left.click_origin.x - mouse_state.pos.x) * ratio.x;
         }
         if (scroll_data.config.vertical) {
-            scroll_data.scrollPosition->y = state->positionOrigin.y
-                + (mouse->button_left.click_origin_y - mouse->pos.y) * ratio.y;
+            scroll_data.scrollPosition->y = scrollbar_drag_state.positionOrigin.y
+                + (mouse_state.button_left.click_origin.y - mouse_state.pos.y) * ratio.y;
         }
     }
-}
-
-void set_mouse_button_state(MouseButtonData* button, bool pressed_this_frame, float x, float y)
-{
-    if (pressed_this_frame) {
-        if (button->state == MOUSE_BUTTON_PRESSED_THIS_FRAME) {
-            button->state = MOUSE_BUTTON_PRESSED;
-        } else if (button->state != MOUSE_BUTTON_PRESSED) {
-            button->state = MOUSE_BUTTON_PRESSED_THIS_FRAME;
-            button->click_origin_x = x;
-            button->click_origin_y = y;
-        }
-    } else {
-        if (button->state == MOUSE_BUTTON_RELEASED_THIS_FRAME) {
-            button->state = MOUSE_BUTTON_RELEASED;
-        } else if (button->state != MOUSE_BUTTON_RELEASED) {
-            button->state = MOUSE_BUTTON_RELEASED_THIS_FRAME;
-            button->click_origin_x = 0;
-            button->click_origin_y = 0;
-        }
-    }
-}
-
-void mouse_state_reset(MouseState* mouse_state)
-{
-    mouse_state->scroll_delta = (Clay_Vector2) { 0 };
-}
-
-void mouse_state_update(MouseState* mouse_state)
-{
-    Uint32 buttons = SDL_GetMouseState(&mouse_state->pos.x, &mouse_state->pos.y);
-
-    set_mouse_button_state(
-        &mouse_state->button_left,
-        buttons & SDL_BUTTON_LMASK,
-        mouse_state->pos.x,
-        mouse_state->pos.y);
-
-    set_mouse_button_state(
-        &mouse_state->button_middle,
-        buttons & SDL_BUTTON_MMASK,
-        mouse_state->pos.x,
-        mouse_state->pos.y);
-
-    set_mouse_button_state(
-        &mouse_state->button_right,
-        buttons & SDL_BUTTON_RMASK,
-        mouse_state->pos.x,
-        mouse_state->pos.y);
-
-    set_mouse_button_state(
-        &mouse_state->button_side_1,
-        buttons & SDL_BUTTON_X1MASK,
-        mouse_state->pos.x,
-        mouse_state->pos.y);
-
-    set_mouse_button_state(
-        &mouse_state->button_side_2,
-        buttons & SDL_BUTTON_X2MASK,
-        mouse_state->pos.x,
-        mouse_state->pos.y);
 }
 
 int main(void)
@@ -846,9 +853,6 @@ int main(void)
         (Clay_Dimensions) { .width = (float)width, .height = (float)height },
         (Clay_ErrorHandler) { .errorHandlerFunction = HandleClayErrors });
 
-    MouseState mouse_state = { 0 };
-    ScrollbarDragState scrollbar_drag_state = { 0 };
-
     bool running = true;
     while (running) {
         SDL_Event event = { 0 };
@@ -880,9 +884,7 @@ int main(void)
         if (dragged_menu_bar_element == (size_t)-1) {
             clay_scrollbar_drag_update(
                 Clay_GetElementId(CLAY_STRING("ScrollBar")),
-                Clay_GetElementId(CLAY_STRING("menu_bar")),
-                &mouse_state,
-                &scrollbar_drag_state);
+                Clay_GetElementId(CLAY_STRING("menu_bar")));
         }
 
         // Custom scroll handling for the menu bar with a different sensitivity and both axes
