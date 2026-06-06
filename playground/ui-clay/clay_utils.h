@@ -77,17 +77,22 @@ typedef struct {
     bool use_both_wheels;
 } ScrollContainerData;
 
+// Bitmask for scroll update sources - allows combining multiple sources in a single call
+#define SCROLL_UPDATE_SOURCE_WHEEL (1u << 0) // Mouse wheel scroll
+#define SCROLL_UPDATE_SOURCE_SCROLLBAR (1u << 1) // Scrollbar drag
+typedef uint32_t ScrollUpdateSources;
+
 // Update a single scroll container with a custom algorithm.
 // Apply wheel scroll to a specific element with a custom sensitivity and potential axis
 // combination. Clay internally multiplies delta by 10, so we replicate that here, sensitivity = 1.0
 // matches Clay's default speed. Returns true if the mouse was over the element and the scroll was
 // applied. Also applies scroll when a dragging element is close to the edges.
-bool Clay_Ext_UpdateScrollContainerCustom(
-    Clay_ElementId id,
-    Clay_Vector2 mouse_pos,
-    Clay_Vector2 delta,
-    ScrollContainerData scroll_container_data,
-    bool dragging);
+// bool Clay_Ext_UpdateScrollContainerCustom(
+//     Clay_ElementId id,
+//     Clay_Vector2 mouse_pos,
+//     Clay_Vector2 delta,
+//     ScrollContainerData scroll_container_data,
+//     bool dragging);
 
 //------------------------------------------------------------------------------
 // Scrollbar state handling
@@ -96,18 +101,33 @@ bool Clay_Ext_UpdateScrollContainerCustom(
 #define NO_DRAGGED_SCOLLBAR (0u)
 
 // State shared by all scrollbars in the UI because only one scrollbar can be active at a time
-// TODO this should be extended to any draggable element, no just scrollbars
 typedef struct {
     Clay_Vector2 click_origin;
     uint32_t active_id;
 } ScrollbarDragState;
 
-// Call once per scrollbar per frame. scrollbar_id is the draggable thumb element;
-// container_id is the associated clip/scroll container.
-void Clay_Ext_UpdateScrollContainerFromScrollbar(
-    ScrollbarDragState* sbs,
-    MouseState* mouse,
+// Unified scroll container update function that handles both wheel scroll and scrollbar drag.
+// sources: Bitmask of scroll sources to process (SCROLL_UPDATE_SOURCE_WHEEL and/or
+// SCROLL_UPDATE_SOURCE_SCROLLBAR).
+// When SCROLL_UPDATE_SOURCE_WHEEL is set:
+//   - scrollbar_state and scrollbar_id are ignored
+//   - delta is the wheel scroll delta
+//   - config specifies sensitivity and axis behavior
+//   - dragging indicates if a drag operation is active (enables edge-based auto-scroll)
+// When SCROLL_UPDATE_SOURCE_SCROLLBAR is set:
+//   - delta is ignored (set to {0, 0})
+//   - scrollbar_id is the draggable thumb element
+//   - config is ignored (can be zero-initialized)
+//   - dragging is ignored
+bool Clay_Ext_UpdateScrollContainerCustom(
+    ScrollUpdateSources sources,
+    Clay_ElementId container_id,
     Clay_ElementId scrollbar_id,
-    Clay_ElementId container_id);
+    Clay_Vector2 mouse_pos,
+    Clay_Vector2 delta,
+    ScrollContainerData config,
+    MouseState* mouse_state,
+    ScrollbarDragState* scrollbar_state,
+    bool dragging);
 
 #endif // CLAY_UTILS_H_

@@ -428,27 +428,30 @@ int main(void)
 
         Clay_SetPointerState(mouse_state.pos, mouse_state.buttons[MOUSE_BUTTON_LEFT].state);
 
-        // TODO should Clay_Ext_UpdateScrollContainerFromScrollbar and
-        // Clay_Ext_UpdateScrollContainerCustom be fused?
+        // TODO this should be extended to any draggable element, no just scrollbars
+        //      this will simplify the logic below as Clay_Ext_UpdateScrollContainer will be able to
+        //      use the ScrollbarDragState.active_id to know if the scrollbar is being dragged
+
+        // Handle both scrollbar drag and wheel scroll for the menu bar in a single call
+        ScrollUpdateSources active_sources = SCROLL_UPDATE_SOURCE_WHEEL;
         if (dragged_menu_bar_element == NO_DRAGGED_ELEMENT) {
-            Clay_Ext_UpdateScrollContainerFromScrollbar(
-                &scrollbar_drag_state,
-                &mouse_state,
-                CLAY_ID("ScrollBar"),
-                CLAY_ID("menu_bar"));
+            active_sources |= SCROLL_UPDATE_SOURCE_SCROLLBAR;
         }
 
-        // Custom scroll handling for the menu bar with a different sensitivity and both axes
-        // enabled
         bool scroll_consumed = Clay_Ext_UpdateScrollContainerCustom(
+            active_sources,
             CLAY_ID("menu_bar"),
+            CLAY_ID("ScrollBar"),
             mouse_state.pos,
             mouse_state.scroll_delta,
             (ScrollContainerData) {
                 .sensitivity = 5.f,
                 .use_both_wheels = true,
             },
+            &mouse_state,
+            &scrollbar_drag_state,
             dragged_menu_bar_element != NO_DRAGGED_ELEMENT);
+
         // Pass {0,0} if already handled above (preserves drag/momentum for other areas), or the
         // real delta as the default fallback
         Clay_UpdateScrollContainers(
