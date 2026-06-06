@@ -205,7 +205,8 @@ void menu_bar_layout(void)
                     .cornerRadius = CLAY_CORNER_RADIUS(8),
                 })
             {
-                if (Clay_Hovered()
+                if (Clay_Hovered() && scrollbar_drag_state.active_id == NO_DRAGGED_SCOLLBAR
+                    && dragged_menu_bar_element == NO_DRAGGED_ELEMENT
                     && mouse_state.buttons[MOUSE_BUTTON_LEFT].state == MOUSE_BUTTON_PRESSED) {
                     float distance_from_click_origin = distance(
                         mouse_state.buttons[MOUSE_BUTTON_LEFT].click_origin,
