@@ -618,6 +618,6 @@ TODO:
 1. tab bar
 - [x] implement the dropping of tabs (just swap entries)
 - [x] add clipping to the scrollable area to avoid having the drop indicator drawn outside
-- [ ] start dragging only when clicking AND moving the mouse by a threshold
+- [x] start dragging only when clicking AND moving the mouse by a threshold
 - [ ] keep scrollbar pressed color while dragged even when pointer is not hovering
 */
