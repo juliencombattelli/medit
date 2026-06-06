@@ -15,25 +15,6 @@ typedef struct {
 } AppState;
 
 #define NO_DRAGGED_ELEMENT ((size_t) - 1)
-#define NO_DRAGGED_SCOLLBAR (0)
-
-// State shared by all scrollbars in the UI
-typedef struct {
-    Clay_Vector2 click_origin;
-    uint32_t active_id;
-} ScrollbarDragState;
-
-void set_dragged_scrollbar(
-    ScrollbarDragState* sds,
-    uint32_t scrollbar_id,
-    Clay_Vector2 click_origin)
-{
-    assert(
-        scrollbar_id != NO_DRAGGED_SCOLLBAR
-        && "ID NO_DRAGGED_SCOLLBAR reserved when no scrollbar is active");
-    sds->active_id = scrollbar_id;
-    sds->click_origin = click_origin;
-}
 
 static const Clay_Color background_color = { 0x18, 0x18, 0x18, 0xFF };
 static const Clay_Color sidebars_background_color = { 0x18, 0x7f, 0x18, 0xFF };
@@ -177,11 +158,6 @@ void dragged_menu_bar_element_drop_indicator_layout(void)
             }
         }
     }
-}
-
-float distance(Clay_Vector2 a, Clay_Vector2 b)
-{
-    return SDL_sqrtf(SDL_powf((b.x - a.x), 2) + SDL_powf((b.y - a.y), 2));
 }
 
 void menu_bar_layout(void)
@@ -390,123 +366,6 @@ void HandleClayErrors(Clay_ErrorData errorData)
     printf("%s", errorData.errorText.chars);
 }
 
-typedef struct {
-    float sensitivity;
-    bool use_both_wheels;
-} ScrollContainerData;
-
-// Apply wheel scroll to a specific element with a custom sensitivity and potential axis
-// combination. Clay internally multiplies delta by 10, so we replicate that here, sensitivity = 1.0
-// matches Clay's default speed. Returns true if the mouse was over the element and the scroll was
-// applied.
-static bool clay_scroll_apply(
-    Clay_ElementId id,
-    Clay_Vector2 mouse_pos,
-    Clay_Vector2 delta,
-    ScrollContainerData scroll_container_data)
-{
-    if (delta.x == 0 && delta.y == 0 && dragged_menu_bar_element == NO_DRAGGED_ELEMENT) {
-        return false;
-    }
-
-    Clay_ElementData elem = Clay_GetElementData(id);
-    if (!elem.found) {
-        return false;
-    }
-    Clay_BoundingBox bb = elem.boundingBox;
-    if (!point_inside_rect(mouse_pos, bb)) {
-        return false;
-    }
-
-    Clay_ScrollContainerData scroll = Clay_GetScrollContainerData(id);
-    if (!scroll.found) {
-        return false;
-    }
-
-    if (scroll_container_data.use_both_wheels) {
-        assert(
-            (scroll.config.horizontal != scroll.config.vertical)
-            && "Exactly one of horizontal/vertical scrolling should be enabled when "
-               "use_both_wheels is true");
-        if (scroll.config.horizontal) {
-            delta.x += delta.y;
-        } else if (scroll.config.vertical) {
-            delta.y += delta.x;
-        }
-    }
-
-    if (dragged_menu_bar_element != NO_DRAGGED_ELEMENT) {
-#define DRAG_SCROLL_MARGIN 48
-#define DRAG_SCROLL_SPEED 0.1f
-        // If dragging, apply additional scroll when close to the edges to allow dragging beyond the
-        // current view. The closer to the edge, the faster the scroll.
-        float distance_to_left_edge = mouse_pos.x - bb.x;
-        float distance_to_right_edge = (bb.x + bb.width) - mouse_pos.x;
-        if (distance_to_left_edge < DRAG_SCROLL_MARGIN) {
-            delta.x += (DRAG_SCROLL_MARGIN - distance_to_left_edge) * DRAG_SCROLL_SPEED
-                / distance_to_left_edge;
-        } else if (distance_to_right_edge < DRAG_SCROLL_MARGIN) {
-            delta.x -= (DRAG_SCROLL_MARGIN - distance_to_right_edge) * DRAG_SCROLL_SPEED
-                / distance_to_right_edge;
-        }
-    }
-
-    const float scale = scroll_container_data.sensitivity * 10.0f;
-
-    if (scroll.config.horizontal) {
-        scroll.scrollPosition->x += delta.x * scale;
-        float min_x = -(
-            SDL_max(scroll.contentDimensions.width - scroll.scrollContainerDimensions.width, 0));
-        scroll.scrollPosition->x = SDL_clamp(scroll.scrollPosition->x, min_x, 0);
-    }
-    if (scroll.config.vertical) {
-        scroll.scrollPosition->y += delta.y * scale;
-        float min_y = -(
-            SDL_max(scroll.contentDimensions.height - scroll.scrollContainerDimensions.height, 0));
-        scroll.scrollPosition->y = SDL_clamp(scroll.scrollPosition->y, min_y, 0);
-    }
-    return true;
-}
-
-// Call once per scrollbar per frame. scrollbar_id is the draggable thumb element;
-// container_id is the associated clip/scroll container.
-static void clay_scrollbar_drag_update(Clay_ElementId scrollbar_id, Clay_ElementId container_id)
-{
-    if (mouse_state.buttons[MOUSE_BUTTON_LEFT].state != MOUSE_BUTTON_PRESSED
-        && mouse_state.buttons[MOUSE_BUTTON_LEFT].state != MOUSE_BUTTON_PRESSED_THIS_FRAME) {
-        if (scrollbar_drag_state.active_id == scrollbar_id.id) {
-            scrollbar_drag_state.active_id = 0;
-        }
-        return;
-    }
-
-    Clay_ScrollContainerData scroll_data = Clay_GetScrollContainerData(container_id);
-    if (!scroll_data.found) {
-        return;
-    }
-
-    if (scrollbar_drag_state.active_id == NO_DRAGGED_SCOLLBAR
-        && mouse_state.buttons[MOUSE_BUTTON_LEFT].state == MOUSE_BUTTON_PRESSED_THIS_FRAME
-        && Clay_PointerOver(scrollbar_id)) {
-        set_dragged_scrollbar(&scrollbar_drag_state, scrollbar_id.id, *scroll_data.scrollPosition);
-    } else if (scrollbar_drag_state.active_id == scrollbar_id.id) {
-        Clay_Vector2 ratio = {
-            scroll_data.contentDimensions.width / scroll_data.scrollContainerDimensions.width,
-            scroll_data.contentDimensions.height / scroll_data.scrollContainerDimensions.height,
-        };
-        if (scroll_data.config.horizontal) {
-            scroll_data.scrollPosition->x = scrollbar_drag_state.click_origin.x
-                + (mouse_state.buttons[MOUSE_BUTTON_LEFT].click_origin.x - mouse_state.pos.x)
-                    * ratio.x;
-        }
-        if (scroll_data.config.vertical) {
-            scroll_data.scrollPosition->y = scrollbar_drag_state.click_origin.y
-                + (mouse_state.buttons[MOUSE_BUTTON_LEFT].click_origin.y - mouse_state.pos.y)
-                    * ratio.y;
-        }
-    }
-}
-
 int main(void)
 {
     AppState state = { 0 };
@@ -569,22 +428,27 @@ int main(void)
 
         Clay_SetPointerState(mouse_state.pos, mouse_state.buttons[MOUSE_BUTTON_LEFT].state);
 
+        // TODO should Clay_Ext_UpdateScrollContainerFromScrollbar and
+        // Clay_Ext_UpdateScrollContainerCustom be fused?
         if (dragged_menu_bar_element == NO_DRAGGED_ELEMENT) {
-            clay_scrollbar_drag_update(
-                Clay_GetElementId(CLAY_STRING("ScrollBar")),
-                Clay_GetElementId(CLAY_STRING("menu_bar")));
+            Clay_Ext_UpdateScrollContainerFromScrollbar(
+                &scrollbar_drag_state,
+                &mouse_state,
+                CLAY_ID("ScrollBar"),
+                CLAY_ID("menu_bar"));
         }
 
         // Custom scroll handling for the menu bar with a different sensitivity and both axes
         // enabled
-        bool scroll_consumed = clay_scroll_apply(
+        bool scroll_consumed = Clay_Ext_UpdateScrollContainerCustom(
             CLAY_ID("menu_bar"),
             mouse_state.pos,
             mouse_state.scroll_delta,
             (ScrollContainerData) {
                 .sensitivity = 5.f,
                 .use_both_wheels = true,
-            });
+            },
+            dragged_menu_bar_element != NO_DRAGGED_ELEMENT);
         // Pass {0,0} if already handled above (preserves drag/momentum for other areas), or the
         // real delta as the default fallback
         Clay_UpdateScrollContainers(
