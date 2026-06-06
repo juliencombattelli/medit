@@ -1,4 +1,4 @@
-#include "clay.h"
+#include "clay_sdl3.h"
 
 #include <core/assert.h>
 
@@ -14,350 +14,38 @@ typedef struct {
     TTF_Font* font;
 } AppState;
 
-static int NUM_CIRCLE_SEGMENTS = 16;
+#define NO_DRAGGED_ELEMENT ((size_t) - 1)
+#define NO_DRAGGED_SCOLLBAR (0)
 
-static void SDL_Clay_RenderFillRoundedRect(
-    AppState* app_state,
-    const SDL_FRect rect,
-    const float cornerRadius,
-    const Clay_Color _color)
-{
-    const SDL_FColor color = { _color.r / 255, _color.g / 255, _color.b / 255, _color.a / 255 };
-
-    int indexCount = 0, vertexCount = 0;
-
-    const float minRadius = SDL_min(rect.w, rect.h) / 2.0f;
-    const float clampedRadius = SDL_min(cornerRadius, minRadius);
-
-    const int numCircleSegments = SDL_max(NUM_CIRCLE_SEGMENTS, (int)clampedRadius * 0.5f);
-
-    int totalVertices = 4 + (4 * (numCircleSegments * 2)) + 2 * 4;
-    int totalIndices = 6 + (4 * (numCircleSegments * 3)) + 6 * 4;
-
-    SDL_Vertex vertices[totalVertices];
-    int indices[totalIndices];
-
-    // define center rectangle
-    vertices[vertexCount++] = (SDL_Vertex) {
-        { rect.x + clampedRadius, rect.y + clampedRadius },
-        color,
-        { 0, 0 },
-    }; // 0 center TL
-    vertices[vertexCount++] = (SDL_Vertex) {
-        { rect.x + rect.w - clampedRadius, rect.y + clampedRadius },
-        color,
-        { 1, 0 },
-    }; // 1 center TR
-    vertices[vertexCount++] = (SDL_Vertex) {
-        { rect.x + rect.w - clampedRadius, rect.y + rect.h - clampedRadius },
-        color,
-        { 1, 1 },
-    }; // 2 center BR
-    vertices[vertexCount++] = (SDL_Vertex) {
-        { rect.x + clampedRadius, rect.y + rect.h - clampedRadius },
-        color,
-        { 0, 1 },
-    }; // 3 center BL
-
-    indices[indexCount++] = 0;
-    indices[indexCount++] = 1;
-    indices[indexCount++] = 3;
-    indices[indexCount++] = 1;
-    indices[indexCount++] = 2;
-    indices[indexCount++] = 3;
-
-    // define rounded corners as triangle fans
-    const float step = (SDL_PI_F / 2) / numCircleSegments;
-    for (int i = 0; i < numCircleSegments; i++) {
-        const float angle1 = (float)i * step;
-        const float angle2 = ((float)i + 1.0f) * step;
-
-        for (int j = 0; j < 4; j++) { // Iterate over four corners
-            float cx, cy, signX, signY;
-
-            switch (j) {
-                case 0:
-                    cx = rect.x + clampedRadius;
-                    cy = rect.y + clampedRadius;
-                    signX = -1;
-                    signY = -1;
-                    break; // Top-left
-                case 1:
-                    cx = rect.x + rect.w - clampedRadius;
-                    cy = rect.y + clampedRadius;
-                    signX = 1;
-                    signY = -1;
-                    break; // Top-right
-                case 2:
-                    cx = rect.x + rect.w - clampedRadius;
-                    cy = rect.y + rect.h - clampedRadius;
-                    signX = 1;
-                    signY = 1;
-                    break; // Bottom-right
-                case 3:
-                    cx = rect.x + clampedRadius;
-                    cy = rect.y + rect.h - clampedRadius;
-                    signX = -1;
-                    signY = 1;
-                    break; // Bottom-left
-                default: return;
-            }
-
-            vertices[vertexCount++] = (SDL_Vertex) {
-                {
-                    cx + SDL_cosf(angle1) * clampedRadius * signX,
-                    cy + SDL_sinf(angle1) * clampedRadius * signY,
-                },
-                color,
-                { 0, 0 },
-            };
-            vertices[vertexCount++] = (SDL_Vertex) {
-                {
-                    cx + SDL_cosf(angle2) * clampedRadius * signX,
-                    cy + SDL_sinf(angle2) * clampedRadius * signY,
-                },
-                color,
-                { 0, 0 },
-            };
-
-            indices[indexCount++] = j; // Connect to corresponding central rectangle vertex
-            indices[indexCount++] = vertexCount - 2;
-            indices[indexCount++] = vertexCount - 1;
-        }
-    }
-
-    // Define edge rectangles
-    //  Top edge
-    vertices[vertexCount++] = (SDL_Vertex) {
-        { rect.x + clampedRadius, rect.y },
-        color,
-        { 0, 0 },
-    }; // TL
-    vertices[vertexCount++] = (SDL_Vertex) {
-        { rect.x + rect.w - clampedRadius, rect.y },
-        color,
-        { 1, 0 },
-    }; // TR
-
-    indices[indexCount++] = 0;
-    indices[indexCount++] = vertexCount - 2; // TL
-    indices[indexCount++] = vertexCount - 1; // TR
-    indices[indexCount++] = 1;
-    indices[indexCount++] = 0;
-    indices[indexCount++] = vertexCount - 1; // TR
-    // Right edge
-    vertices[vertexCount++] = (SDL_Vertex) {
-        { rect.x + rect.w, rect.y + clampedRadius },
-        color,
-        { 1, 0 },
-    }; // RT
-    vertices[vertexCount++] = (SDL_Vertex) {
-        { rect.x + rect.w, rect.y + rect.h - clampedRadius },
-        color,
-        { 1, 1 },
-    }; // RB
-
-    indices[indexCount++] = 1;
-    indices[indexCount++] = vertexCount - 2; // RT
-    indices[indexCount++] = vertexCount - 1; // RB
-    indices[indexCount++] = 2;
-    indices[indexCount++] = 1;
-    indices[indexCount++] = vertexCount - 1; // RB
-    // Bottom edge
-    vertices[vertexCount++] = (SDL_Vertex) {
-        { rect.x + rect.w - clampedRadius, rect.y + rect.h },
-        color,
-        { 1, 1 },
-    }; // BR
-    vertices[vertexCount++] = (SDL_Vertex) {
-        { rect.x + clampedRadius, rect.y + rect.h },
-        color,
-        { 0, 1 },
-    }; // BL
-
-    indices[indexCount++] = 2;
-    indices[indexCount++] = vertexCount - 2; // BR
-    indices[indexCount++] = vertexCount - 1; // BL
-    indices[indexCount++] = 3;
-    indices[indexCount++] = 2;
-    indices[indexCount++] = vertexCount - 1; // BL
-    // Left edge
-    vertices[vertexCount++] = (SDL_Vertex) {
-        { rect.x, rect.y + rect.h - clampedRadius },
-        color,
-        { 0, 1 },
-    }; // LB
-    vertices[vertexCount++] = (SDL_Vertex) {
-        { rect.x, rect.y + clampedRadius },
-        color,
-        { 0, 0 },
-    }; // LT
-
-    indices[indexCount++] = 3;
-    indices[indexCount++] = vertexCount - 2; // LB
-    indices[indexCount++] = vertexCount - 1; // LT
-    indices[indexCount++] = 0;
-    indices[indexCount++] = 3;
-    indices[indexCount++] = vertexCount - 1; // LT
-
-    // Render everything
-    SDL_RenderGeometry(app_state->renderer, NULL, vertices, vertexCount, indices, indexCount);
-}
-
-void SDL_Clay_RenderClayCommands(AppState* app_state, Clay_RenderCommandArray draw_commands)
-{
-    for (int32_t i = 0; i < draw_commands.length; i++) {
-        Clay_RenderCommand* rcmd = Clay_RenderCommandArray_Get(&draw_commands, i);
-        const Clay_BoundingBox bounding_box = rcmd->boundingBox;
-        const SDL_FRect rect = {
-            (float)bounding_box.x,
-            (float)bounding_box.y,
-            (float)bounding_box.width,
-            (float)bounding_box.height,
-        };
-
-        switch (rcmd->commandType) {
-            case CLAY_RENDER_COMMAND_TYPE_RECTANGLE: {
-                Clay_RectangleRenderData* config = &rcmd->renderData.rectangle;
-                SDL_SetRenderDrawBlendMode(app_state->renderer, SDL_BLENDMODE_BLEND);
-                Clay_Color bg = rcmd->renderData.rectangle.backgroundColor;
-                SDL_SetRenderDrawColor(
-                    app_state->renderer,
-                    (Uint8)bg.r,
-                    (Uint8)bg.g,
-                    (Uint8)bg.b,
-                    (Uint8)bg.a);
-                if (config->cornerRadius.topLeft > 0) {
-                    SDL_Clay_RenderFillRoundedRect(
-                        app_state,
-                        rect,
-                        config->cornerRadius.topLeft,
-                        config->backgroundColor);
-                } else {
-                    SDL_RenderFillRect(app_state->renderer, &rect);
-                }
-            } break;
-            case CLAY_RENDER_COMMAND_TYPE_SCISSOR_START: {
-                Clay_BoundingBox boundingBox = rcmd->boundingBox;
-                SDL_Rect currentClippingRectangle = {
-                    .x = (int)boundingBox.x,
-                    .y = (int)boundingBox.y,
-                    .w = (int)boundingBox.width,
-                    .h = (int)boundingBox.height,
-                };
-                SDL_SetRenderClipRect(app_state->renderer, &currentClippingRectangle);
-            } break;
-            case CLAY_RENDER_COMMAND_TYPE_SCISSOR_END: {
-                SDL_SetRenderClipRect(app_state->renderer, NULL);
-            } break;
-        }
-    }
-}
-
-static bool point_inside_rect(Clay_Vector2 point, Clay_BoundingBox rect)
-{
-    return point.x >= rect.x && point.x <= rect.x + rect.width && point.y >= rect.y
-        && point.y <= rect.y + rect.height;
-}
-
-typedef enum {
-    // A mouse button is not currently down / was released at some point in the past.
-    MOUSE_BUTTON_RELEASED,
-    // A mouse button click was released this frame.
-    MOUSE_BUTTON_RELEASED_THIS_FRAME,
-    // A mouse button click occurred in a previous frame and is still currently held down this
-    // frame.
-    MOUSE_BUTTON_PRESSED,
-    // A mouse button click occurred this frame.
-    MOUSE_BUTTON_PRESSED_THIS_FRAME,
-} MouseButtonState;
-
+// State shared by all scrollbars in the UI
 typedef struct {
-    MouseButtonState state;
     Clay_Vector2 click_origin;
-} MouseButtonData;
-
-typedef struct {
-    Clay_Vector2 pos;
-    Clay_Vector2 scroll_delta;
-    MouseButtonData button_left;
-    MouseButtonData button_middle;
-    MouseButtonData button_right;
-    MouseButtonData button_side_1;
-    MouseButtonData button_side_2;
-} MouseState;
-
-void set_mouse_button_state(
-    MouseButtonData* button,
-    bool pressed_this_frame,
-    Clay_Vector2 pointer_pos)
-{
-    if (pressed_this_frame) {
-        if (button->state == MOUSE_BUTTON_PRESSED_THIS_FRAME) {
-            button->state = MOUSE_BUTTON_PRESSED;
-        } else if (button->state != MOUSE_BUTTON_PRESSED) {
-            button->state = MOUSE_BUTTON_PRESSED_THIS_FRAME;
-            button->click_origin.x = pointer_pos.x;
-            button->click_origin.y = pointer_pos.y;
-        }
-    } else {
-        if (button->state == MOUSE_BUTTON_RELEASED_THIS_FRAME) {
-            button->state = MOUSE_BUTTON_RELEASED;
-        } else if (button->state != MOUSE_BUTTON_RELEASED) {
-            button->state = MOUSE_BUTTON_RELEASED_THIS_FRAME;
-            button->click_origin.x = 0;
-            button->click_origin.y = 0;
-        }
-    }
-}
-
-void mouse_state_reset(MouseState* mouse_state)
-{
-    mouse_state->scroll_delta = (Clay_Vector2) { 0 };
-}
-
-void mouse_state_update(MouseState* mouse_state)
-{
-    Uint32 buttons = SDL_GetMouseState(&mouse_state->pos.x, &mouse_state->pos.y);
-
-    set_mouse_button_state( //
-        &mouse_state->button_left,
-        buttons & SDL_BUTTON_LMASK,
-        mouse_state->pos);
-
-    set_mouse_button_state(
-        &mouse_state->button_middle,
-        buttons & SDL_BUTTON_MMASK,
-        mouse_state->pos);
-
-    set_mouse_button_state(
-        &mouse_state->button_right,
-        buttons & SDL_BUTTON_RMASK,
-        mouse_state->pos);
-
-    set_mouse_button_state(
-        &mouse_state->button_side_1,
-        buttons & SDL_BUTTON_X1MASK,
-        mouse_state->pos);
-
-    set_mouse_button_state(
-        &mouse_state->button_side_2,
-        buttons & SDL_BUTTON_X2MASK,
-        mouse_state->pos);
-}
-
-typedef struct {
-    Clay_Vector2 positionOrigin;
-    uint32_t active_id; // 0 = none active
+    uint32_t active_id;
 } ScrollbarDragState;
+
+void set_dragged_scrollbar(
+    ScrollbarDragState* sds,
+    uint32_t scrollbar_id,
+    Clay_Vector2 click_origin)
+{
+    assert(
+        scrollbar_id != NO_DRAGGED_SCOLLBAR
+        && "ID NO_DRAGGED_SCOLLBAR reserved when no scrollbar is active");
+    sds->active_id = scrollbar_id;
+    sds->click_origin = click_origin;
+}
 
 static const Clay_Color background_color = { 0x18, 0x18, 0x18, 0xFF };
 static const Clay_Color sidebars_background_color = { 0x18, 0x7f, 0x18, 0xFF };
 static const Clay_Color editor_background_color = { 0x1F, 0x1F, 0x5F, 0xFF };
 
-static size_t dragged_menu_bar_element = (size_t)-1;
+static const float min_distance_from_click_origin_to_drag = 4;
+
+static size_t dragged_menu_bar_element = NO_DRAGGED_ELEMENT;
 static MouseState mouse_state = { 0 };
-static ScrollbarDragState scrollbar_drag_state = { 0 };
+static ScrollbarDragState scrollbar_drag_state = {
+    .active_id = NO_DRAGGED_SCOLLBAR,
+};
 
 typedef struct {
     Clay_Color color;
@@ -507,8 +195,6 @@ void menu_bar_layout(void)
             .clip = { .horizontal = true, .childOffset = Clay_GetScrollOffset() },
         })
     {
-        Clay_PointerData pointer = Clay_GetPointerState();
-
         for (size_t i = 0; i < menu_bar_element_count; i++) {
             MenuBarElementData element_data = menu_bar_elements[i];
             CLAY(CLAY_IDI("menu_bar_element", i), {
@@ -519,11 +205,12 @@ void menu_bar_layout(void)
                     .cornerRadius = CLAY_CORNER_RADIUS(8),
                 })
             {
-                if (Clay_Hovered() && mouse_state.button_left.state == MOUSE_BUTTON_PRESSED) {
+                if (Clay_Hovered()
+                    && mouse_state.buttons[MOUSE_BUTTON_LEFT].state == MOUSE_BUTTON_PRESSED) {
                     float distance_from_click_origin = distance(
-                        mouse_state.button_left.click_origin,
+                        mouse_state.buttons[MOUSE_BUTTON_LEFT].click_origin,
                         mouse_state.pos);
-                    if (distance_from_click_origin > 4) {
+                    if (distance_from_click_origin > min_distance_from_click_origin_to_drag) {
                         dragged_menu_bar_element = i;
                     }
                 }
@@ -551,7 +238,7 @@ void menu_bar_layout(void)
                             .height = CLAY_SIZING_FIXED(12),
                         }
                     },
-                    .backgroundColor = Clay_PointerOver(Clay_GetElementId(CLAY_STRING("ScrollBar"))) && dragged_menu_bar_element == (size_t)-1 ? (Clay_Color){100, 100, 140, 150} : (Clay_Color){120, 120, 160, 150},
+                    .backgroundColor = Clay_PointerOver(Clay_GetElementId(CLAY_STRING("ScrollBar"))) && dragged_menu_bar_element == NO_DRAGGED_ELEMENT ? (Clay_Color){100, 100, 140, 150} : (Clay_Color){120, 120, 160, 150},
                     .cornerRadius = CLAY_CORNER_RADIUS(6),
                 })
                 {
@@ -680,7 +367,7 @@ Clay_RenderCommandArray editor_layout(void)
         status_bar_layout();
     }
 
-    if (dragged_menu_bar_element != (size_t)-1) {
+    if (dragged_menu_bar_element != NO_DRAGGED_ELEMENT) {
         dragged_menu_bar_element_layout();
         Clay_ElementData bar_elem = Clay_GetElementData(Clay_GetElementId(CLAY_STRING("menu_bar")));
         Clay_PointerData ptr = Clay_GetPointerState();
@@ -690,7 +377,7 @@ Clay_RenderCommandArray editor_layout(void)
         }
         Clay_PointerData pointer = Clay_GetPointerState();
         if (pointer.state == CLAY_POINTER_DATA_RELEASED_THIS_FRAME) {
-            dragged_menu_bar_element = (size_t)-1;
+            dragged_menu_bar_element = NO_DRAGGED_ELEMENT;
         }
     }
 
@@ -717,7 +404,7 @@ static bool clay_scroll_apply(
     Clay_Vector2 delta,
     ScrollContainerData scroll_container_data)
 {
-    if (delta.x == 0 && delta.y == 0 && dragged_menu_bar_element == (size_t)-1) {
+    if (delta.x == 0 && delta.y == 0 && dragged_menu_bar_element == NO_DRAGGED_ELEMENT) {
         return false;
     }
 
@@ -747,7 +434,7 @@ static bool clay_scroll_apply(
         }
     }
 
-    if (dragged_menu_bar_element != (size_t)-1) {
+    if (dragged_menu_bar_element != NO_DRAGGED_ELEMENT) {
 #define DRAG_SCROLL_MARGIN 48
 #define DRAG_SCROLL_SPEED 0.1f
         // If dragging, apply additional scroll when close to the edges to allow dragging beyond the
@@ -784,8 +471,8 @@ static bool clay_scroll_apply(
 // container_id is the associated clip/scroll container.
 static void clay_scrollbar_drag_update(Clay_ElementId scrollbar_id, Clay_ElementId container_id)
 {
-    if (mouse_state.button_left.state != MOUSE_BUTTON_PRESSED
-        && mouse_state.button_left.state != MOUSE_BUTTON_PRESSED_THIS_FRAME) {
+    if (mouse_state.buttons[MOUSE_BUTTON_LEFT].state != MOUSE_BUTTON_PRESSED
+        && mouse_state.buttons[MOUSE_BUTTON_LEFT].state != MOUSE_BUTTON_PRESSED_THIS_FRAME) {
         if (scrollbar_drag_state.active_id == scrollbar_id.id) {
             scrollbar_drag_state.active_id = 0;
         }
@@ -797,24 +484,24 @@ static void clay_scrollbar_drag_update(Clay_ElementId scrollbar_id, Clay_Element
         return;
     }
 
-    if (scrollbar_drag_state.active_id == 0
-        && mouse_state.button_left.state == MOUSE_BUTTON_PRESSED_THIS_FRAME
+    if (scrollbar_drag_state.active_id == NO_DRAGGED_SCOLLBAR
+        && mouse_state.buttons[MOUSE_BUTTON_LEFT].state == MOUSE_BUTTON_PRESSED_THIS_FRAME
         && Clay_PointerOver(scrollbar_id)) {
-        scrollbar_drag_state.positionOrigin = *scroll_data.scrollPosition;
-        scrollbar_drag_state.active_id = scrollbar_id.id;
-
+        set_dragged_scrollbar(&scrollbar_drag_state, scrollbar_id.id, *scroll_data.scrollPosition);
     } else if (scrollbar_drag_state.active_id == scrollbar_id.id) {
         Clay_Vector2 ratio = {
             scroll_data.contentDimensions.width / scroll_data.scrollContainerDimensions.width,
             scroll_data.contentDimensions.height / scroll_data.scrollContainerDimensions.height,
         };
         if (scroll_data.config.horizontal) {
-            scroll_data.scrollPosition->x = scrollbar_drag_state.positionOrigin.x
-                + (mouse_state.button_left.click_origin.x - mouse_state.pos.x) * ratio.x;
+            scroll_data.scrollPosition->x = scrollbar_drag_state.click_origin.x
+                + (mouse_state.buttons[MOUSE_BUTTON_LEFT].click_origin.x - mouse_state.pos.x)
+                    * ratio.x;
         }
         if (scroll_data.config.vertical) {
-            scroll_data.scrollPosition->y = scrollbar_drag_state.positionOrigin.y
-                + (mouse_state.button_left.click_origin.y - mouse_state.pos.y) * ratio.y;
+            scroll_data.scrollPosition->y = scrollbar_drag_state.click_origin.y
+                + (mouse_state.buttons[MOUSE_BUTTON_LEFT].click_origin.y - mouse_state.pos.y)
+                    * ratio.y;
         }
     }
 }
@@ -877,11 +564,11 @@ int main(void)
             }
         }
 
-        mouse_state_update(&mouse_state);
+        mouse_state_update(&mouse_state, sdl_get_mouse_state(&mouse_state));
 
-        Clay_SetPointerState(mouse_state.pos, mouse_state.button_left.state);
+        Clay_SetPointerState(mouse_state.pos, mouse_state.buttons[MOUSE_BUTTON_LEFT].state);
 
-        if (dragged_menu_bar_element == (size_t)-1) {
+        if (dragged_menu_bar_element == NO_DRAGGED_ELEMENT) {
             clay_scrollbar_drag_update(
                 Clay_GetElementId(CLAY_STRING("ScrollBar")),
                 Clay_GetElementId(CLAY_STRING("menu_bar")));
@@ -909,7 +596,7 @@ int main(void)
         SDL_SetRenderDrawColor(state.renderer, 0, 128, 0, 255);
         SDL_RenderClear(state.renderer);
 
-        SDL_Clay_RenderClayCommands(&state, render_commands);
+        SDL_Clay_RenderClayCommands(state.renderer, render_commands);
 
         SDL_RenderPresent(state.renderer);
     }
