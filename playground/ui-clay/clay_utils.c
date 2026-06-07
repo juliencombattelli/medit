@@ -98,7 +98,6 @@ bool Clay_Ext_UpdateScrollContainerCustom(
     bool handled = false;
 
     if (sources & SCROLL_UPDATE_SOURCE_SCROLLBAR) {
-        // Scrollbar drag path: detect drag and apply scroll
         if (mouse_state->buttons[MOUSE_BUTTON_LEFT].state != MOUSE_BUTTON_PRESSED
             && mouse_state->buttons[MOUSE_BUTTON_LEFT].state != MOUSE_BUTTON_PRESSED_THIS_FRAME) {
             if (drag_state->active_id == scrollbar_id.id) {
@@ -110,6 +109,7 @@ bool Clay_Ext_UpdateScrollContainerCustom(
                 && Clay_PointerOver(scrollbar_id)) {
                 drag_state->active_id = scrollbar_id.id;
                 drag_state->click_origin = *scroll.scrollPosition;
+                handled = true;
             } else if (drag_state->active_id == scrollbar_id.id) {
                 Clay_Vector2 ratio = {
                     scroll.contentDimensions.width / scroll.scrollContainerDimensions.width,
@@ -127,8 +127,8 @@ bool Clay_Ext_UpdateScrollContainerCustom(
                            - mouse_state->pos.y)
                             * ratio.y;
                 }
+                handled = true;
             }
-            handled = true;
         }
     }
 
