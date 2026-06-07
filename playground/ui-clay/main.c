@@ -22,6 +22,7 @@ static const Clay_Color editor_background_color = { 0x1F, 0x1F, 0x5F, 0xFF };
 static const Clay_Color scrollbar_inactive_color = { 100, 100, 100, 150 };
 static const Clay_Color scrollbar_hovered_color = { 120, 120, 120, 150 };
 static const Clay_Color scrollbar_active_color = { 140, 140, 140, 150 };
+static const Clay_Color drop_indicator_color = { 0xFF, 0xFF, 0xFF, 0x9F };
 
 static const float drag_dead_zone_pixels = 4;
 
@@ -66,6 +67,8 @@ void dragged_menu_bar_element_layout(void)
 {
     MenuBarElementData element_data = menu_bar_elements[dragged_menu_bar_element];
     Clay_PointerData pointer = Clay_GetPointerState();
+    Clay_Color color = element_data.color;
+    color.a = 0x9F;
     CLAY(
             CLAY_ID("dragged_menu_bar_element"),
             {
@@ -87,7 +90,7 @@ void dragged_menu_bar_element_layout(void)
                     .height = CLAY_SIZING_FIXED(60),
                 },
             },
-            .backgroundColor = element_data.color,
+            .backgroundColor = color,
             .cornerRadius = CLAY_CORNER_RADIUS(8),
         })
         {
@@ -147,7 +150,7 @@ void dragged_menu_bar_element_drop_indicator_layout(void)
                         .height = CLAY_SIZING_FIXED(60),
                     },
                 },
-                .backgroundColor = (Clay_Color){255, 255, 255, 255},
+                .backgroundColor = drop_indicator_color,
             })
         {
         }
@@ -368,13 +371,13 @@ Clay_RenderCommandArray editor_layout(void)
 
     if (dragged_menu_bar_element != NO_DRAGGED_MENU_BAR_ELEMENT
         && drag_state.active_id == dragged_menu_bar_element_id.id) {
-        dragged_menu_bar_element_layout();
         Clay_ElementData bar_elem = Clay_GetElementData(Clay_GetElementId(CLAY_STRING("menu_bar")));
         Clay_PointerData ptr = Clay_GetPointerState();
         bool inside = bar_elem.found && point_inside_rect(ptr.position, bar_elem.boundingBox);
         if (inside) {
             dragged_menu_bar_element_drop_indicator_layout();
         }
+        dragged_menu_bar_element_layout();
     }
 
     return Clay_EndLayout(0);
