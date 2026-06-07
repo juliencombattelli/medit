@@ -457,7 +457,7 @@ int main(void)
             mouse_state.pos,
             mouse_state.scroll_delta,
             (ScrollContainerData) {
-                .sensitivity = 5.f,
+                .sensitivity = 30.f,
                 .use_both_wheels = true,
             },
             &mouse_state,

@@ -60,17 +60,20 @@ void mouse_state_update(MouseState* mouse_state, uint32_t buttons)
 }
 
 // Core scroll update logic shared by both wheel and scrollbar scrolling
-static void apply_scroll_delta(Clay_ScrollContainerData* scroll, Clay_Vector2 delta, float scale)
+static void apply_scroll_delta(
+    Clay_ScrollContainerData* scroll,
+    Clay_Vector2 delta,
+    float sensitivity)
 {
     if (scroll->config.horizontal) {
-        scroll->scrollPosition->x += delta.x * scale;
+        scroll->scrollPosition->x += delta.x * sensitivity;
         float min_x = -MAX(
             scroll->contentDimensions.width - scroll->scrollContainerDimensions.width,
             0);
         scroll->scrollPosition->x = CLAMP(scroll->scrollPosition->x, min_x, 0);
     }
     if (scroll->config.vertical) {
-        scroll->scrollPosition->y += delta.y * scale;
+        scroll->scrollPosition->y += delta.y * sensitivity;
         float min_y = -MAX(
             scroll->contentDimensions.height - scroll->scrollContainerDimensions.height,
             0);
@@ -163,20 +166,22 @@ bool Clay_Ext_UpdateScrollContainerCustom(
         // Apply edge-based auto-scroll when dragging
         if (dragging) {
 #define DRAG_SCROLL_MARGIN 48
-#define DRAG_SCROLL_SPEED 0.1f
+#define DRAG_SCROLL_SPEED 1.f
+#define MAX_DRAG_SCROLL_DELTA 1.f
             float distance_to_left_edge = mouse_pos.x - bb.x;
             float distance_to_right_edge = (bb.x + bb.width) - mouse_pos.x;
             if (distance_to_left_edge < DRAG_SCROLL_MARGIN) {
-                delta.x += (DRAG_SCROLL_MARGIN - distance_to_left_edge) * DRAG_SCROLL_SPEED
-                    / distance_to_left_edge;
+                float scroll_delta = (DRAG_SCROLL_MARGIN - distance_to_left_edge)
+                    * DRAG_SCROLL_SPEED / distance_to_left_edge;
+                delta.x += CLAMP(scroll_delta, 0, MAX_DRAG_SCROLL_DELTA);
             } else if (distance_to_right_edge < DRAG_SCROLL_MARGIN) {
-                delta.x -= (DRAG_SCROLL_MARGIN - distance_to_right_edge) * DRAG_SCROLL_SPEED
-                    / distance_to_right_edge;
+                float scroll_delta = (DRAG_SCROLL_MARGIN - distance_to_right_edge)
+                    * DRAG_SCROLL_SPEED / distance_to_right_edge;
+                delta.x -= CLAMP(scroll_delta, 0, MAX_DRAG_SCROLL_DELTA);
             }
         }
 
-        const float scale = config.sensitivity * 10.0f;
-        apply_scroll_delta(&scroll, delta, scale);
+        apply_scroll_delta(&scroll, delta, config.sensitivity);
         handled = true;
     }
 
