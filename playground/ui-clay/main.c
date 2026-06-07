@@ -14,18 +14,18 @@ typedef struct {
     TTF_Font* font;
 } AppState;
 
-#define NO_DRAGGED_ELEMENT ((size_t) - 1)
+#define NO_DRAGGED_MENU_BAR_ELEMENT ((size_t) - 1)
 
 static const Clay_Color background_color = { 0x18, 0x18, 0x18, 0xFF };
 static const Clay_Color sidebars_background_color = { 0x18, 0x7f, 0x18, 0xFF };
 static const Clay_Color editor_background_color = { 0x1F, 0x1F, 0x5F, 0xFF };
 
-static const float min_distance_from_click_origin_to_drag = 4;
+static const float drag_dead_zone_pixels = 4;
 
-static size_t dragged_menu_bar_element = NO_DRAGGED_ELEMENT;
+static size_t dragged_menu_bar_element = NO_DRAGGED_MENU_BAR_ELEMENT;
 static MouseState mouse_state = { 0 };
-static ScrollbarDragState scrollbar_drag_state = {
-    .active_id = NO_DRAGGED_SCOLLBAR,
+static DragState drag_state = {
+    .active_id = CLAY_EXT_NULL_ID,
 };
 
 typedef struct {
@@ -83,7 +83,7 @@ void dragged_menu_bar_element_layout(void)
 
 void dragged_menu_bar_element_drop_indicator_layout(void)
 {
-    Clay_PointerData pointer = Clay_GetPointerState();
+    const Clay_PointerData pointer = Clay_GetPointerState();
 
     // Display a white vertical line at the nearest side of the element under the pointer
     Clay_ElementData bar_element_data = Clay_GetElementData(CLAY_ID("menu_bar"));
@@ -138,7 +138,7 @@ void dragged_menu_bar_element_drop_indicator_layout(void)
         {
         }
     }
-    if (pointer.state == CLAY_POINTER_DATA_RELEASED_THIS_FRAME) {
+    if (mouse_state.buttons[MOUSE_BUTTON_LEFT].state == MOUSE_BUTTON_RELEASED_THIS_FRAME) {
         size_t src = dragged_menu_bar_element;
         size_t dst = tab_i;
         if (src != dst && src + 1 != dst) {
@@ -181,14 +181,19 @@ void menu_bar_layout(void)
                     .cornerRadius = CLAY_CORNER_RADIUS(8),
                 })
             {
-                if (Clay_Hovered() && scrollbar_drag_state.active_id == NO_DRAGGED_SCOLLBAR
-                    && dragged_menu_bar_element == NO_DRAGGED_ELEMENT
+                if (Clay_Hovered() && !is_any_element_dragged(&drag_state)
+                    && dragged_menu_bar_element == NO_DRAGGED_MENU_BAR_ELEMENT
                     && mouse_state.buttons[MOUSE_BUTTON_LEFT].state == MOUSE_BUTTON_PRESSED) {
                     float distance_from_click_origin = distance(
                         mouse_state.buttons[MOUSE_BUTTON_LEFT].click_origin,
                         mouse_state.pos);
-                    if (distance_from_click_origin > min_distance_from_click_origin_to_drag) {
+                    if (distance_from_click_origin > drag_dead_zone_pixels) {
                         dragged_menu_bar_element = i;
+                        drag_state.active_id = Clay_GetElementId(
+                                                   CLAY_STRING("dragged_menu_bar_element"))
+                                                   .id;
+                        drag_state.click_origin = mouse_state.buttons[MOUSE_BUTTON_LEFT]
+                                                      .click_origin;
                     }
                 }
             }
@@ -215,7 +220,9 @@ void menu_bar_layout(void)
                             .height = CLAY_SIZING_FIXED(12),
                         }
                     },
-                    .backgroundColor = Clay_PointerOver(Clay_GetElementId(CLAY_STRING("ScrollBar"))) && dragged_menu_bar_element == NO_DRAGGED_ELEMENT ? (Clay_Color){100, 100, 140, 150} : (Clay_Color){120, 120, 160, 150},
+                    .backgroundColor = Clay_PointerOver(Clay_GetElementId(CLAY_STRING("ScrollBar")))
+                                       && dragged_menu_bar_element == NO_DRAGGED_MENU_BAR_ELEMENT
+                                       ? (Clay_Color){100, 100, 140, 150} : (Clay_Color){120, 120, 160, 150},
                     .cornerRadius = CLAY_CORNER_RADIUS(6),
                 })
                 {
@@ -344,17 +351,17 @@ Clay_RenderCommandArray editor_layout(void)
         status_bar_layout();
     }
 
-    if (dragged_menu_bar_element != NO_DRAGGED_ELEMENT) {
+    Clay_ElementId dragged_menu_bar_element_id = Clay_GetElementId(
+        CLAY_STRING("dragged_menu_bar_element"));
+
+    if (dragged_menu_bar_element != NO_DRAGGED_MENU_BAR_ELEMENT
+        && drag_state.active_id == dragged_menu_bar_element_id.id) {
         dragged_menu_bar_element_layout();
         Clay_ElementData bar_elem = Clay_GetElementData(Clay_GetElementId(CLAY_STRING("menu_bar")));
         Clay_PointerData ptr = Clay_GetPointerState();
         bool inside = bar_elem.found && point_inside_rect(ptr.position, bar_elem.boundingBox);
         if (inside) {
             dragged_menu_bar_element_drop_indicator_layout();
-        }
-        Clay_PointerData pointer = Clay_GetPointerState();
-        if (pointer.state == CLAY_POINTER_DATA_RELEASED_THIS_FRAME) {
-            dragged_menu_bar_element = NO_DRAGGED_ELEMENT;
         }
     }
 
@@ -432,14 +439,8 @@ int main(void)
         //      this will simplify the logic below as Clay_Ext_UpdateScrollContainer will be able to
         //      use the ScrollbarDragState.active_id to know if the scrollbar is being dragged
 
-        // Handle both scrollbar drag and wheel scroll for the menu bar in a single call
-        ScrollUpdateSources active_sources = SCROLL_UPDATE_SOURCE_WHEEL;
-        if (dragged_menu_bar_element == NO_DRAGGED_ELEMENT) {
-            active_sources |= SCROLL_UPDATE_SOURCE_SCROLLBAR;
-        }
-
         bool scroll_consumed = Clay_Ext_UpdateScrollContainerCustom(
-            active_sources,
+            SCROLL_UPDATE_SOURCE_WHEEL | SCROLL_UPDATE_SOURCE_SCROLLBAR,
             CLAY_ID("menu_bar"),
             CLAY_ID("ScrollBar"),
             mouse_state.pos,
@@ -449,8 +450,7 @@ int main(void)
                 .use_both_wheels = true,
             },
             &mouse_state,
-            &scrollbar_drag_state,
-            dragged_menu_bar_element != NO_DRAGGED_ELEMENT);
+            &drag_state);
 
         // Pass {0,0} if already handled above (preserves drag/momentum for other areas), or the
         // real delta as the default fallback
@@ -467,6 +467,12 @@ int main(void)
         SDL_Clay_RenderClayCommands(state.renderer, render_commands);
 
         SDL_RenderPresent(state.renderer);
+
+        // Ensure all drag states are reset when the mouse key is released
+        if (mouse_state.buttons[MOUSE_BUTTON_LEFT].state == MOUSE_BUTTON_RELEASED_THIS_FRAME) {
+            dragged_menu_bar_element = NO_DRAGGED_MENU_BAR_ELEMENT;
+            drag_state.active_id = CLAY_EXT_NULL_ID;
+        }
     }
 
     SDL_StopTextInput(state.window);

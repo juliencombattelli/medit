@@ -86,13 +86,14 @@ bool Clay_Ext_UpdateScrollContainerCustom(
     Clay_Vector2 delta,
     ScrollContainerData config,
     MouseState* mouse_state,
-    ScrollbarDragState* scrollbar_state,
-    bool dragging)
+    DragState* drag_state)
 {
     Clay_ScrollContainerData scroll = Clay_GetScrollContainerData(container_id);
     if (!scroll.found) {
         return false;
     }
+
+    bool dragging = is_any_element_dragged(drag_state);
 
     bool handled = false;
 
@@ -100,28 +101,28 @@ bool Clay_Ext_UpdateScrollContainerCustom(
         // Scrollbar drag path: detect drag and apply scroll
         if (mouse_state->buttons[MOUSE_BUTTON_LEFT].state != MOUSE_BUTTON_PRESSED
             && mouse_state->buttons[MOUSE_BUTTON_LEFT].state != MOUSE_BUTTON_PRESSED_THIS_FRAME) {
-            if (scrollbar_state->active_id == scrollbar_id.id) {
-                scrollbar_state->active_id = 0;
+            if (drag_state->active_id == scrollbar_id.id) {
+                drag_state->active_id = CLAY_EXT_NULL_ID;
             }
         } else {
-            if (scrollbar_state->active_id == NO_DRAGGED_SCOLLBAR
+            if (!dragging
                 && mouse_state->buttons[MOUSE_BUTTON_LEFT].state == MOUSE_BUTTON_PRESSED_THIS_FRAME
                 && Clay_PointerOver(scrollbar_id)) {
-                scrollbar_state->active_id = scrollbar_id.id;
-                scrollbar_state->click_origin = *scroll.scrollPosition;
-            } else if (scrollbar_state->active_id == scrollbar_id.id) {
+                drag_state->active_id = scrollbar_id.id;
+                drag_state->click_origin = *scroll.scrollPosition;
+            } else if (drag_state->active_id == scrollbar_id.id) {
                 Clay_Vector2 ratio = {
                     scroll.contentDimensions.width / scroll.scrollContainerDimensions.width,
                     scroll.contentDimensions.height / scroll.scrollContainerDimensions.height,
                 };
                 if (scroll.config.horizontal) {
-                    scroll.scrollPosition->x = scrollbar_state->click_origin.x
+                    scroll.scrollPosition->x = drag_state->click_origin.x
                         + (mouse_state->buttons[MOUSE_BUTTON_LEFT].click_origin.x
                            - mouse_state->pos.x)
                             * ratio.x;
                 }
                 if (scroll.config.vertical) {
-                    scroll.scrollPosition->y = scrollbar_state->click_origin.y
+                    scroll.scrollPosition->y = drag_state->click_origin.y
                         + (mouse_state->buttons[MOUSE_BUTTON_LEFT].click_origin.y
                            - mouse_state->pos.y)
                             * ratio.y;

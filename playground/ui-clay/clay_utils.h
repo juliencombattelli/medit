@@ -5,6 +5,8 @@
 
 #include <math.h>
 
+#define CLAY_EXT_NULL_ID (0u) // ID 0 is internally reserved for null IDs in Clay
+
 //------------------------------------------------------------------------------
 // Maths helpers
 //------------------------------------------------------------------------------
@@ -98,13 +100,16 @@ typedef uint32_t ScrollUpdateSources;
 // Scrollbar state handling
 //------------------------------------------------------------------------------
 
-#define NO_DRAGGED_SCOLLBAR (0u)
-
-// State shared by all scrollbars in the UI because only one scrollbar can be active at a time
+// State shared by all draggable elements in the UI as only one element can be dragged at a time
 typedef struct {
     Clay_Vector2 click_origin;
     uint32_t active_id;
-} ScrollbarDragState;
+} DragState;
+
+static inline bool is_any_element_dragged(DragState* drag_state)
+{
+    return drag_state->active_id != CLAY_EXT_NULL_ID;
+}
 
 // Unified scroll container update function that handles both wheel scroll and scrollbar drag.
 // sources: Bitmask of scroll sources to process (SCROLL_UPDATE_SOURCE_WHEEL and/or
@@ -127,7 +132,6 @@ bool Clay_Ext_UpdateScrollContainerCustom(
     Clay_Vector2 delta,
     ScrollContainerData config,
     MouseState* mouse_state,
-    ScrollbarDragState* scrollbar_state,
-    bool dragging);
+    DragState* drag_state);
 
 #endif // CLAY_UTILS_H_
