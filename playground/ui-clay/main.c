@@ -19,6 +19,9 @@ typedef struct {
 static const Clay_Color background_color = { 0x18, 0x18, 0x18, 0xFF };
 static const Clay_Color sidebars_background_color = { 0x18, 0x7f, 0x18, 0xFF };
 static const Clay_Color editor_background_color = { 0x1F, 0x1F, 0x5F, 0xFF };
+static const Clay_Color scrollbar_inactive_color = { 100, 100, 100, 150 };
+static const Clay_Color scrollbar_hovered_color = { 120, 120, 120, 150 };
+static const Clay_Color scrollbar_active_color = { 140, 140, 140, 150 };
 
 static const float drag_dead_zone_pixels = 4;
 
@@ -47,6 +50,17 @@ static MenuBarElementData menu_bar_elements[] = {
 };
 static const size_t menu_bar_element_count = sizeof(menu_bar_elements)
     / sizeof(menu_bar_elements[0]);
+
+Clay_Color get_scrollbar_color(void)
+{
+    if (drag_state.active_id == Clay_GetOpenElementId()) {
+        return scrollbar_active_color;
+    }
+    if (!is_any_element_dragged(&drag_state) && Clay_Hovered()) {
+        return scrollbar_hovered_color;
+    }
+    return scrollbar_inactive_color;
+}
 
 void dragged_menu_bar_element_layout(void)
 {
@@ -220,9 +234,7 @@ void menu_bar_layout(void)
                             .height = CLAY_SIZING_FIXED(12),
                         }
                     },
-                    .backgroundColor = Clay_PointerOver(Clay_GetElementId(CLAY_STRING("ScrollBar")))
-                                       && dragged_menu_bar_element == NO_DRAGGED_MENU_BAR_ELEMENT
-                                       ? (Clay_Color){100, 100, 140, 150} : (Clay_Color){120, 120, 160, 150},
+                    .backgroundColor = get_scrollbar_color(),
                     .cornerRadius = CLAY_CORNER_RADIUS(6),
                 })
                 {
@@ -435,14 +447,10 @@ int main(void)
 
         Clay_SetPointerState(mouse_state.pos, mouse_state.buttons[MOUSE_BUTTON_LEFT].state);
 
-        // TODO this should be extended to any draggable element, no just scrollbars
-        //      this will simplify the logic below as Clay_Ext_UpdateScrollContainer will be able to
-        //      use the ScrollbarDragState.active_id to know if the scrollbar is being dragged
-
         bool scroll_consumed = Clay_Ext_UpdateScrollContainerCustom(
             SCROLL_UPDATE_SOURCE_WHEEL | SCROLL_UPDATE_SOURCE_SCROLLBAR,
             CLAY_ID("menu_bar"),
-            CLAY_ID("ScrollBar"),
+            CLAY_ID("ScrollBarButton"),
             mouse_state.pos,
             mouse_state.scroll_delta,
             (ScrollContainerData) {
@@ -484,13 +492,3 @@ int main(void)
     TTF_Quit();
     SDL_Quit();
 }
-
-/*
-TODO:
-
-1. tab bar
-- [x] implement the dropping of tabs (just swap entries)
-- [x] add clipping to the scrollable area to avoid having the drop indicator drawn outside
-- [x] start dragging only when clicking AND moving the mouse by a threshold
-- [ ] keep scrollbar pressed color while dragged even when pointer is not hovering
-*/
