@@ -106,7 +106,7 @@ void dragged_menu_bar_element_drop_indicator_layout(void)
     const float bar_x = bar_element_data.found ? bar_element_data.boundingBox.x : 0.f;
     const float pointer_x = pointer.position.x;
     float line_x = 0.f;
-    size_t tab_i = 0;
+    uint32_t tab_i = 0;
     for (; tab_i < menu_bar_element_count; tab_i++) {
         Clay_ElementData element_data = Clay_GetElementData(CLAY_IDI("menu_bar_element", tab_i));
         if (!element_data.found) {
@@ -126,6 +126,8 @@ void dragged_menu_bar_element_drop_indicator_layout(void)
             break;
         }
     }
+
+    // If the line is outside of the container don't draw it and don't handle dropping
     if (line_x < 0 || line_x > bar_element_data.boundingBox.width) {
         return;
     }
@@ -189,7 +191,7 @@ void menu_bar_layout(void)
             .clip = { .horizontal = true, .childOffset = Clay_GetScrollOffset() },
         })
     {
-        for (size_t i = 0; i < menu_bar_element_count; i++) {
+        for (uint32_t i = 0; i < menu_bar_element_count; i++) {
             MenuBarElementData element_data = menu_bar_elements[i];
             CLAY(CLAY_IDI("menu_bar_element", i), {
                     .layout = {
@@ -255,7 +257,7 @@ void menu_bar_layout(void)
         .clip = { .horizontal = true, .childOffset = Clay_GetScrollOffset() },
     })
     {
-        for (size_t i = 0; i < menu_bar_element_count; i++) {
+        for (uint32_t i = 0; i < menu_bar_element_count; i++) {
             MenuBarElementData element_data = menu_bar_elements[i];
             CLAY(CLAY_IDI("menu_bar2_element", i), {
                     .layout = {
@@ -309,7 +311,7 @@ void menu_bar_layout(void)
         .clip = { .horizontal = true, .childOffset = Clay_GetScrollOffset() },
     })
     {
-        for (size_t i = 0; i < menu_bar_element_count; i++) {
+        for (uint32_t i = 0; i < menu_bar_element_count; i++) {
             MenuBarElementData element_data = menu_bar_elements[i];
             CLAY(CLAY_IDI("menu_bar3_element", i), {
                     .layout = {
