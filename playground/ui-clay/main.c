@@ -220,7 +220,7 @@ void menu_bar_layout(void)
         Clay_ScrollContainerData scrollData = Clay_GetScrollContainerData(menu_bar_id);
         if (scrollData.found) {
 
-            CLAY(CLAY_ID("ScrollBar"), {
+            CLAY(CLAY_ID("menu_bar_scrollbar"), {
                 .floating = {
                     .attachTo = CLAY_ATTACH_TO_ELEMENT_WITH_ID,
                     .offset = {.x = -(scrollData.scrollPosition->x / scrollData.contentDimensions.width) * scrollData.scrollContainerDimensions.width},
@@ -230,7 +230,7 @@ void menu_bar_layout(void)
                 },
             })
             {
-                CLAY(CLAY_ID("ScrollBarButton"), {
+                CLAY(CLAY_ID("menu_bar_scrollbar_button"), {
                     .layout = {
                         .sizing = {
                             .width = CLAY_SIZING_FIXED((scrollData.scrollContainerDimensions.width / scrollData.contentDimensions.width) * scrollData.scrollContainerDimensions.width),
@@ -453,7 +453,7 @@ int main(void)
         bool scroll_consumed = Clay_Ext_UpdateScrollContainerCustom(
             SCROLL_UPDATE_SOURCE_WHEEL | SCROLL_UPDATE_SOURCE_SCROLLBAR,
             CLAY_ID("menu_bar"),
-            CLAY_ID("ScrollBarButton"),
+            CLAY_ID("menu_bar_scrollbar_button"),
             mouse_state.pos,
             mouse_state.scroll_delta,
             (ScrollContainerData) {
