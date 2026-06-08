@@ -42,3 +42,5 @@ AllowAllParametersOfDeclarationOnNextLine: false
 PenaltyReturnTypeOnItsOwnLine: 1000
 # It also breaks before assignment operator even when the operand is a function call. Disabling this.
 PenaltyBreakAssignment: 1000
+
+IfMacros: ["CLAY"]
