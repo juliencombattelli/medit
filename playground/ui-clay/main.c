@@ -14,7 +14,7 @@ typedef struct {
     TTF_Font* font;
 } AppState;
 
-#define NO_DRAGGED_MENU_BAR_ELEMENT ((size_t) - 1)
+#define NO_DRAGGED_MENU_BAR_ELEMENT ((size_t)-1)
 
 static const Clay_Color background_color = { 0x18, 0x18, 0x18, 0xFF };
 static const Clay_Color sidebars_background_color = { 0x18, 0x7f, 0x18, 0xFF };
@@ -100,22 +100,21 @@ void dragged_menu_bar_element_layout(void)
 
 void dragged_menu_bar_element_drop_indicator_layout(void)
 {
+    // Compute the destination tab index and line position
     const Clay_PointerData pointer = Clay_GetPointerState();
-
-    // Display a white vertical line at the nearest side of the element under the pointer
-    Clay_ElementData bar_element_data = Clay_GetElementData(CLAY_ID("menu_bar"));
-    float bar_x = bar_element_data.found ? bar_element_data.boundingBox.x : 0.f;
-    float pointer_x = pointer.position.x;
+    const Clay_ElementData bar_element_data = Clay_GetElementData(CLAY_ID("menu_bar"));
+    const float bar_x = bar_element_data.found ? bar_element_data.boundingBox.x : 0.f;
+    const float pointer_x = pointer.position.x;
     float line_x = 0.f;
     size_t tab_i = 0;
     for (; tab_i < menu_bar_element_count; tab_i++) {
-        Clay_ElementData elementData = Clay_GetElementData(CLAY_IDI("menu_bar_element", tab_i));
-        if (!elementData.found) {
+        Clay_ElementData element_data = Clay_GetElementData(CLAY_IDI("menu_bar_element", tab_i));
+        if (!element_data.found) {
             continue;
         }
-        float left = elementData.boundingBox.x;
-        float right = left + elementData.boundingBox.width;
-        float mid = left + elementData.boundingBox.width / 2.f;
+        float left = element_data.boundingBox.x;
+        float right = left + element_data.boundingBox.width;
+        float mid = left + element_data.boundingBox.width / 2.f;
         if (pointer_x >= left && pointer_x < right) {
             if (pointer_x < mid) {
                 line_x = left;
@@ -130,6 +129,8 @@ void dragged_menu_bar_element_drop_indicator_layout(void)
     if (line_x < 0 || line_x > bar_element_data.boundingBox.width) {
         return;
     }
+
+    // Lay out the drop line indicator
     CLAY(CLAY_ID("drop_indicator"), {
             .floating = {
                 .offset = { .x = line_x, .y = 0 },
@@ -155,19 +156,19 @@ void dragged_menu_bar_element_drop_indicator_layout(void)
         {
         }
     }
+
+    // Drop the dragged tab into the choosen position on mouse button release
     if (mouse_state.buttons[MOUSE_BUTTON_LEFT].state == MOUSE_BUTTON_RELEASED_THIS_FRAME) {
         size_t src = dragged_menu_bar_element;
         size_t dst = tab_i;
         if (src != dst && src + 1 != dst) {
             MenuBarElementData elem = menu_bar_elements[src];
             if (src < dst) {
-                // Moving right: close the gap by shifting [src+1 .. dst-1] left
                 for (size_t i = src; i < dst - 1; i++) {
                     menu_bar_elements[i] = menu_bar_elements[i + 1];
                 }
                 menu_bar_elements[dst - 1] = elem;
             } else {
-                // Moving left: open a slot by shifting [dst .. src-1] right
                 for (size_t i = src; i > dst; i--) {
                     menu_bar_elements[i] = menu_bar_elements[i - 1];
                 }
@@ -217,13 +218,12 @@ void menu_bar_layout(void)
         }
 
         Clay_ElementId menu_bar_id = Clay_GetElementId(CLAY_STRING("menu_bar"));
-        Clay_ScrollContainerData scrollData = Clay_GetScrollContainerData(menu_bar_id);
-        if (scrollData.found) {
-
+        Clay_ScrollContainerData scroll_data = Clay_GetScrollContainerData(menu_bar_id);
+        if (scroll_data.found) {
             CLAY(CLAY_ID("menu_bar_scrollbar"), {
                 .floating = {
                     .attachTo = CLAY_ATTACH_TO_ELEMENT_WITH_ID,
-                    .offset = {.x = -(scrollData.scrollPosition->x / scrollData.contentDimensions.width) * scrollData.scrollContainerDimensions.width},
+                    .offset = {.x = -(scroll_data.scrollPosition->x / scroll_data.contentDimensions.width) * scroll_data.scrollContainerDimensions.width},
                     .zIndex = 1,
                     .parentId = menu_bar_id.id,
                     .attachPoints = { .element = CLAY_ATTACH_POINT_LEFT_BOTTOM, .parent = CLAY_ATTACH_POINT_LEFT_BOTTOM },
@@ -233,7 +233,7 @@ void menu_bar_layout(void)
                 CLAY(CLAY_ID("menu_bar_scrollbar_button"), {
                     .layout = {
                         .sizing = {
-                            .width = CLAY_SIZING_FIXED((scrollData.scrollContainerDimensions.width / scrollData.contentDimensions.width) * scrollData.scrollContainerDimensions.width),
+                            .width = CLAY_SIZING_FIXED((scroll_data.scrollContainerDimensions.width / scroll_data.contentDimensions.width) * scroll_data.scrollContainerDimensions.width),
                             .height = CLAY_SIZING_FIXED(12),
                         }
                     },
@@ -258,6 +258,60 @@ void menu_bar_layout(void)
         for (size_t i = 0; i < menu_bar_element_count; i++) {
             MenuBarElementData element_data = menu_bar_elements[i];
             CLAY(CLAY_IDI("menu_bar2_element", i), {
+                    .layout = {
+                        .sizing = {
+                            .height = CLAY_SIZING_FIXED(60),
+                            .width = CLAY_SIZING_FIXED(element_data.width),
+                        },
+                    },
+                    .backgroundColor = element_data.color,
+                    .cornerRadius = CLAY_CORNER_RADIUS(8),
+                })
+            {
+            }
+        }
+
+        Clay_ElementId menu_bar_id = Clay_GetElementId(CLAY_STRING("menu_bar2"));
+        Clay_ScrollContainerData scroll_data = Clay_GetScrollContainerData(menu_bar_id);
+        if (scroll_data.found) {
+            CLAY(CLAY_ID("menu_bar2_scrollbar"), {
+                .floating = {
+                    .attachTo = CLAY_ATTACH_TO_ELEMENT_WITH_ID,
+                    .offset = {.x = -(scroll_data.scrollPosition->x / scroll_data.contentDimensions.width) * scroll_data.scrollContainerDimensions.width},
+                    .zIndex = 1,
+                    .parentId = menu_bar_id.id,
+                    .attachPoints = { .element = CLAY_ATTACH_POINT_LEFT_BOTTOM, .parent = CLAY_ATTACH_POINT_LEFT_BOTTOM },
+                },
+            })
+            {
+                CLAY(CLAY_ID("menu_bar2_scrollbar_button"), {
+                    .layout = {
+                        .sizing = {
+                            .width = CLAY_SIZING_FIXED((scroll_data.scrollContainerDimensions.width / scroll_data.contentDimensions.width) * scroll_data.scrollContainerDimensions.width),
+                            .height = CLAY_SIZING_FIXED(12),
+                        }
+                    },
+                    .backgroundColor = get_scrollbar_color(),
+                    .cornerRadius = CLAY_CORNER_RADIUS(6),
+                })
+                {
+                }
+            }
+        }
+    }
+
+    CLAY(CLAY_ID("menu_bar3"), {
+        .layout = {
+            .sizing = { .height = CLAY_SIZING_FIXED(60), .width = CLAY_SIZING_GROW(0), },
+        },
+        .backgroundColor = sidebars_background_color,
+        .cornerRadius = CLAY_CORNER_RADIUS(8),
+        .clip = { .horizontal = true, .childOffset = Clay_GetScrollOffset() },
+    })
+    {
+        for (size_t i = 0; i < menu_bar_element_count; i++) {
+            MenuBarElementData element_data = menu_bar_elements[i];
+            CLAY(CLAY_IDI("menu_bar3_element", i), {
                     .layout = {
                         .sizing = {
                             .height = CLAY_SIZING_FIXED(60),
@@ -383,9 +437,9 @@ Clay_RenderCommandArray editor_layout(void)
     return Clay_EndLayout(0);
 }
 
-void HandleClayErrors(Clay_ErrorData errorData)
+void HandleClayErrors(Clay_ErrorData error_data)
 {
-    printf("%s", errorData.errorText.chars);
+    printf("%s", error_data.errorText.chars);
 }
 
 int main(void)
@@ -450,7 +504,7 @@ int main(void)
 
         Clay_SetPointerState(mouse_state.pos, mouse_state.buttons[MOUSE_BUTTON_LEFT].state);
 
-        bool scroll_consumed = Clay_Ext_UpdateScrollContainerCustom(
+        Clay_Ext_UpdateScrollContainerCustom(
             SCROLL_UPDATE_SOURCE_WHEEL | SCROLL_UPDATE_SOURCE_SCROLLBAR,
             CLAY_ID("menu_bar"),
             CLAY_ID("menu_bar_scrollbar_button"),
@@ -463,12 +517,24 @@ int main(void)
             &mouse_state,
             &drag_state);
 
-        // Pass {0,0} if already handled above (preserves drag/momentum for other areas), or the
-        // real delta as the default fallback
+        Clay_Ext_UpdateScrollContainerCustom(
+            SCROLL_UPDATE_SOURCE_WHEEL | SCROLL_UPDATE_SOURCE_SCROLLBAR,
+            CLAY_ID("menu_bar2"),
+            CLAY_ID("menu_bar2_scrollbar_button"),
+            mouse_state.pos,
+            mouse_state.scroll_delta,
+            (ScrollContainerData) {
+                .sensitivity = 30.f,
+                .use_both_wheels = true,
+            },
+            &mouse_state,
+            &drag_state);
+
+        // Handle scroll delta with mouse wheels only for other scrollable areas
         Clay_UpdateScrollContainers(
-            false,
-            scroll_consumed ? (Clay_Vector2) { 0 } : mouse_state.scroll_delta,
-            0.016f);
+            false, // do not enable touch and drag scrolling as it is handled per scrollable area
+            mouse_state.scroll_delta,
+            0.f); // not used when touch and drag scrolling is disabled
 
         Clay_RenderCommandArray render_commands = editor_layout();
 

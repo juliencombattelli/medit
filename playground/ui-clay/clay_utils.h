@@ -111,27 +111,20 @@ static inline bool is_any_element_dragged(DragState* drag_state)
     return drag_state->active_id != CLAY_EXT_NULL_ID;
 }
 
-// Unified scroll container update function that handles both wheel scroll and scrollbar drag.
-// sources: Bitmask of scroll sources to process (SCROLL_UPDATE_SOURCE_WHEEL and/or
-// SCROLL_UPDATE_SOURCE_SCROLLBAR).
-// When SCROLL_UPDATE_SOURCE_WHEEL is set:
-//   - scrollbar_state and scrollbar_id are ignored
-//   - delta is the wheel scroll delta
-//   - config specifies sensitivity and axis behavior
-//   - dragging indicates if a drag operation is active (enables edge-based auto-scroll)
-// When SCROLL_UPDATE_SOURCE_SCROLLBAR is set:
-//   - delta is ignored (set to {0, 0})
-//   - scrollbar_id is the draggable thumb element
-//   - config is ignored (can be zero-initialized)
-//   - dragging is ignored
-bool Clay_Ext_UpdateScrollContainerCustom(
+// Custom scroll container update function for containers having a scrollbar
+// Handle the following use-cases:
+// - register the scrollbar as the UI dragged element if it is being dragged
+// - scroll when the scrollbar is moved
+// - scroll when the pointer approaches the edges of the container and an element is being dragged
+// - optionally use both horizontal/vertical mouse wheels when scrolling can only be done on one axe
+void Clay_Ext_UpdateScrollContainerCustom(
     ScrollUpdateSources sources,
     Clay_ElementId container_id,
     Clay_ElementId scrollbar_id,
     Clay_Vector2 mouse_pos,
     Clay_Vector2 delta,
     ScrollContainerData config,
-    MouseState* mouse_state,
+    const MouseState* mouse_state,
     DragState* drag_state);
 
 #endif // CLAY_UTILS_H_

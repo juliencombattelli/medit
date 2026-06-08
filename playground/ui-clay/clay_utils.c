@@ -81,24 +81,22 @@ static void apply_scroll_delta(
     }
 }
 
-bool Clay_Ext_UpdateScrollContainerCustom(
+void Clay_Ext_UpdateScrollContainerCustom(
     ScrollUpdateSources sources,
     Clay_ElementId container_id,
     Clay_ElementId scrollbar_id,
     Clay_Vector2 mouse_pos,
     Clay_Vector2 delta,
     ScrollContainerData config,
-    MouseState* mouse_state,
+    const MouseState* mouse_state,
     DragState* drag_state)
 {
     Clay_ScrollContainerData scroll = Clay_GetScrollContainerData(container_id);
     if (!scroll.found) {
-        return false;
+        return;
     }
 
     bool dragging = is_any_element_dragged(drag_state);
-
-    bool handled = false;
 
     if (sources & SCROLL_UPDATE_SOURCE_SCROLLBAR) {
         if (mouse_state->buttons[MOUSE_BUTTON_LEFT].state != MOUSE_BUTTON_PRESSED
@@ -112,12 +110,14 @@ bool Clay_Ext_UpdateScrollContainerCustom(
                 && Clay_PointerOver(scrollbar_id)) {
                 drag_state->active_id = scrollbar_id.id;
                 drag_state->click_origin = *scroll.scrollPosition;
-                handled = true;
-            } else if (drag_state->active_id == scrollbar_id.id) {
+                return;
+            }
+            if (drag_state->active_id == scrollbar_id.id) {
                 Clay_Vector2 ratio = {
                     scroll.contentDimensions.width / scroll.scrollContainerDimensions.width,
                     scroll.contentDimensions.height / scroll.scrollContainerDimensions.height,
                 };
+                // TODO use apply_scroll_delta to handle the config switches in one place
                 if (scroll.config.horizontal) {
                     scroll.scrollPosition->x = drag_state->click_origin.x
                         + (mouse_state->buttons[MOUSE_BUTTON_LEFT].click_origin.x
@@ -130,24 +130,24 @@ bool Clay_Ext_UpdateScrollContainerCustom(
                            - mouse_state->pos.y)
                             * ratio.y;
                 }
-                handled = true;
+                return;
             }
         }
     }
 
-    if ((sources & SCROLL_UPDATE_SOURCE_WHEEL) && !handled) {
+    if (sources & SCROLL_UPDATE_SOURCE_WHEEL) {
         // Wheel scroll path: validate element and apply delta
         if (delta.x == 0 && delta.y == 0 && !dragging) {
-            return false;
+            return;
         }
 
         Clay_ElementData elem = Clay_GetElementData(container_id);
         if (!elem.found) {
-            return false;
+            return;
         }
         Clay_BoundingBox bb = elem.boundingBox;
         if (!point_inside_rect(mouse_pos, bb)) {
-            return false;
+            return;
         }
 
         // Handle axis combination (both_wheels mode)
@@ -164,6 +164,7 @@ bool Clay_Ext_UpdateScrollContainerCustom(
         }
 
         // Apply edge-based auto-scroll when dragging
+        // TODO support it on X and Y
         if (dragging) {
 #define DRAG_SCROLL_MARGIN 48
 #define DRAG_SCROLL_SPEED 1.f
@@ -182,8 +183,5 @@ bool Clay_Ext_UpdateScrollContainerCustom(
         }
 
         apply_scroll_delta(&scroll, delta, config.sensitivity);
-        handled = true;
     }
-
-    return handled;
 }
