@@ -13,8 +13,8 @@
 
 static inline bool point_inside_rect(Clay_Vector2 point, Clay_BoundingBox rect)
 {
-    return point.x >= rect.x && point.x <= rect.x + rect.width && point.y >= rect.y
-        && point.y <= rect.y + rect.height;
+    return point.x >= rect.x && point.x <= rect.x + rect.width
+        && point.y >= rect.y && point.y <= rect.y + rect.height;
 }
 
 static inline float distance(Clay_Vector2 a, Clay_Vector2 b)
@@ -30,6 +30,7 @@ static inline float distance(Clay_Vector2 a, Clay_Vector2 b)
 // Mouse state handling (pointer, buttons & scroll wheels)
 //------------------------------------------------------------------------------
 
+// TODO consider keeping only pressed/released and transitioned_this_frame
 typedef enum {
     // A mouse button is not currently down / was released at some point in the past
     MOUSE_BUTTON_RELEASED,
@@ -41,20 +42,20 @@ typedef enum {
     MOUSE_BUTTON_PRESSED_THIS_FRAME,
 } MouseButtonState;
 
-#define MOUSE_BUTTON_LEFT 0u
+#define MOUSE_BUTTON_LEFT   0u
 #define MOUSE_BUTTON_MIDDLE 1u
-#define MOUSE_BUTTON_RIGHT 2u
+#define MOUSE_BUTTON_RIGHT  2u
 #define MOUSE_BUTTON_SIDE_1 3u
 #define MOUSE_BUTTON_SIDE_2 4u
-#define MOUSE_BUTTON_COUNT 5u
+#define MOUSE_BUTTON_COUNT  5u
 
 #define MOUSE_BUTTON_MASK(button) (1u << (unsigned)(button))
 
-#define MOUSE_BUTTON_LEFT_MASK MOUSE_BUTTON_MASK(MOUSE_BUTTON_LEFT)
-#define MOUSE_BUTTON_MIDDLE_MASK MOUSE_BUTTON_MASK(MOUSE_BUTTON_MIDDLE)
-#define MOUSE_BUTTON_RIGHT_MASK MOUSE_BUTTON_MASK(MOUSE_BUTTON_RIGHT)
-#define MOUSE_BUTTON_SIDE_1_MASK MOUSE_BUTTON_MASK(MOUSE_BUTTON_SIDE_1)
-#define MOUSE_BUTTON_SIDE_2_MASK MOUSE_BUTTON_MASK(MOUSE_BUTTON_SIDE_2)
+#define MOUSE_BUTTON_LEFT_MASK      MOUSE_BUTTON_MASK(MOUSE_BUTTON_LEFT)
+#define MOUSE_BUTTON_MIDDLE_MASK    MOUSE_BUTTON_MASK(MOUSE_BUTTON_MIDDLE)
+#define MOUSE_BUTTON_RIGHT_MASK     MOUSE_BUTTON_MASK(MOUSE_BUTTON_RIGHT)
+#define MOUSE_BUTTON_SIDE_1_MASK    MOUSE_BUTTON_MASK(MOUSE_BUTTON_SIDE_1)
+#define MOUSE_BUTTON_SIDE_2_MASK    MOUSE_BUTTON_MASK(MOUSE_BUTTON_SIDE_2)
 
 typedef struct {
     MouseButtonState state;
@@ -80,7 +81,6 @@ typedef struct {
     bool use_both_wheels;
     bool enable_drag_on_edges;
 } ScrollContainerConfig;
-
 
 // State shared by all draggable elements in the UI as only one element can be dragged at a time
 typedef struct {

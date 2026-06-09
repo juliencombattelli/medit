@@ -3,11 +3,7 @@
 #define CIRCLE_SEGMENTS_COUNT 16
 #define CORNER_COUNT 4
 
-void SDL_Ext_RenderFillRoundedRect(
-    SDL_Renderer* renderer,
-    SDL_FRect rect,
-    float corner_radius,
-    SDL_FColor color)
+void SDL_Ext_RenderFillRoundedRect(SDL_Renderer* renderer, SDL_FRect rect, float corner_radius, SDL_FColor color)
 {
     const float min_radius = SDL_min(rect.w, rect.h) / 2.0f;
     const float clamped_radius = SDL_min(corner_radius, min_radius);

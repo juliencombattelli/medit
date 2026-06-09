@@ -28,16 +28,15 @@ static inline SDL_FColor clay_to_sdl_color(Clay_Color color)
 
 // Ensure clay_utils.h mouse buttons bits are aligned with SDL
 // This way no special conversion is needed, SDL_GetMouseState returns a compatible bitset
-_Static_assert(SDL_BUTTON_LMASK == MOUSE_BUTTON_MASK(MOUSE_BUTTON_LEFT), "");
-_Static_assert(SDL_BUTTON_MMASK == MOUSE_BUTTON_MASK(MOUSE_BUTTON_MIDDLE), "");
-_Static_assert(SDL_BUTTON_RMASK == MOUSE_BUTTON_MASK(MOUSE_BUTTON_RIGHT), "");
+_Static_assert(SDL_BUTTON_LMASK  == MOUSE_BUTTON_MASK(MOUSE_BUTTON_LEFT), "");
+_Static_assert(SDL_BUTTON_MMASK  == MOUSE_BUTTON_MASK(MOUSE_BUTTON_MIDDLE), "");
+_Static_assert(SDL_BUTTON_RMASK  == MOUSE_BUTTON_MASK(MOUSE_BUTTON_RIGHT), "");
 _Static_assert(SDL_BUTTON_X1MASK == MOUSE_BUTTON_MASK(MOUSE_BUTTON_SIDE_1), "");
 _Static_assert(SDL_BUTTON_X2MASK == MOUSE_BUTTON_MASK(MOUSE_BUTTON_SIDE_2), "");
 
 static inline uint32_t sdl_get_mouse_state(MouseState* mouse_state)
 {
-    Uint32 buttons = SDL_GetMouseState(&mouse_state->pos.x, &mouse_state->pos.y);
-    return buttons;
+    return SDL_GetMouseState(&mouse_state->pos.x, &mouse_state->pos.y);
 }
 
 //------------------------------------------------------------------------------

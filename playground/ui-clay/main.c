@@ -16,13 +16,13 @@ typedef struct {
 
 #define NO_DRAGGED_MENU_BAR_ELEMENT ((size_t)-1)
 
-static const Clay_Color background_color = { 0x18, 0x18, 0x18, 0xFF };
-static const Clay_Color sidebars_background_color = { 0x18, 0x7f, 0x18, 0xFF };
-static const Clay_Color editor_background_color = { 0x1F, 0x1F, 0x5F, 0xFF };
-static const Clay_Color scrollbar_inactive_color = { 100, 100, 100, 150 };
-static const Clay_Color scrollbar_hovered_color = { 120, 120, 120, 150 };
-static const Clay_Color scrollbar_active_color = { 140, 140, 140, 150 };
-static const Clay_Color drop_indicator_color = { 0xFF, 0xFF, 0xFF, 0x9F };
+static const Clay_Color background_color            = { 0x18, 0x18, 0x18, 0xFF };
+static const Clay_Color sidebars_background_color   = { 0x18, 0x7f, 0x18, 0xFF };
+static const Clay_Color editor_background_color     = { 0x1F, 0x1F, 0x5F, 0xFF };
+static const Clay_Color scrollbar_inactive_color    = { 100, 100, 100, 150 };
+static const Clay_Color scrollbar_hovered_color     = { 120, 120, 120, 150 };
+static const Clay_Color scrollbar_active_color      = { 140, 140, 140, 150 };
+static const Clay_Color drop_indicator_color        = { 0xFF, 0xFF, 0xFF, 0x9F };
 
 static const float drag_dead_zone_pixels = 4;
 
@@ -36,16 +36,16 @@ typedef struct {
 } MenuBarElementData;
 
 static MenuBarElementData menu_bar_elements[] = {
-    { { 0x1F, 0x1F, 0x5F, 0xFF }, 200 },
-    { { 0x2E, 0x2E, 0x6E, 0xFF }, 250 },
-    { { 0x3D, 0x3D, 0x7D, 0xFF }, 200 },
-    { { 0x4C, 0x4C, 0x8C, 0xFF }, 400 },
-    { { 0x5B, 0x5B, 0x9B, 0xFF }, 300 },
-    { { 0x6A, 0x6A, 0xAA, 0xFF }, 200 },
-    { { 0x79, 0x79, 0xB9, 0xFF }, 500 },
-    { { 0x88, 0x88, 0xC8, 0xFF }, 350 },
-    { { 0x97, 0x97, 0xD7, 0xFF }, 200 },
-    { { 0xa6, 0xa6, 0xe6, 0xFF }, 250 },
+    { .color = { 0x1F, 0x1F, 0x5F, 0xFF }, .width = 200 },
+    { .color = { 0x2E, 0x2E, 0x6E, 0xFF }, .width = 250 },
+    { .color = { 0x3D, 0x3D, 0x7D, 0xFF }, .width = 200 },
+    { .color = { 0x4C, 0x4C, 0x8C, 0xFF }, .width = 400 },
+    { .color = { 0x5B, 0x5B, 0x9B, 0xFF }, .width = 300 },
+    { .color = { 0x6A, 0x6A, 0xAA, 0xFF }, .width = 200 },
+    { .color = { 0x79, 0x79, 0xB9, 0xFF }, .width = 500 },
+    { .color = { 0x88, 0x88, 0xC8, 0xFF }, .width = 350 },
+    { .color = { 0x97, 0x97, 0xD7, 0xFF }, .width = 200 },
+    { .color = { 0xa6, 0xa6, 0xe6, 0xFF }, .width = 250 },
 };
 
 static const size_t menu_bar_element_count = sizeof(menu_bar_elements) / sizeof(menu_bar_elements[0]);
@@ -194,16 +194,15 @@ void menu_bar_layout(void)
             }) {
                 if (Clay_Hovered() && !is_any_element_dragged(&drag_state)
                     && dragged_menu_bar_element == NO_DRAGGED_MENU_BAR_ELEMENT
-                    && mouse_state.buttons[MOUSE_BUTTON_LEFT].state == MOUSE_BUTTON_PRESSED) {
+                    && mouse_state.buttons[MOUSE_BUTTON_LEFT].state == MOUSE_BUTTON_PRESSED)
+                {
                     float distance_from_click_origin = distance(
                         mouse_state.buttons[MOUSE_BUTTON_LEFT].click_origin,
                         mouse_state.pos);
                     if (distance_from_click_origin > drag_dead_zone_pixels) {
                         dragged_menu_bar_element = i;
-                        drag_state.active_id =
-                            Clay_GetElementId(CLAY_STRING("dragged_menu_bar_element")).id;
-                        drag_state.click_origin =
-                            mouse_state.buttons[MOUSE_BUTTON_LEFT].click_origin;
+                        drag_state.active_id = Clay_GetElementId(CLAY_STRING("dragged_menu_bar_element")).id;
+                        drag_state.click_origin = mouse_state.buttons[MOUSE_BUTTON_LEFT].click_origin;
                     }
                 }
             }
@@ -405,11 +404,11 @@ Clay_RenderCommandArray editor_layout(void)
         status_bar_layout();
     }
 
-    Clay_ElementId dragged_menu_bar_element_id = Clay_GetElementId(
-        CLAY_STRING("dragged_menu_bar_element"));
+    Clay_ElementId dragged_menu_bar_element_id = Clay_GetElementId(CLAY_STRING("dragged_menu_bar_element"));
 
     if (dragged_menu_bar_element != NO_DRAGGED_MENU_BAR_ELEMENT
-        && drag_state.active_id == dragged_menu_bar_element_id.id) {
+        && drag_state.active_id == dragged_menu_bar_element_id.id)
+    {
         Clay_ElementData bar_elem = Clay_GetElementData(Clay_GetElementId(CLAY_STRING("menu_bar")));
         Clay_PointerData ptr = Clay_GetPointerState();
         bool inside = bar_elem.found && point_inside_rect(ptr.position, bar_elem.boundingBox);
@@ -448,12 +447,11 @@ int main(void)
     assert(SDL_ShowWindow(state.window));
     assert(SDL_StartTextInput(state.window));
 
-    uint32_t mem_size = Clay_MinMemorySize();
-    Clay_Arena arena = Clay_CreateArenaWithCapacityAndMemory(mem_size, malloc(mem_size));
     int width, height;
     SDL_GetWindowSize(state.window, &width, &height);
+    uint32_t mem_size = Clay_MinMemorySize();
     Clay_Initialize(
-        arena,
+        Clay_CreateArenaWithCapacityAndMemory(mem_size, malloc(mem_size)),
         (Clay_Dimensions) { .width = (float)width, .height = (float)height },
         (Clay_ErrorHandler) { .errorHandlerFunction = HandleClayErrors });
 

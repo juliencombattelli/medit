@@ -2,10 +2,7 @@
 
 #include <assert.h>
 
-static void set_mouse_button_state(
-    MouseButtonData* button,
-    bool pressed_this_frame,
-    Clay_Vector2 pointer_pos)
+static void set_mouse_button_state(MouseButtonData* button, bool pressed_this_frame, Clay_Vector2 pointer_pos)
 {
     if (pressed_this_frame) {
         if (button->state == MOUSE_BUTTON_PRESSED_THIS_FRAME) {
@@ -60,23 +57,16 @@ void mouse_state_update(MouseState* mouse_state, uint32_t buttons)
 }
 
 // Core scroll update logic shared by both wheel and scrollbar scrolling
-static void apply_scroll_delta(
-    Clay_ScrollContainerData* scroll,
-    Clay_Vector2 delta,
-    float sensitivity)
+static void apply_scroll_delta(Clay_ScrollContainerData* scroll, Clay_Vector2 delta, float sensitivity)
 {
     if (scroll->config.horizontal) {
         scroll->scrollPosition->x += delta.x * sensitivity;
-        float min_x = -MAX(
-            scroll->contentDimensions.width - scroll->scrollContainerDimensions.width,
-            0);
+        float min_x = -MAX(scroll->contentDimensions.width - scroll->scrollContainerDimensions.width, 0);
         scroll->scrollPosition->x = CLAMP(scroll->scrollPosition->x, min_x, 0);
     }
     if (scroll->config.vertical) {
         scroll->scrollPosition->y += delta.y * sensitivity;
-        float min_y = -MAX(
-            scroll->contentDimensions.height - scroll->scrollContainerDimensions.height,
-            0);
+        float min_y = -MAX(scroll->contentDimensions.height - scroll->scrollContainerDimensions.height, 0);
         scroll->scrollPosition->y = CLAMP(scroll->scrollPosition->y, min_y, 0);
     }
 }
@@ -141,6 +131,7 @@ void Clay_Ext_UpdateScrollContainerCustom(
     if (!elem.found) {
         return;
     }
+
     Clay_BoundingBox bb = elem.boundingBox;
     if (!point_inside_rect(mouse_pos, bb)) {
         return;
