@@ -486,12 +486,11 @@ int main(void)
         Clay_SetPointerState(mouse_state.pos, mouse_state.buttons[MOUSE_BUTTON_LEFT].state);
 
         Clay_Ext_UpdateScrollContainerCustom(
-            SCROLL_UPDATE_SOURCE_WHEEL | SCROLL_UPDATE_SOURCE_SCROLLBAR,
             CLAY_ID("menu_bar"),
             CLAY_ID("menu_bar_scrollbar_button"),
             mouse_state.pos,
             mouse_state.scroll_delta,
-            (ScrollContainerData) {
+            (ScrollContainerConfig) {
                 .sensitivity = 30.f,
                 .use_both_wheels = true,
             },
@@ -499,12 +498,11 @@ int main(void)
             &drag_state);
 
         Clay_Ext_UpdateScrollContainerCustom(
-            SCROLL_UPDATE_SOURCE_WHEEL | SCROLL_UPDATE_SOURCE_SCROLLBAR,
             CLAY_ID("menu_bar2"),
             CLAY_ID("menu_bar2_scrollbar_button"),
             mouse_state.pos,
             mouse_state.scroll_delta,
-            (ScrollContainerData) {
+            (ScrollContainerConfig) {
                 .sensitivity = 30.f,
                 .use_both_wheels = true,
             },

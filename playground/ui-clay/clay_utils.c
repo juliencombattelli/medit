@@ -81,13 +81,16 @@ static void apply_scroll_delta(
     }
 }
 
+#define DRAG_SCROLL_MARGIN 48
+#define DRAG_SCROLL_SPEED 1.f
+#define MAX_DRAG_SCROLL_DELTA 1.f
+
 void Clay_Ext_UpdateScrollContainerCustom(
-    ScrollUpdateSources sources,
     Clay_ElementId container_id,
     Clay_ElementId scrollbar_id,
     Clay_Vector2 mouse_pos,
     Clay_Vector2 delta,
-    ScrollContainerData config,
+    ScrollContainerConfig config,
     const MouseState* mouse_state,
     DragState* drag_state)
 {
@@ -98,90 +101,75 @@ void Clay_Ext_UpdateScrollContainerCustom(
 
     bool dragging = is_any_element_dragged(drag_state);
 
-    if (sources & SCROLL_UPDATE_SOURCE_SCROLLBAR) {
-        if (mouse_state->buttons[MOUSE_BUTTON_LEFT].state != MOUSE_BUTTON_PRESSED
-            && mouse_state->buttons[MOUSE_BUTTON_LEFT].state != MOUSE_BUTTON_PRESSED_THIS_FRAME) {
-            if (drag_state->active_id == scrollbar_id.id) {
-                drag_state->active_id = CLAY_EXT_NULL_ID;
-            }
-        } else {
-            if (!dragging
-                && mouse_state->buttons[MOUSE_BUTTON_LEFT].state == MOUSE_BUTTON_PRESSED_THIS_FRAME
-                && Clay_PointerOver(scrollbar_id)) {
-                drag_state->active_id = scrollbar_id.id;
-                drag_state->click_origin = *scroll.scrollPosition;
-                return;
-            }
-            if (drag_state->active_id == scrollbar_id.id) {
-                Clay_Vector2 ratio = {
-                    scroll.contentDimensions.width / scroll.scrollContainerDimensions.width,
-                    scroll.contentDimensions.height / scroll.scrollContainerDimensions.height,
-                };
-                // TODO use apply_scroll_delta to handle the config switches in one place
-                if (scroll.config.horizontal) {
-                    scroll.scrollPosition->x = drag_state->click_origin.x
-                        + (mouse_state->buttons[MOUSE_BUTTON_LEFT].click_origin.x
-                           - mouse_state->pos.x)
-                            * ratio.x;
-                }
-                if (scroll.config.vertical) {
-                    scroll.scrollPosition->y = drag_state->click_origin.y
-                        + (mouse_state->buttons[MOUSE_BUTTON_LEFT].click_origin.y
-                           - mouse_state->pos.y)
-                            * ratio.y;
-                }
-                return;
-            }
-        }
-    }
+    MouseButtonData mb_left = mouse_state->buttons[MOUSE_BUTTON_LEFT];
 
-    if (sources & SCROLL_UPDATE_SOURCE_WHEEL) {
-        // Wheel scroll path: validate element and apply delta
-        if (delta.x == 0 && delta.y == 0 && !dragging) {
+    // Update container scroll position from scrollbar movement
+    if (mb_left.state != MOUSE_BUTTON_PRESSED && mb_left.state != MOUSE_BUTTON_PRESSED_THIS_FRAME) {
+        if (drag_state->active_id == scrollbar_id.id) {
+            drag_state->active_id = CLAY_EXT_NULL_ID;
+        }
+    } else {
+        if (!dragging && mb_left.state == MOUSE_BUTTON_PRESSED_THIS_FRAME && Clay_PointerOver(scrollbar_id)) {
+            drag_state->active_id = scrollbar_id.id;
+            drag_state->click_origin = *scroll.scrollPosition;
             return;
         }
-
-        Clay_ElementData elem = Clay_GetElementData(container_id);
-        if (!elem.found) {
-            return;
-        }
-        Clay_BoundingBox bb = elem.boundingBox;
-        if (!point_inside_rect(mouse_pos, bb)) {
-            return;
-        }
-
-        // Handle axis combination (both_wheels mode)
-        if (config.use_both_wheels) {
-            assert(
-                (scroll.config.horizontal != scroll.config.vertical)
-                && "Exactly one of horizontal/vertical scrolling should be enabled when "
-                   "use_both_wheels is true");
+        if (drag_state->active_id == scrollbar_id.id) {
+            Clay_Vector2 ratio = {
+                .x = scroll.contentDimensions.width / scroll.scrollContainerDimensions.width,
+                .y = scroll.contentDimensions.height / scroll.scrollContainerDimensions.height,
+            };
+            // TODO use apply_scroll_delta to handle the config switches in one place
             if (scroll.config.horizontal) {
-                delta.x += delta.y;
-            } else if (scroll.config.vertical) {
-                delta.y += delta.x;
+                scroll.scrollPosition->x =
+                    drag_state->click_origin.x + (mb_left.click_origin.x - mouse_state->pos.x) * ratio.x;
             }
-        }
-
-        // Apply edge-based auto-scroll when dragging
-        // TODO support it on X and Y
-        if (dragging) {
-#define DRAG_SCROLL_MARGIN 48
-#define DRAG_SCROLL_SPEED 1.f
-#define MAX_DRAG_SCROLL_DELTA 1.f
-            float distance_to_left_edge = mouse_pos.x - bb.x;
-            float distance_to_right_edge = (bb.x + bb.width) - mouse_pos.x;
-            if (distance_to_left_edge < DRAG_SCROLL_MARGIN) {
-                float scroll_delta = (DRAG_SCROLL_MARGIN - distance_to_left_edge)
-                    * DRAG_SCROLL_SPEED / distance_to_left_edge;
-                delta.x += CLAMP(scroll_delta, 0, MAX_DRAG_SCROLL_DELTA);
-            } else if (distance_to_right_edge < DRAG_SCROLL_MARGIN) {
-                float scroll_delta = (DRAG_SCROLL_MARGIN - distance_to_right_edge)
-                    * DRAG_SCROLL_SPEED / distance_to_right_edge;
-                delta.x -= CLAMP(scroll_delta, 0, MAX_DRAG_SCROLL_DELTA);
+            if (scroll.config.vertical) {
+                scroll.scrollPosition->y =
+                    drag_state->click_origin.y + (mb_left.click_origin.y - mouse_state->pos.y) * ratio.y;
             }
+            return;
         }
-
-        apply_scroll_delta(&scroll, delta, config.sensitivity);
     }
+
+    // Update container scroll position from mouse wheel movement and dragging close to the edges
+    if (delta.x == 0 && delta.y == 0 && !dragging) {
+        return;
+    }
+
+    Clay_ElementData elem = Clay_GetElementData(container_id);
+    if (!elem.found) {
+        return;
+    }
+    Clay_BoundingBox bb = elem.boundingBox;
+    if (!point_inside_rect(mouse_pos, bb)) {
+        return;
+    }
+
+    if (config.use_both_wheels) {
+        assert((scroll.config.horizontal != scroll.config.vertical) &&
+            "Exactly one of horizontal/vertical scrolling should be enabled when use_both_wheels is true");
+        if (scroll.config.horizontal) {
+            delta.x += delta.y;
+        } else if (scroll.config.vertical) {
+            delta.y += delta.x;
+        }
+    }
+
+    // TODO support it on X and Y
+    if (config.enable_drag_on_edges && dragging) {
+        float distance_to_left_edge = mouse_pos.x - bb.x;
+        float distance_to_right_edge = (bb.x + bb.width) - mouse_pos.x;
+        if (distance_to_left_edge < DRAG_SCROLL_MARGIN) {
+            float scroll_delta =
+                (DRAG_SCROLL_MARGIN - distance_to_left_edge) * DRAG_SCROLL_SPEED / distance_to_left_edge;
+            delta.x += CLAMP(scroll_delta, 0, MAX_DRAG_SCROLL_DELTA);
+        } else if (distance_to_right_edge < DRAG_SCROLL_MARGIN) {
+            float scroll_delta =
+                (DRAG_SCROLL_MARGIN - distance_to_right_edge) * DRAG_SCROLL_SPEED / distance_to_right_edge;
+            delta.x -= CLAMP(scroll_delta, 0, MAX_DRAG_SCROLL_DELTA);
+        }
+    }
+
+    apply_scroll_delta(&scroll, delta, config.sensitivity);
 }

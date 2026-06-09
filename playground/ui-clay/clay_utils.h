@@ -31,14 +31,13 @@ static inline float distance(Clay_Vector2 a, Clay_Vector2 b)
 //------------------------------------------------------------------------------
 
 typedef enum {
-    // A mouse button is not currently down / was released at some point in the past.
+    // A mouse button is not currently down / was released at some point in the past
     MOUSE_BUTTON_RELEASED,
-    // A mouse button click was released this frame.
+    // A mouse button click was released this frame
     MOUSE_BUTTON_RELEASED_THIS_FRAME,
-    // A mouse button click occurred in a previous frame and is still currently held down this
-    // frame.
+    // A mouse button click occurred in a previous frame and is still currently held down this frame
     MOUSE_BUTTON_PRESSED,
-    // A mouse button click occurred this frame.
+    // A mouse button click occurred this frame
     MOUSE_BUTTON_PRESSED_THIS_FRAME,
 } MouseButtonState;
 
@@ -72,33 +71,16 @@ void mouse_state_reset(MouseState* mouse_state);
 
 void mouse_state_update(MouseState* mouse_state, uint32_t buttons);
 
-// Element scrolling handling
+//------------------------------------------------------------------------------
+// Scrolling and dragging state handling
+//------------------------------------------------------------------------------
 
 typedef struct {
     float sensitivity;
     bool use_both_wheels;
-} ScrollContainerData;
+    bool enable_drag_on_edges;
+} ScrollContainerConfig;
 
-// Bitmask for scroll update sources - allows combining multiple sources in a single call
-#define SCROLL_UPDATE_SOURCE_WHEEL (1u << 0) // Mouse wheel scroll
-#define SCROLL_UPDATE_SOURCE_SCROLLBAR (1u << 1) // Scrollbar drag
-typedef uint32_t ScrollUpdateSources;
-
-// Update a single scroll container with a custom algorithm.
-// Apply wheel scroll to a specific element with a custom sensitivity and potential axis
-// combination. Clay internally multiplies delta by 10, so we replicate that here, sensitivity = 1.0
-// matches Clay's default speed. Returns true if the mouse was over the element and the scroll was
-// applied. Also applies scroll when a dragging element is close to the edges.
-// bool Clay_Ext_UpdateScrollContainerCustom(
-//     Clay_ElementId id,
-//     Clay_Vector2 mouse_pos,
-//     Clay_Vector2 delta,
-//     ScrollContainerData scroll_container_data,
-//     bool dragging);
-
-//------------------------------------------------------------------------------
-// Scrollbar state handling
-//------------------------------------------------------------------------------
 
 // State shared by all draggable elements in the UI as only one element can be dragged at a time
 typedef struct {
@@ -111,19 +93,18 @@ static inline bool is_any_element_dragged(DragState* drag_state)
     return drag_state->active_id != CLAY_EXT_NULL_ID;
 }
 
-// Custom scroll container update function for containers having a scrollbar
+// Custom scroll container update function for containers having a scrollbar.
 // Handle the following use-cases:
-// - register the scrollbar as the UI dragged element if it is being dragged
+// - register the scrollbar as the currently dragged UI element in drag_state if it is being dragged
 // - scroll when the scrollbar is moved
 // - scroll when the pointer approaches the edges of the container and an element is being dragged
 // - optionally use both horizontal/vertical mouse wheels when scrolling can only be done on one axe
 void Clay_Ext_UpdateScrollContainerCustom(
-    ScrollUpdateSources sources,
     Clay_ElementId container_id,
     Clay_ElementId scrollbar_id,
     Clay_Vector2 mouse_pos,
     Clay_Vector2 delta,
-    ScrollContainerData config,
+    ScrollContainerConfig config,
     const MouseState* mouse_state,
     DragState* drag_state);
 
