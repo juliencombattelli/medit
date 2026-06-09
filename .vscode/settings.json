@@ -1,11 +1,4 @@
 {
-    "[c]": {
-        // Intentionnally disabled for now as clang-format badly supports nested designated initializers in compound literals
-        "editor.formatOnSave": false
-    },
-    "[cpp]": {
-        "editor.formatOnSave": false
-    },
     "clangd.arguments": [
         "--header-insertion=never"
     ],

@@ -1,0 +1,2 @@
+# Do not specify any directive for vendored files
+root = true
