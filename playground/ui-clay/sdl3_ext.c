@@ -10,8 +10,8 @@ void SDL_Ext_RenderFillRoundedRect(SDL_Renderer* renderer, SDL_FRect rect, float
 
     const int circle_segments_count = SDL_max(CIRCLE_SEGMENTS_COUNT, (int)(clamped_radius * 0.5f));
 
-    const int total_vertices = 4 + (4 * (circle_segments_count * 2)) + 2 * 4;
-    const int total_indices = 6 + (4 * (circle_segments_count * 3)) + 6 * 4;
+    const int total_vertices = 4 + (4 * circle_segments_count * 2) + (2 * 4);
+    const int total_indices = 6 + (4 * circle_segments_count * 3) + (6 * 4);
 
     SDL_Vertex vertices[total_vertices];
     int indices[total_indices];
@@ -90,16 +90,16 @@ void SDL_Ext_RenderFillRoundedRect(SDL_Renderer* renderer, SDL_FRect rect, float
 
             vertices[vertex_count++] = (SDL_Vertex) {
                 {
-                    cx + SDL_cosf(angle1) * clamped_radius * sign_x,
-                    cy + SDL_sinf(angle1) * clamped_radius * sign_y,
+                    cx + (SDL_cosf(angle1) * clamped_radius * sign_x),
+                    cy + (SDL_sinf(angle1) * clamped_radius * sign_y),
                 },
                 color,
                 { 0, 0 },
             };
             vertices[vertex_count++] = (SDL_Vertex) {
                 {
-                    cx + SDL_cosf(angle2) * clamped_radius * sign_x,
-                    cy + SDL_sinf(angle2) * clamped_radius * sign_y,
+                    cx + (SDL_cosf(angle2) * clamped_radius * sign_x),
+                    cy + (SDL_sinf(angle2) * clamped_radius * sign_y),
                 },
                 color,
                 { 0, 0 },

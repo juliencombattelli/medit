@@ -24,6 +24,8 @@ static const Clay_Color scrollbar_hovered_color     = { 120, 120, 120, 150 };
 static const Clay_Color scrollbar_active_color      = { 140, 140, 140, 150 };
 static const Clay_Color drop_indicator_color        = { 0xFF, 0xFF, 0xFF, 0x9F };
 
+static const uint8_t dragged_tab_transparency = 0x9F;
+
 static const float drag_dead_zone_pixels = 4;
 
 static size_t dragged_menu_bar_element = NO_DRAGGED_MENU_BAR_ELEMENT;
@@ -50,7 +52,7 @@ static MenuBarElementData menu_bar_elements[] = {
 
 static const size_t menu_bar_element_count = sizeof(menu_bar_elements) / sizeof(menu_bar_elements[0]);
 
-Clay_Color get_scrollbar_color(void)
+static Clay_Color get_scrollbar_color(void)
 {
     if (drag_state.active_id == Clay_GetOpenElementId()) {
         return scrollbar_active_color;
@@ -61,12 +63,12 @@ Clay_Color get_scrollbar_color(void)
     return scrollbar_inactive_color;
 }
 
-void dragged_menu_bar_element_layout(void)
+static void dragged_menu_bar_element_layout(void)
 {
     MenuBarElementData element_data = menu_bar_elements[dragged_menu_bar_element];
     Clay_PointerData pointer = Clay_GetPointerState();
     Clay_Color color = element_data.color;
-    color.a = 0x9F;
+    color.a = dragged_tab_transparency;
     CLAY(CLAY_ID("dragged_menu_bar_element"), {
         .floating = {
             .offset = {.x = pointer.position.x, .y = pointer.position.y},
@@ -91,7 +93,7 @@ void dragged_menu_bar_element_layout(void)
     }
 }
 
-void dragged_menu_bar_element_drop_indicator_layout(void)
+static void dragged_menu_bar_element_drop_indicator_layout(void)
 {
     // Compute the destination tab index and line position
     const Clay_PointerData pointer = Clay_GetPointerState();
@@ -107,7 +109,7 @@ void dragged_menu_bar_element_drop_indicator_layout(void)
         }
         float left = element_data.boundingBox.x;
         float right = left + element_data.boundingBox.width;
-        float mid = left + element_data.boundingBox.width / 2.f;
+        float mid = left + (element_data.boundingBox.width / 2.f);
         if (pointer_x >= left && pointer_x < right) {
             if (pointer_x < mid) {
                 line_x = left;
@@ -153,24 +155,18 @@ void dragged_menu_bar_element_drop_indicator_layout(void)
     if (mouse_state.buttons[MOUSE_BUTTON_LEFT].state == MOUSE_BUTTON_RELEASED_THIS_FRAME) {
         size_t src = dragged_menu_bar_element;
         size_t dst = tab_i;
-        if (src != dst && src + 1 != dst) {
-            MenuBarElementData elem = menu_bar_elements[src];
-            if (src < dst) {
-                for (size_t i = src; i < dst - 1; i++) {
-                    menu_bar_elements[i] = menu_bar_elements[i + 1];
-                }
-                menu_bar_elements[dst - 1] = elem;
-            } else {
-                for (size_t i = src; i > dst; i--) {
-                    menu_bar_elements[i] = menu_bar_elements[i - 1];
-                }
-                menu_bar_elements[dst] = elem;
-            }
+        MenuBarElementData elem = menu_bar_elements[src];
+        if (src < dst) {
+            memmove(&menu_bar_elements[src], &menu_bar_elements[src + 1], (dst - src - 1) * sizeof(elem));
+            menu_bar_elements[dst - 1] = elem;
+        } else if (src > dst) {
+            memmove(&menu_bar_elements[dst + 1], &menu_bar_elements[dst], (src - dst) * sizeof(elem));
+            menu_bar_elements[dst] = elem;
         }
     }
 }
 
-void menu_bar_layout(void)
+static void menu_bar_layout(void)
 {
     CLAY(CLAY_ID("menu_bar"), {
         .layout = {
@@ -323,7 +319,7 @@ void menu_bar_layout(void)
     }
 }
 
-void left_panel_layout(void)
+static void left_panel_layout(void)
 {
     CLAY(CLAY_ID("left_panel"), {
         .layout = {
@@ -334,7 +330,7 @@ void left_panel_layout(void)
     });
 }
 
-void editor_area_layout(void)
+static void editor_area_layout(void)
 {
     CLAY(CLAY_ID("editor_area"), {
         .layout = {
@@ -345,7 +341,7 @@ void editor_area_layout(void)
     });
 }
 
-void right_panel_layout(void)
+static void right_panel_layout(void)
 {
     CLAY(CLAY_ID("right_panel"), {
         .layout = {
@@ -356,7 +352,7 @@ void right_panel_layout(void)
     });
 }
 
-void middle_area_layout(void)
+static void middle_area_layout(void)
 {
     CLAY(CLAY_ID("middle_area"), {
         .layout = {
@@ -374,7 +370,7 @@ void middle_area_layout(void)
     }
 }
 
-void status_bar_layout(void)
+static void status_bar_layout(void)
 {
     CLAY(CLAY_ID("status_bar"), {
         .layout = {
@@ -385,7 +381,7 @@ void status_bar_layout(void)
     });
 }
 
-Clay_RenderCommandArray editor_layout(void)
+static Clay_RenderCommandArray editor_layout(void)
 {
     Clay_BeginLayout();
 
@@ -423,7 +419,7 @@ Clay_RenderCommandArray editor_layout(void)
     return Clay_EndLayout(0);
 }
 
-void HandleClayErrors(Clay_ErrorData error_data)
+static void handle_clay_errors(Clay_ErrorData error_data)
 {
     printf("%s", error_data.errorText.chars);
 }
@@ -449,13 +445,13 @@ int main(void)
     assert(SDL_ShowWindow(state.window));
     assert(SDL_StartTextInput(state.window));
 
-    int width, height;
+    int width = 0, height = 0;
     SDL_GetWindowSize(state.window, &width, &height);
     uint32_t mem_size = Clay_MinMemorySize();
     Clay_Initialize(
         Clay_CreateArenaWithCapacityAndMemory(mem_size, malloc(mem_size)),
         (Clay_Dimensions) { .width = (float)width, .height = (float)height },
-        (Clay_ErrorHandler) { .errorHandlerFunction = HandleClayErrors });
+        (Clay_ErrorHandler) { .errorHandlerFunction = handle_clay_errors });
 
     bool running = true;
     while (running) {
@@ -474,9 +470,9 @@ int main(void)
                     mouse_state.scroll_delta.x += event.wheel.x;
                     mouse_state.scroll_delta.y += event.wheel.y;
                     break;
-                case SDL_EVENT_KEY_DOWN: break;
-                case SDL_EVENT_TEXT_INPUT: break;
-                case SDL_EVENT_KEYMAP_CHANGED: break;
+                case SDL_EVENT_KEY_DOWN:
+                case SDL_EVENT_TEXT_INPUT:
+                case SDL_EVENT_KEYMAP_CHANGED:
                 default: break;
             }
         }

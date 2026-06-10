@@ -112,11 +112,11 @@ void Clay_Ext_UpdateScrollContainerCustom(
             // TODO use apply_scroll_delta to handle the config switches in one place
             if (scroll.config.horizontal) {
                 scroll.scrollPosition->x =
-                    drag_state->click_origin.x + (mb_left.click_origin.x - mouse_state->pos.x) * ratio.x;
+                    drag_state->click_origin.x + ((mb_left.click_origin.x - mouse_state->pos.x) * ratio.x);
             }
             if (scroll.config.vertical) {
                 scroll.scrollPosition->y =
-                    drag_state->click_origin.y + (mb_left.click_origin.y - mouse_state->pos.y) * ratio.y;
+                    drag_state->click_origin.y + ((mb_left.click_origin.y - mouse_state->pos.y) * ratio.y);
             }
             return;
         }

@@ -26,6 +26,8 @@ Checks:
 - '-cert-err58-cpp' # Intentionally creating object at namespace scope, risking exception throwing that cannot be caught
 - '-*-uppercase-literal-suffix' # Intentionally using lowercase literal suffixes
 - '-bugprone-easily-swappable-parameters' # Very hard to counter in C
+- '-bugprone-suspicious-semicolon' # To frequent when using the CLAY() macro
+- '-readability-isolate-declaration' # Grouping variables is too space-savy when using some SDL functions
 
 CheckOptions:
   cppcoreguidelines-avoid-do-while.IgnoreMacros: true
@@ -37,4 +39,4 @@ CheckOptions:
 
 WarningsAsErrors: '0'
 HeaderFilterRegex: ''
-FormatStyle: file # Use the associated .clang-format file
+FormatStyle: none
