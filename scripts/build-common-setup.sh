@@ -64,21 +64,24 @@ setup_deps() {
     echo "Building and installing SDL (static)"
     cmake -S "$SRC_DIR/SDL" -B "$BUILD_DIR/SDL/build" \
         -G"Ninja Multi-Config" "${CMAKE_FLAGS[@]}" \
-        -DSDL_SHARED=OFF -DSDL_STATIC=ON -DSDL_INSTALL_DOCS=ON
+        -DSDL_SHARED=OFF -DSDL_STATIC=ON -DSDL_INSTALL_DOCS=ON \
+        -DCMAKE_POSITION_INDEPENDENT_CODE=ON
     cmake --build "$BUILD_DIR/SDL/build" --parallel --config $CONFIG
     cmake --install "$BUILD_DIR/SDL/build" --config $CONFIG
 
     echo "Building and installing SDL_ttf (static)"
     cmake -S "$SRC_DIR/SDL_ttf" -B "$BUILD_DIR/SDL_ttf/build" \
         -G"Ninja Multi-Config" "${CMAKE_FLAGS[@]}" \
-        -DBUILD_SHARED_LIBS=OFF -DSDLTTF_INSTALL_MAN=ON -DSDLTTF_VENDORED=ON
+        -DBUILD_SHARED_LIBS=OFF -DSDLTTF_INSTALL_MAN=ON -DSDLTTF_VENDORED=ON \
+        -DCMAKE_POSITION_INDEPENDENT_CODE=ON
     cmake --build "$BUILD_DIR/SDL_ttf/build" --parallel --config $CONFIG
     cmake --install "$BUILD_DIR/SDL_ttf/build" --config $CONFIG
 
     echo "Building and installing utf8proc (static)"
     cmake -S "$SRC_DIR/utf8proc" -B "$BUILD_DIR/utf8proc/build" \
         -G"Ninja Multi-Config" "${CMAKE_FLAGS[@]}" \
-        -DBUILD_SHARED_LIBS=OFF -DUTF8PROC_ENABLE_TESTING=OFF
+        -DBUILD_SHARED_LIBS=OFF -DUTF8PROC_ENABLE_TESTING=OFF \
+        -DCMAKE_POSITION_INDEPENDENT_CODE=ON
     cmake --build "$BUILD_DIR/utf8proc/build" --parallel --config $CONFIG
     cmake --install "$BUILD_DIR/utf8proc/build" --config $CONFIG
 

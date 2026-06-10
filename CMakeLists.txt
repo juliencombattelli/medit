@@ -196,6 +196,19 @@ target_compile_options(playground_ui_clay PRIVATE ${COMPILE_OPTIONS})
 target_include_directories(playground_ui_clay PRIVATE src)
 target_link_libraries(playground_ui_clay PRIVATE SDL3::SDL3 SDL3_ttf::SDL3_ttf utf8proc::utf8proc)
 
+add_library(playground_hot_reloadable_app SHARED
+    playground/hot-reload/app.c playground/hot-reload/loader.c
+)
+target_compile_options(playground_hot_reloadable_app PRIVATE ${COMPILE_OPTIONS})
+target_include_directories(playground_hot_reloadable_app PRIVATE src)
+target_link_libraries(playground_hot_reloadable_app PRIVATE SDL3::SDL3 SDL3_ttf::SDL3_ttf utf8proc::utf8proc dl)
+
+add_executable(playground_hot_reload
+    playground/hot-reload/main.c playground/hot-reload/loader.c
+)
+target_compile_options(playground_hot_reload PRIVATE ${COMPILE_OPTIONS})
+target_link_libraries(playground_hot_reload PRIVATE SDL3::SDL3 SDL3_ttf::SDL3_ttf utf8proc::utf8proc dl)
+
 install(
     TARGETS
         playground_ui_clay
