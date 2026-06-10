@@ -214,22 +214,24 @@ void menu_bar_layout(void)
             CLAY(CLAY_ID("menu_bar_scrollbar"), {
                 .floating = {
                     .attachTo = CLAY_ATTACH_TO_ELEMENT_WITH_ID,
-                    .offset = {.x = -(scroll_data.scrollPosition->x /
-                                      scroll_data.contentDimensions.width) *
-                                    scroll_data.scrollContainerDimensions.width},
+                    .offset = { .x =
+                        -(scroll_data.scrollPosition->x / scroll_data.contentDimensions.width)
+                        * scroll_data.scrollContainerDimensions.width
+                    },
                     .zIndex = 1,
                     .parentId = menu_bar_id.id,
-                    .attachPoints = { .element = CLAY_ATTACH_POINT_LEFT_BOTTOM,
-                                      .parent = CLAY_ATTACH_POINT_LEFT_BOTTOM },
+                    .attachPoints = {
+                        .element = CLAY_ATTACH_POINT_LEFT_BOTTOM,
+                        .parent = CLAY_ATTACH_POINT_LEFT_BOTTOM,
+                    },
                 },
             }) {
                 CLAY(CLAY_ID("menu_bar_scrollbar_button"), {
                     .layout = {
                         .sizing = {
-                            .width =
-                                CLAY_SIZING_FIXED((scroll_data.scrollContainerDimensions.width /
-                                                   scroll_data.contentDimensions.width) *
-                                    scroll_data.scrollContainerDimensions.width),
+                            .width = CLAY_SIZING_FIXED(
+                                (scroll_data.scrollContainerDimensions.width / scroll_data.contentDimensions.width)
+                                * scroll_data.scrollContainerDimensions.width),
                             .height = CLAY_SIZING_FIXED(12),
                         }
                     },
@@ -268,9 +270,9 @@ void menu_bar_layout(void)
             CLAY(CLAY_ID("menu_bar2_scrollbar"), {
                 .floating = {
                     .attachTo = CLAY_ATTACH_TO_ELEMENT_WITH_ID,
-                    .offset = {
-                        .x = -(scroll_data.scrollPosition->x / scroll_data.contentDimensions.width)
-                             * scroll_data.scrollContainerDimensions.width,
+                    .offset = { .x =
+                        -(scroll_data.scrollPosition->x / scroll_data.contentDimensions.width)
+                        * scroll_data.scrollContainerDimensions.width,
                     },
                     .zIndex = 1,
                     .parentId = menu_bar_id.id,
