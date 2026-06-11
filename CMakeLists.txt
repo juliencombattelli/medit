@@ -2,6 +2,31 @@ cmake_minimum_required(VERSION 3.21)
 project(Medit C)
 
 ################################################################################
+### RPATH handling
+################################################################################
+
+# From https://gitlab.kitware.com/cmake/community/-/wikis/doc/cmake/RPATH-handling
+
+# use, i.e. don't skip the full RPATH for the build tree
+set(CMAKE_SKIP_BUILD_RPATH FALSE)
+
+# when building, don't use the install RPATH already
+# (but later on when installing)
+set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
+set(CMAKE_BUILD_RPATH "${CMAKE_BINARY_DIR}") # RPATH when building
+set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib") # RPATH when installing
+
+# add the automatically determined parts of the RPATH
+# which point to directories outside the build tree to the install RPATH
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+
+# the RPATH to be used when installing, but only if it's not a system directory
+list(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES "${CMAKE_INSTALL_PREFIX}/lib" isSystemDir)
+if("${isSystemDir}" STREQUAL "-1")
+    set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
+endif("${isSystemDir}" STREQUAL "-1")
+
+################################################################################
 ### Options
 ################################################################################
 
@@ -197,17 +222,41 @@ target_include_directories(playground_ui_clay PRIVATE src)
 target_link_libraries(playground_ui_clay PRIVATE SDL3::SDL3 SDL3_ttf::SDL3_ttf utf8proc::utf8proc)
 
 add_library(playground_hot_reloadable_app SHARED
-    playground/hot-reload/app.c playground/hot-reload/loader.c
+    playground/hot-reload/app.c
 )
 target_compile_options(playground_hot_reloadable_app PRIVATE ${COMPILE_OPTIONS})
-target_include_directories(playground_hot_reloadable_app PRIVATE src)
-target_link_libraries(playground_hot_reloadable_app PRIVATE SDL3::SDL3 SDL3_ttf::SDL3_ttf utf8proc::utf8proc dl)
+# SDL/SDL_ttf are deliberately NOT linked into the reloadable module. Because SDL
+# is built statically, linking it here would embed a private copy of all of SDL's
+# global state into the .so. dlclose() on hot-reload would then destroy that SDL
+# instance (and the live window/renderer), and the freshly dlopen()ed module would
+# get a new, uninitialized SDL copy holding stale handles -> spinning loop + segfault.
+# Instead we only pull in the headers and resolve the SDL symbols at load time from
+# the host executable, so a single SDL instance survives across reloads.
+target_include_directories(playground_hot_reloadable_app PRIVATE
+    src
+    $<TARGET_PROPERTY:SDL3::SDL3,INTERFACE_INCLUDE_DIRECTORIES>
+    $<TARGET_PROPERTY:SDL3_ttf::SDL3_ttf,INTERFACE_INCLUDE_DIRECTORIES>
+)
+target_compile_definitions(playground_hot_reloadable_app PRIVATE
+    $<TARGET_PROPERTY:SDL3::SDL3,INTERFACE_COMPILE_DEFINITIONS>
+    $<TARGET_PROPERTY:SDL3_ttf::SDL3_ttf,INTERFACE_COMPILE_DEFINITIONS>
+)
+target_link_libraries(playground_hot_reloadable_app PRIVATE dl)
 
 add_executable(playground_hot_reload
-    playground/hot-reload/main.c playground/hot-reload/loader.c
+    playground/hot-reload/main.c
 )
 target_compile_options(playground_hot_reload PRIVATE ${COMPILE_OPTIONS})
-target_link_libraries(playground_hot_reload PRIVATE SDL3::SDL3 SDL3_ttf::SDL3_ttf utf8proc::utf8proc dl)
+# Embed the *entire* static SDL/SDL_ttf archives into the host (which is never
+# reloaded) and export their symbols (ENABLE_EXPORTS -> --export-dynamic) so the
+# reloadable module resolves them from this process. This keeps one SDL instance
+# (and its windows/renderers) alive for the whole run, independent of reloads.
+target_link_libraries(playground_hot_reload PRIVATE
+    -Wl,--whole-archive SDL3::SDL3 SDL3_ttf::SDL3_ttf -Wl,--no-whole-archive
+    utf8proc::utf8proc dl)
+set_target_properties(playground_hot_reload PROPERTIES ENABLE_EXPORTS ON)
+# target_link_options(playground_hot_reload PRIVATE "-Wl,-rpath=${CMAKE_BINARY_DIR}")
+# set_target_properties(playground_hot_reload PROPERTIES INSTALL_RPATH ${CMAKE_BINARY_DIR})
 
 install(
     TARGETS

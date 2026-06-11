@@ -1,28 +1,13 @@
-#include "loader.h"
+#include "app.h"
 
 #include <core/assert.h>
-
-#include <SDL3/SDL.h>
-#include <SDL3_ttf/SDL_ttf.h>
 
 #include <stdio.h>
 #include <stdlib.h>
 
-typedef struct AppState {
-    void* dlh;
-    SDL_Window* window;
-    SDL_Renderer* renderer;
-    TTF_TextEngine* text_engine;
-    TTF_Font* font;
-} AppState;
-
-int app_main(void* dl_handle, AppState* app_state)
+int app_main(AppState* app_state)
 {
-    bool hot_reloading = app_state->dlh != NULL;
-
-    if (!hot_reloading) {
-        printf("Starting application\n");
-
+    if (!app_state->reload_requested) {
         *app_state = (AppState){ 0 };
 
         assert(SDL_Init(SDL_INIT_VIDEO));
@@ -41,10 +26,8 @@ int app_main(void* dl_handle, AppState* app_state)
 
         assert(SDL_ShowWindow(app_state->window));
         assert(SDL_StartTextInput(app_state->window));
-
-        printf("Application started\n");
     } else {
-        printf("Restoring state\n");
+        app_state->reload_requested = false;
         printf("Application hot-reloaded\n");
     }
 
@@ -56,9 +39,9 @@ int app_main(void* dl_handle, AppState* app_state)
                 case SDL_EVENT_QUIT: running = false; break;
                 case SDL_EVENT_KEY_DOWN:
                     if (event.key.key == SDLK_F5) {
-                        printf("Hot-reloading application\n");
-                        app_state->dlh = dl_handle;
-                        running = false;  // Exit event loop to trigger reload
+                        printf("Hot-reloading application...\n");
+                        app_state->reload_requested = true;
+                        running = false;
                     }
                 case SDL_EVENT_TEXT_INPUT:
                 case SDL_EVENT_KEYMAP_CHANGED:
@@ -66,12 +49,15 @@ int app_main(void* dl_handle, AppState* app_state)
             }
         }
 
-        static size_t cnt = 0;
-        printf("Hello %zu\n", cnt++);
         SDL_SetRenderDrawColor(app_state->renderer, 0, 128, 0, 255);
         SDL_RenderClear(app_state->renderer);
 
         SDL_RenderPresent(app_state->renderer);
+    }
+
+    if (app_state->reload_requested) {
+        // Exit without cleaning up to allow hot-reloading
+        return 0;
     }
 
     SDL_StopTextInput(app_state->window);
@@ -83,6 +69,5 @@ int app_main(void* dl_handle, AppState* app_state)
     TTF_Quit();
     SDL_Quit();
 
-    int ret = running ? 0 : 1;  // Return 1 if reload was requested
-    return ret;
+    return 0;
 }
