@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.21)
+cmake_minimum_required(VERSION 3.24)
 project(Medit C)
 
 ################################################################################
@@ -243,6 +243,10 @@ target_compile_definitions(playground_hot_reloadable_app PRIVATE
 )
 target_link_libraries(playground_hot_reloadable_app PRIVATE dl)
 
+if(NOT CMAKE_LINK_LIBRARY_USING_WHOLE_ARCHIVE_SUPPORTED)
+    message(FATAL_ERROR "Linking a whole archive is not supported by the currently used linker")
+endif()
+
 add_executable(playground_hot_reload
     playground/hot-reload/main.c
 )
@@ -252,11 +256,9 @@ target_compile_options(playground_hot_reload PRIVATE ${COMPILE_OPTIONS})
 # reloadable module resolves them from this process. This keeps one SDL instance
 # (and its windows/renderers) alive for the whole run, independent of reloads.
 target_link_libraries(playground_hot_reload PRIVATE
-    -Wl,--whole-archive SDL3::SDL3 SDL3_ttf::SDL3_ttf -Wl,--no-whole-archive
+    $<LINK_LIBRARY:WHOLE_ARCHIVE, SDL3::SDL3 SDL3_ttf::SDL3_ttf >
     utf8proc::utf8proc dl)
 set_target_properties(playground_hot_reload PROPERTIES ENABLE_EXPORTS ON)
-# target_link_options(playground_hot_reload PRIVATE "-Wl,-rpath=${CMAKE_BINARY_DIR}")
-# set_target_properties(playground_hot_reload PROPERTIES INSTALL_RPATH ${CMAKE_BINARY_DIR})
 
 install(
     TARGETS
