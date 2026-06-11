@@ -31,6 +31,8 @@ elseif(CMAKE_C_COMPILER_ID MATCHES ".*Clang" OR CMAKE_C_COMPILER_ID STREQUAL "GN
     )
 endif()
 
+add_subdirectory(vendor/clay)
+
 add_executable(medit
     # Editor entry point
     src/main.c src/default_settings.c
