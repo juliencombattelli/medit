@@ -2,31 +2,6 @@ cmake_minimum_required(VERSION 3.24)
 project(Medit C)
 
 ################################################################################
-### RPATH handling
-################################################################################
-
-# From https://gitlab.kitware.com/cmake/community/-/wikis/doc/cmake/RPATH-handling
-
-# use, i.e. don't skip the full RPATH for the build tree
-set(CMAKE_SKIP_BUILD_RPATH FALSE)
-
-# when building, don't use the install RPATH already
-# (but later on when installing)
-set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
-set(CMAKE_BUILD_RPATH "${CMAKE_BINARY_DIR}") # RPATH when building
-set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib") # RPATH when installing
-
-# add the automatically determined parts of the RPATH
-# which point to directories outside the build tree to the install RPATH
-set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
-
-# the RPATH to be used when installing, but only if it's not a system directory
-list(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES "${CMAKE_INSTALL_PREFIX}/lib" isSystemDir)
-if("${isSystemDir}" STREQUAL "-1")
-    set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
-endif("${isSystemDir}" STREQUAL "-1")
-
-################################################################################
 ### Options
 ################################################################################
 
@@ -40,6 +15,8 @@ set_property(CACHE MEDIT_ENABLE_ASAN PROPERTY STRINGS AUTO ON OFF)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
+
+include(cmake/Modules/SetupRPath.cmake)
 
 include(cmake/Modules/FindPackageOrFetch/SDL3.cmake)
 include(cmake/Modules/FindPackageOrFetch/SDL3_ttf.cmake)
@@ -206,65 +183,9 @@ install(
     RUNTIME DESTINATION ./test
 )
 
-add_executable(playground_ui
-    playground/ui/main.c playground/ui/ui2.c src/default_settings.c
-)
-target_compile_options(playground_ui PRIVATE ${COMPILE_OPTIONS})
-target_include_directories(playground_ui PRIVATE src)
-target_link_libraries(playground_ui PRIVATE SDL3::SDL3 SDL3_ttf::SDL3_ttf utf8proc::utf8proc)
-
-add_executable(playground_ui_clay
-    playground/ui-clay/main.c playground/ui-clay/clay_utils.c playground/ui-clay/clay_sdl3.c playground/ui-clay/sdl3_ext.c
-    src/default_settings.c
-)
-target_compile_options(playground_ui_clay PRIVATE ${COMPILE_OPTIONS})
-target_include_directories(playground_ui_clay PRIVATE src)
-target_link_libraries(playground_ui_clay PRIVATE SDL3::SDL3 SDL3_ttf::SDL3_ttf utf8proc::utf8proc)
-
-add_library(playground_hot_reloadable_app SHARED
-    playground/hot-reload/app.c
-)
-target_compile_options(playground_hot_reloadable_app PRIVATE ${COMPILE_OPTIONS})
-# SDL/SDL_ttf are deliberately NOT linked into the reloadable module. Because SDL
-# is built statically, linking it here would embed a private copy of all of SDL's
-# global state into the .so. dlclose() on hot-reload would then destroy that SDL
-# instance (and the live window/renderer), and the freshly dlopen()ed module would
-# get a new, uninitialized SDL copy holding stale handles -> spinning loop + segfault.
-# Instead we only pull in the headers and resolve the SDL symbols at load time from
-# the host executable, so a single SDL instance survives across reloads.
-target_include_directories(playground_hot_reloadable_app PRIVATE
-    src
-    $<TARGET_PROPERTY:SDL3::SDL3,INTERFACE_INCLUDE_DIRECTORIES>
-    $<TARGET_PROPERTY:SDL3_ttf::SDL3_ttf,INTERFACE_INCLUDE_DIRECTORIES>
-)
-target_compile_definitions(playground_hot_reloadable_app PRIVATE
-    $<TARGET_PROPERTY:SDL3::SDL3,INTERFACE_COMPILE_DEFINITIONS>
-    $<TARGET_PROPERTY:SDL3_ttf::SDL3_ttf,INTERFACE_COMPILE_DEFINITIONS>
-)
-target_link_libraries(playground_hot_reloadable_app PRIVATE dl)
-
-if(NOT CMAKE_LINK_LIBRARY_USING_WHOLE_ARCHIVE_SUPPORTED)
-    message(FATAL_ERROR "Linking a whole archive is not supported by the currently used linker")
-endif()
-
-add_executable(playground_hot_reload
-    playground/hot-reload/main.c
-)
-target_compile_options(playground_hot_reload PRIVATE ${COMPILE_OPTIONS})
-# Embed the *entire* static SDL/SDL_ttf archives into the host (which is never
-# reloaded) and export their symbols (ENABLE_EXPORTS -> --export-dynamic) so the
-# reloadable module resolves them from this process. This keeps one SDL instance
-# (and its windows/renderers) alive for the whole run, independent of reloads.
-target_link_libraries(playground_hot_reload PRIVATE
-    $<LINK_LIBRARY:WHOLE_ARCHIVE, SDL3::SDL3 SDL3_ttf::SDL3_ttf >
-    utf8proc::utf8proc dl)
-set_target_properties(playground_hot_reload PROPERTIES ENABLE_EXPORTS ON)
-
-install(
-    TARGETS
-        playground_ui_clay
-    RUNTIME DESTINATION .
-)
+add_subdirectory(playground/hot-reload)
+add_subdirectory(playground/ui)
+add_subdirectory(playground/ui-clay)
 
 # Sanitizers are not supported by all toolchains (especially MinGW), so check if it works
 include(cmake/Modules/CheckAddressSanitizerSupported.cmake)
