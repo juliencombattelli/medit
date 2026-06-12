@@ -6,7 +6,7 @@ set(CMAKE_SKIP_BUILD_RPATH FALSE)
 # when building, don't use the install RPATH already
 # (but later on when installing)
 set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
-set(CMAKE_BUILD_RPATH "${CMAKE_BINARY_DIR}") # RPATH when building
+# BUILD_RPATH property may be set per target to its own associated binary directory
 set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib") # RPATH when installing
 
 # add the automatically determined parts of the RPATH

@@ -11,9 +11,13 @@ typedef struct AppState {
     SDL_Renderer* renderer;
     TTF_TextEngine* text_engine;
     TTF_Font* font;
-    bool reload_requested;
 } AppState;
 
-int app_main(AppState* app_state);
+typedef struct {
+    int return_code;
+    bool should_reload;
+} AppResult;
+
+AppResult app_main(AppState* app_state, bool reload_requested);
 
 #endif // APP_H_

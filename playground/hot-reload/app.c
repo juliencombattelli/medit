@@ -5,10 +5,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-int app_main(AppState* app_state)
+AppResult app_main(AppState* app_state, bool reload_requested)
 {
-    if (!app_state->reload_requested) {
-        *app_state = (AppState){ 0 };
+    if (!reload_requested) {
+        *app_state = (AppState) { 0 };
 
         assert(SDL_Init(SDL_INIT_VIDEO));
         assert(TTF_Init());
@@ -27,7 +27,7 @@ int app_main(AppState* app_state)
         assert(SDL_ShowWindow(app_state->window));
         assert(SDL_StartTextInput(app_state->window));
     } else {
-        app_state->reload_requested = false;
+        reload_requested = false;
         printf("Application hot-reloaded\n");
     }
 
@@ -39,9 +39,10 @@ int app_main(AppState* app_state)
                 case SDL_EVENT_QUIT: running = false; break;
                 case SDL_EVENT_KEY_DOWN:
                     if (event.key.key == SDLK_F5) {
-                        printf("Hot-reloading application...\n");
-                        app_state->reload_requested = true;
+                        reload_requested = true;
                         running = false;
+                        // Finish the current frame before hot-reloading to
+                        // ensure that the app is in a consistent state
                     }
                 case SDL_EVENT_TEXT_INPUT:
                 case SDL_EVENT_KEYMAP_CHANGED:
@@ -55,9 +56,10 @@ int app_main(AppState* app_state)
         SDL_RenderPresent(app_state->renderer);
     }
 
-    if (app_state->reload_requested) {
+    if (reload_requested) {
         // Exit without cleaning up to allow hot-reloading
-        return 0;
+        printf("Hot-reloading application...\n");
+        return (AppResult) { .should_reload = true };
     }
 
     SDL_StopTextInput(app_state->window);
@@ -69,5 +71,5 @@ int app_main(AppState* app_state)
     TTF_Quit();
     SDL_Quit();
 
-    return 0;
+    return (AppResult) { .return_code = 0 };
 }

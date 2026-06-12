@@ -6,14 +6,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-typedef int AppMainFn(AppState*);
+// NOLINTBEGIN(*concurrency-mt-unsafe*): the loader is single threaded
 
-typedef struct {
-    int return_code;
-    bool should_reload;
-} AppResult;
+typedef AppResult AppMainFn(AppState*, bool);
 
-AppResult app_reload(AppState* app_state) {
+static const char* const app_library = "libplayground_hot_reloadable_app.so";
+
+AppResult app_reload(AppState* app_state, bool reload_requested) {
     static void* dlh = NULL;
 
     if (dlh) {
@@ -22,23 +21,23 @@ AppResult app_reload(AppState* app_state) {
         dlh = NULL;
     }
 
-    dlh = dlopen("libplayground_hot_reloadable_app.so", RTLD_NOW | RTLD_LOCAL);
+    dlh = dlopen(app_library, RTLD_NOW | RTLD_LOCAL);
     if (!dlh) {
         (void)fprintf(stderr, "%s\n", dlerror());
-        (void)exit(EXIT_FAILURE);
+        exit(EXIT_FAILURE);
     }
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
     AppMainFn *app_main_fn = (AppMainFn*)dlsym(dlh, "app_main");
+#pragma GCC diagnostic pop
     if (!app_main_fn) {
         (void)fprintf(stderr, "%s\n", dlerror());
-        (void)exit(EXIT_FAILURE);
+        exit(EXIT_FAILURE);
     }
 
-    return (AppResult) {
-        .return_code = app_main_fn(app_state),
-        .should_reload = app_state->reload_requested,
-    };
+    return app_main_fn(app_state, reload_requested);
 }
-
 
 int main(void) {
     AppState* state = (AppState*)malloc(sizeof(AppState));
@@ -48,9 +47,12 @@ int main(void) {
     }
 
     int exit_code = 0;
+    bool reload_requested = false;
     while (1) {
-        AppResult result = app_reload(state);
-        if (result.should_reload == false || result.return_code != 0) {
+        AppResult result = app_reload(state, reload_requested);
+        reload_requested = result.should_reload;
+
+        if (!reload_requested) {
             exit_code = result.return_code;
             break;
         }
@@ -60,3 +62,5 @@ int main(void) {
 
     return exit_code;
 }
+
+// NOLINTEND(*concurrency-mt-unsafe*)

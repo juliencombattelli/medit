@@ -26,7 +26,7 @@ if(MSVC)
     set(COMPILE_OPTIONS /W4)
 elseif(CMAKE_C_COMPILER_ID MATCHES ".*Clang" OR CMAKE_C_COMPILER_ID STREQUAL "GNU")
     set(COMPILE_OPTIONS
-        -Wall -Wextra -Wshadow -Wconversion -pedantic
+        -Wall -Wextra -Wshadow -Wconversion -Wpedantic
         -Wno-missing-braces
     )
 endif()
