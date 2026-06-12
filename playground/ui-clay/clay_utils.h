@@ -87,6 +87,7 @@ typedef struct {
 typedef struct {
     Clay_Vector2 click_origin;
     uint32_t active_id;
+    bool is_droppable;
 } DragState;
 
 static inline bool is_any_element_dragged(DragState* drag_state)

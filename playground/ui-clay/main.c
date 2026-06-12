@@ -282,6 +282,7 @@ static void menu_bar_layout(void)
                     if (distance_from_click_origin > drag_dead_zone_pixels) {
                         dragged_menu_bar_element = i;
                         drag_state.active_id = Clay_GetElementId(CLAY_STRING("dragged_menu_bar_element")).id;
+                        drag_state.is_droppable = true;
                         drag_state.click_origin = mouse_state.buttons[MOUSE_BUTTON_LEFT].click_origin;
                     }
                 }

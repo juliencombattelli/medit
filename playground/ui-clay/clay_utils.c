@@ -92,10 +92,12 @@ void Clay_Ext_UpdateScrollContainerCustom(
     if (!dragging) {
         if (Clay_PointerOver(scrollbar_h_id)) {
             drag_state->active_id = scrollbar_h_id.id;
+            drag_state->is_droppable = false;
             drag_state->click_origin = *scroll.scrollPosition;
         }
         if (Clay_PointerOver(scrollbar_v_id)) {
             drag_state->active_id = scrollbar_v_id.id;
+            drag_state->is_droppable = false;
             drag_state->click_origin = *scroll.scrollPosition;
         }
     }
@@ -135,7 +137,9 @@ void Clay_Ext_UpdateScrollContainerCustom(
     }
 
     // Update container scroll position from dragging close to the container edges
-    if (config.enable_drag_on_edges && dragging_other && point_inside_rect(mouse_pos, bb)) {
+    if (config.enable_drag_on_edges && dragging_other && drag_state->is_droppable
+        && point_inside_rect(mouse_pos, bb))
+    {
         // Scroll horizontally when close to left and right edges
         const float distance_to_left_edge = mouse_pos.x - bb.x;
         const float distance_to_right_edge = (bb.x + bb.width) - mouse_pos.x;
