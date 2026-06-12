@@ -421,7 +421,7 @@ static Clay_RenderCommandArray editor_layout(void)
 
 static void handle_clay_errors(Clay_ErrorData error_data)
 {
-    printf("%s", error_data.errorText.chars);
+    printf("%s\n", error_data.errorText.chars);
 }
 
 int main(void)
