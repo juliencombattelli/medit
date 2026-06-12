@@ -60,7 +60,8 @@ void mouse_state_update(MouseState* mouse_state, uint32_t buttons)
 #define DRAG_SCROLL_SPEED 1.f
 #define MAX_DRAG_SCROLL_DELTA 1.f
 
-static float clamped_scroll_delta_from_edge_distance(float distance_to_edge) {
+static float clamped_scroll_delta_from_edge_distance(float distance_to_edge)
+{
     float delta = (DRAG_SCROLL_MARGIN - distance_to_edge) * DRAG_SCROLL_SPEED / distance_to_edge;
     return CLAMP(delta, 0, MAX_DRAG_SCROLL_DELTA);
 }
@@ -79,13 +80,14 @@ void Clay_Ext_UpdateScrollContainerCustom(
         return;
     }
 
-    bool dragging = is_any_element_dragged(drag_state);
-
     MouseButtonData mb_left = mouse_state->buttons[MOUSE_BUTTON_LEFT];
+
+    bool dragging = is_any_element_dragged(drag_state);
+    bool this_scrollbar_dragged = drag_state->active_id == scrollbar_id.id;
 
     // Update container scroll position from scrollbar movement
     if (mb_left.state != MOUSE_BUTTON_PRESSED && mb_left.state != MOUSE_BUTTON_PRESSED_THIS_FRAME) {
-        if (drag_state->active_id == scrollbar_id.id) {
+        if (this_scrollbar_dragged) {
             drag_state->active_id = CLAY_EXT_NULL_ID;
         }
     } else {
@@ -94,7 +96,7 @@ void Clay_Ext_UpdateScrollContainerCustom(
             drag_state->click_origin = *scroll.scrollPosition;
             return;
         }
-        if (drag_state->active_id == scrollbar_id.id) {
+        if (this_scrollbar_dragged) {
             Clay_Vector2 ratio = {
                 .x = scroll.contentDimensions.width / scroll.scrollContainerDimensions.width,
                 .y = scroll.contentDimensions.height / scroll.scrollContainerDimensions.height,
@@ -111,6 +113,15 @@ void Clay_Ext_UpdateScrollContainerCustom(
         }
     }
 
+    const Clay_ElementData elem = Clay_GetElementData(container_id);
+    if (!elem.found) {
+        return;
+    }
+    const Clay_BoundingBox bb = elem.boundingBox;
+    if (!point_inside_rect(mouse_pos, bb)) {
+        return;
+    }
+
     // Update container scroll position from mouse wheel movement
     if (config.use_both_wheels) {
         assert((scroll.config.horizontal != scroll.config.vertical) &&
@@ -123,12 +134,7 @@ void Clay_Ext_UpdateScrollContainerCustom(
     }
 
     // Update container scroll position from dragging close to the container edges
-    Clay_ElementData elem = Clay_GetElementData(container_id);
-    if (!elem.found) {
-        return;
-    }
-    Clay_BoundingBox bb = elem.boundingBox;
-    if (config.enable_drag_on_edges && dragging && point_inside_rect(mouse_pos, bb)) {
+    if (config.enable_drag_on_edges && dragging && !this_scrollbar_dragged && point_inside_rect(mouse_pos, bb)) {
         // Scroll horizontally when close to left and right edges
         float distance_to_left_edge = mouse_pos.x - bb.x;
         float distance_to_right_edge = (bb.x + bb.width) - mouse_pos.x;
