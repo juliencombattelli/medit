@@ -19,9 +19,9 @@ typedef struct {
 static const Clay_Color background_color            = { 0x18, 0x18, 0x18, 0xFF };
 static const Clay_Color sidebars_background_color   = { 0x18, 0x7f, 0x18, 0xFF };
 static const Clay_Color editor_background_color     = { 0x1F, 0x1F, 0x5F, 0xFF };
-static const Clay_Color scrollbar_inactive_color    = { 100, 100, 100, 150 };
-static const Clay_Color scrollbar_hovered_color     = { 120, 120, 120, 150 };
-static const Clay_Color scrollbar_active_color      = { 140, 140, 140, 150 };
+static const Clay_Color scrollbar_inactive_color    = { 100 + 100, 100, 100, 150 };
+static const Clay_Color scrollbar_hovered_color     = { 120 + 100, 120, 120, 150 };
+static const Clay_Color scrollbar_active_color      = { 140 + 100, 140, 140, 150 };
 static const Clay_Color drop_indicator_color        = { 0xFF, 0xFF, 0xFF, 0x9F };
 
 static const uint8_t dragged_tab_transparency = 0x9F;
