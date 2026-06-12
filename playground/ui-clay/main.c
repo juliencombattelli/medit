@@ -77,6 +77,8 @@ static void scrollbar_layout(
     const char* scrollbar_h_outer_id, const char* scrollbar_h_button_id,
     const char* scrollbar_v_outer_id, const char* scrollbar_v_button_id)
 {
+    // TODO verify that only one scrollbar is displayed when overflowing on only one dimension
+    // TODO display the vertical scrollbar on the full height, but the horizontal on the full width minus the vertical scrollbar if displayed
     Clay_ElementId menu_bar_id = Clay_GetElementId(clay_string_from_c_str(scroll_container_id));
     Clay_ScrollContainerData scroll_data = Clay_GetScrollContainerData(menu_bar_id);
     if (scroll_data.found) {
@@ -251,6 +253,8 @@ static void menu_bar_layout(void)
     CLAY(CLAY_ID("menu_bar"), {
         .layout = {
             .sizing = { .height = CLAY_SIZING_FIXED(60), .width = CLAY_SIZING_GROW(0) },
+            .padding = CLAY_PADDING_ALL(8),
+            .childGap = 8
         },
         .backgroundColor = sidebars_background_color,
         .cornerRadius = CLAY_CORNER_RADIUS(8),
@@ -503,6 +507,7 @@ int main(void)
         Clay_Ext_UpdateScrollContainerCustom(
             CLAY_ID("menu_bar"),
             CLAY_ID("menu_bar_scrollbar_h_button"),
+            CLAY_ID("menu_bar_scrollbar_v_button"),
             mouse_state.pos,
             mouse_state.scroll_delta,
             (ScrollContainerConfig) {
@@ -511,21 +516,11 @@ int main(void)
             },
             &mouse_state,
             &drag_state);
-        // Clay_Ext_UpdateScrollContainerCustom(
-        //     CLAY_ID("menu_bar"),
-        //     CLAY_ID("menu_bar_scrollbar_v_button"),
-        //     mouse_state.pos,
-        //     mouse_state.scroll_delta,
-        //     (ScrollContainerConfig) {
-        //         .sensitivity = 30.f,
-        //         .enable_drag_on_edges = true,
-        //     },
-        //     &mouse_state,
-        //     &drag_state);
 
         Clay_Ext_UpdateScrollContainerCustom(
             CLAY_ID("menu_bar2"),
             CLAY_ID("menu_bar2_scrollbar_h_button"),
+            CLAY_EXT_NULL_ELEMENT_ID,
             mouse_state.pos,
             mouse_state.scroll_delta,
             (ScrollContainerConfig) {
@@ -551,7 +546,8 @@ int main(void)
         SDL_RenderPresent(state.renderer);
 
         // Ensure all drag states are reset when the mouse key is released
-        if (mouse_state.buttons[MOUSE_BUTTON_LEFT].state == MOUSE_BUTTON_RELEASED_THIS_FRAME) {
+        const MouseButtonData mb_left = mouse_state.buttons[MOUSE_BUTTON_LEFT];
+        if (mb_left.state == MOUSE_BUTTON_RELEASED_THIS_FRAME || mb_left.state == MOUSE_BUTTON_RELEASED) {
             dragged_menu_bar_element = NO_DRAGGED_MENU_BAR_ELEMENT;
             drag_state.active_id = CLAY_EXT_NULL_ID;
         }

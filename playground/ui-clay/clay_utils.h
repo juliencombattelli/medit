@@ -6,6 +6,7 @@
 #include <math.h>
 
 #define CLAY_EXT_NULL_ID (0u) // ID 0 is internally reserved for null IDs in Clay
+#define CLAY_EXT_NULL_ELEMENT_ID (Clay_ElementId) { 0 }
 
 //------------------------------------------------------------------------------
 // Maths helpers
@@ -101,7 +102,8 @@ static inline bool is_any_element_dragged(DragState* drag_state)
 // - optionally use both horizontal/vertical mouse wheels when scrolling can only be done on one axe
 void Clay_Ext_UpdateScrollContainerCustom(
     Clay_ElementId container_id,
-    Clay_ElementId scrollbar_id,
+    Clay_ElementId scrollbar_h_id,
+    Clay_ElementId scrollbar_v_id,
     Clay_Vector2 mouse_pos,
     Clay_Vector2 delta,
     ScrollContainerConfig config,
