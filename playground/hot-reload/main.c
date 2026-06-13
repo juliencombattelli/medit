@@ -12,7 +12,8 @@ typedef AppResult AppMainFn(AppState*, bool);
 
 static const char* const app_library = "libplayground_hot_reloadable_app.so";
 
-AppResult app_reload(AppState* app_state, bool reload_requested) {
+AppResult app_reload(AppState* app_state, bool reload_requested)
+{
     static void* dlh = NULL;
 
     if (dlh) {
@@ -39,17 +40,14 @@ AppResult app_reload(AppState* app_state, bool reload_requested) {
     return app_main_fn(app_state, reload_requested);
 }
 
-int main(void) {
-    AppState* state = (AppState*)malloc(sizeof(AppState));
-    if (!state) {
-        (void)fprintf(stderr, "Failed to allocate state\n");
-        return 1;
-    }
+int main(void)
+{
+    AppState state = { 0 };
 
     int exit_code = 0;
     bool reload_requested = false;
     while (1) {
-        AppResult result = app_reload(state, reload_requested);
+        AppResult result = app_reload(&state, reload_requested);
         reload_requested = result.should_reload;
 
         if (!reload_requested) {
@@ -57,8 +55,6 @@ int main(void) {
             break;
         }
     }
-
-    free(state);
 
     return exit_code;
 }

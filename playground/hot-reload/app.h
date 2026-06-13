@@ -11,6 +11,7 @@ typedef struct AppState {
     SDL_Renderer* renderer;
     TTF_TextEngine* text_engine;
     TTF_Font* font;
+    size_t frame_count;
 } AppState;
 
 typedef struct {

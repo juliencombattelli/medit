@@ -50,6 +50,9 @@ AppResult app_main(AppState* app_state, bool reload_requested)
             }
         }
 
+        static size_t local_frame_count = 0;
+        printf("Frame count: from_state=%zu, from_static=%zu\n", app_state->frame_count++, local_frame_count++);
+
         SDL_SetRenderDrawColor(app_state->renderer, 0, 128, 0, 255);
         SDL_RenderClear(app_state->renderer);
 
