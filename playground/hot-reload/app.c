@@ -52,12 +52,14 @@ AppResult app_main(void* old_app_state)
             switch (event.type) {
                 case SDL_EVENT_QUIT: running = false; break;
                 case SDL_EVENT_KEY_DOWN:
+#ifdef HOT_RELOAD_ENABLE
                     if (event.key.key == SDLK_F5) {
                         reload_requested = true;
                         running = false;
                         // Finish the current frame before hot-reloading to
                         // ensure that the app is in a consistent state
                     }
+#endif
                 case SDL_EVENT_TEXT_INPUT:
                 case SDL_EVENT_KEYMAP_CHANGED:
                 default: break;
