@@ -1,5 +1,5 @@
-# Hot-reloadable apps are seperated into two parts:
-# - the application code embeded in a reloadable dynamically-linked library
+# Hot-reloadable apps are separated into two parts:
+# - the application code embedded in a reloadable dynamically-linked library
 # - the main executable acting as the loader
 #
 # Main executable
@@ -43,7 +43,8 @@ add_executable(playground_hot_reload main.c)
 target_compile_options(playground_hot_reload PRIVATE ${COMPILE_OPTIONS})
 target_link_libraries(playground_hot_reload PRIVATE
     $<LINK_LIBRARY:WHOLE_ARCHIVE,SDL3::SDL3 SDL3_ttf::SDL3_ttf>
-    utf8proc::utf8proc dl)
+    utf8proc::utf8proc dl
+)
 set_target_properties(playground_hot_reload PROPERTIES
     ENABLE_EXPORTS ON
     BUILD_RPATH ${CMAKE_CURRENT_BINARY_DIR}

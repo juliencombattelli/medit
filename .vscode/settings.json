@@ -9,6 +9,8 @@
         "clampf",
         "colr",
         "consola",
+        "dlclose",
+        "dlopen",
         "ESCAPEKEY",
         "EXCLAM",
         "LALT",
@@ -20,6 +22,7 @@
         "Moji",
         "RALT",
         "RCTRL",
+        "reloadable",
         "RSHIFT",
         "SDLK",
         "seguiemj"
