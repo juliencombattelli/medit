@@ -1,14 +1,28 @@
-#include "app.h"
+#include "loader.h"
 
 #include <core/assert.h>
+
+#include <SDL3/SDL.h>
+#include <SDL3_ttf/SDL_ttf.h>
 
 #include <stdio.h>
 #include <stdlib.h>
 
-AppResult app_main(AppState* app_state, bool reload_requested)
+typedef struct AppState {
+    SDL_Window* window;
+    SDL_Renderer* renderer;
+    TTF_TextEngine* text_engine;
+    TTF_Font* font;
+    size_t frame_count;
+} AppState;
+
+AppResult app_main(void* old_app_state)
 {
+    bool reload_requested = old_app_state != NULL;
+    AppState* app_state = (AppState*)old_app_state;
+
     if (!reload_requested) {
-        *app_state = (AppState) { 0 };
+        app_state = (AppState*)calloc(1, sizeof(AppState));
 
         assert(SDL_Init(SDL_INIT_VIDEO));
         assert(TTF_Init());
@@ -62,7 +76,7 @@ AppResult app_main(AppState* app_state, bool reload_requested)
     if (reload_requested) {
         // Exit without cleaning up to allow hot-reloading
         printf("Hot-reloading application...\n");
-        return (AppResult) { .should_reload = true };
+        return (AppResult) { .app_state = app_state, .should_reload = true };
     }
 
     SDL_StopTextInput(app_state->window);
@@ -73,6 +87,8 @@ AppResult app_main(AppState* app_state, bool reload_requested)
 
     TTF_Quit();
     SDL_Quit();
+
+    free(app_state);
 
     return (AppResult) { .return_code = 0 };
 }

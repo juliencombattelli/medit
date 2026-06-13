@@ -22,7 +22,6 @@
 
 add_library(playground_hot_reloadable_app SHARED app.c)
 target_compile_options(playground_hot_reloadable_app PRIVATE ${COMPILE_OPTIONS})
-
 target_include_directories(playground_hot_reloadable_app PRIVATE
     ${PROJECT_SOURCE_DIR}/src
     $<TARGET_PROPERTY:SDL3::SDL3,INTERFACE_INCLUDE_DIRECTORIES>
@@ -32,7 +31,6 @@ target_compile_definitions(playground_hot_reloadable_app PRIVATE
     $<TARGET_PROPERTY:SDL3::SDL3,INTERFACE_COMPILE_DEFINITIONS>
     $<TARGET_PROPERTY:SDL3_ttf::SDL3_ttf,INTERFACE_COMPILE_DEFINITIONS>
 )
-target_link_libraries(playground_hot_reloadable_app PRIVATE dl)
 
 if(NOT CMAKE_LINK_LIBRARY_USING_WHOLE_ARCHIVE_SUPPORTED)
     # TODO disable hot-reloading of this feature is not supported
@@ -42,8 +40,8 @@ endif()
 add_executable(playground_hot_reload main.c)
 target_compile_options(playground_hot_reload PRIVATE ${COMPILE_OPTIONS})
 target_link_libraries(playground_hot_reload PRIVATE
-    $<LINK_LIBRARY:WHOLE_ARCHIVE,SDL3::SDL3 SDL3_ttf::SDL3_ttf>
-    utf8proc::utf8proc dl
+    $<LINK_LIBRARY:WHOLE_ARCHIVE, SDL3::SDL3 SDL3_ttf::SDL3_ttf utf8proc::utf8proc >
+    dl
 )
 set_target_properties(playground_hot_reload PROPERTIES
     ENABLE_EXPORTS ON
