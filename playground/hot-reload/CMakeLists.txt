@@ -7,18 +7,16 @@
 # application library.
 # It embeds the entire static SDL/SDL_ttf archives into the host (which is never
 # reloaded) and export their symbols so the reloadable module resolves them from
-# this process. This keeps one SDL instance (and its window/renderer) alive for
-# the whole run, independent of reloads.
+# this process. Even if the application library links to those libs, as the
+# executable exports the symbols we won't have duplicated symbols while loading
+# the module.
 #
 # Reloadable app library
 # Contains the compiled application code.
-# SDL/SDL_ttf are deliberately not linked into the reloadable module: because
-# SDL is built statically, linking it here would embed a private copy of all of
-# SDL's global state into the .so. dlclose() on hot-reload would then destroy
-# that SDL instance (and the live window/renderer), and the freshly dlopen()ed
-# module would get a new, uninitialized SDL copy holding stale handles.
-# Instead we only pull in the headers and resolve the SDL symbols at load time
-# from the host executable, so a single SDL instance survives across reloads.
+# Windows requires to explicitly link the dependencies (SDL and co) in order to
+# produce a .lib file along with the .dll file. We link the dependencies on all
+# platform as exporting the symbols from the main executable avoids having
+# duplicated symbols.
 
 option(PLAYGROUND_HOT_RELOAD_ENABLE "Support hot-reloading the playground hot-reload app" ON)
 
@@ -32,26 +30,24 @@ set(PLAYGROUND_APP_LINK_LIBS
 )
 
 if (PLAYGROUND_HOT_RELOAD_ENABLE)
-    set(APP_LIB_MODE SHARED)
+    set(APP_LIB_MODE MODULE)
 else()
     set(APP_LIB_MODE STATIC)
 endif()
+
 add_library(playground_hot_reloadable_app ${APP_LIB_MODE} app.c)
-target_compile_options(playground_hot_reloadable_app PRIVATE ${COMPILE_OPTIONS})
-target_include_directories(playground_hot_reloadable_app PRIVATE
-    ${PROJECT_SOURCE_DIR}/src
-    $<TARGET_PROPERTY:SDL3::SDL3,INTERFACE_INCLUDE_DIRECTORIES>
-    $<TARGET_PROPERTY:SDL3_ttf::SDL3_ttf,INTERFACE_INCLUDE_DIRECTORIES>
-)
-target_compile_definitions(playground_hot_reloadable_app PRIVATE
-    $<TARGET_PROPERTY:SDL3::SDL3,INTERFACE_COMPILE_DEFINITIONS>
-    $<TARGET_PROPERTY:SDL3_ttf::SDL3_ttf,INTERFACE_COMPILE_DEFINITIONS>
-)
 if (PLAYGROUND_HOT_RELOAD_ENABLE)
     target_compile_definitions(playground_hot_reloadable_app PUBLIC
         HOT_RELOAD_ENABLE
     )
 endif()
+target_compile_options(playground_hot_reloadable_app PRIVATE ${COMPILE_OPTIONS})
+target_include_directories(playground_hot_reloadable_app PRIVATE
+    ${PROJECT_SOURCE_DIR}/src
+)
+target_link_libraries(playground_hot_reloadable_app PRIVATE
+    ${PLAYGROUND_APP_LINK_LIBS}
+)
 
 add_executable(playground_hot_reload main.c)
 target_compile_options(playground_hot_reload PRIVATE ${COMPILE_OPTIONS})
@@ -73,3 +69,21 @@ else()
         ${PLAYGROUND_APP_LINK_LIBS}
     )
 endif()
+
+install(
+    TARGETS
+        playground_hot_reload
+    RUNTIME DESTINATION .
+)
+install(TARGETS playground_hot_reload
+    RUNTIME_DEPENDENCY_SET playground_hot_reload-deps
+    RUNTIME DESTINATION .
+)
+install(RUNTIME_DEPENDENCY_SET playground_hot_reload-deps
+    PRE_EXCLUDE_REGEXES
+        ${MEDIT_PRE_EXCLUDE_REGEXES}
+    POST_EXCLUDE_REGEXES
+        ${MEDIT_POST_EXCLUDE_REGEXES}
+    DESTINATION .
+    DIRECTORIES ${MEDIT_TOOLCHAIN_DLL_PATH}
+)

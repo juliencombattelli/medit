@@ -1,10 +1,12 @@
 #include "loader.h"
 
-#include <dlfcn.h>
-#include <unistd.h>
-
 #include <stdio.h>
 #include <stdlib.h>
+
+#ifdef HOT_RELOAD_ENABLE
+
+#include <dlfcn.h>
+#include <unistd.h>
 
 // NOLINTBEGIN(*concurrency-mt-unsafe*): the loader is single threaded
 
@@ -42,7 +44,6 @@ AppResult app_reload(void* old_app_state)
 
 int main(void)
 {
-#ifdef HOT_RELOAD_ENABLE
     void* app_state = NULL;
 
     int exit_code = 0;
@@ -59,10 +60,14 @@ int main(void)
     }
 
     return exit_code;
-#else
-    AppResult result = app_main(NULL);
-    return result.return_code;
-#endif
 }
 
 // NOLINTEND(*concurrency-mt-unsafe*)
+
+#else
+int main(void)
+{
+    AppResult result = app_main(NULL);
+    return result.return_code;
+}
+#endif
