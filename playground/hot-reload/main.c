@@ -5,37 +5,54 @@
 
 #ifdef HOT_RELOAD_ENABLE
 
-#include <dlfcn.h>
-#include <unistd.h>
+#include <SDL3/SDL_filesystem.h>
+#include <SDL3/SDL_loadso.h>
+#include <SDL3/SDL_stdinc.h>
 
 // NOLINTBEGIN(*concurrency-mt-unsafe*): the loader is single threaded
 
 typedef AppResult AppMainFn(void*);
 
-static const char* const app_library = "libplayground_hot_reloadable_app.so";
+static const char app_library[] =
+#if SDL_PLATFORM_WINDOWS == 1
+    "libplayground_hot_reloadable_app.dll"
+#else
+    "libplayground_hot_reloadable_app.so"
+#endif
+;
 
 AppResult app_reload(void* old_app_state)
 {
-    static void* lib_handler = NULL;
+    static SDL_SharedObject* lib_handler = NULL;
 
     if (lib_handler) {
         printf("Unloading old lib\n");
-        dlclose(lib_handler);
+        SDL_UnloadObject(lib_handler);
         lib_handler = NULL;
     }
 
-    lib_handler = dlopen(app_library, RTLD_NOW | RTLD_LOCAL);
+    const char* lib = app_library;
+
+#if SDL_PLATFORM_WINDOWS == 1
+    static uint32_t generation = 0;
+    char app_library_copy[sizeof(app_library) + 12] = { 0 };
+    SDL_snprintf(app_library_copy, sizeof(app_library_copy), "%s-%d", app_library, generation++);
+    if (!SDL_CopyFile(app_library, app_library_copy)) {
+        (void)fprintf(stderr, "%s\n", SDL_GetError());
+        exit(EXIT_FAILURE);
+    }
+    lib = app_library_copy;
+#endif
+    printf("Loading %s\n", lib);
+    lib_handler = SDL_LoadObject(lib);
     if (!lib_handler) {
-        (void)fprintf(stderr, "%s\n", dlerror());
+        (void)fprintf(stderr, "%s\n", SDL_GetError());
         exit(EXIT_FAILURE);
     }
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wpedantic"
-    AppMainFn *app_main_fn = (AppMainFn*)dlsym(lib_handler, "app_main");
-#pragma GCC diagnostic pop
+    AppMainFn *app_main_fn = (AppMainFn*)SDL_LoadFunction(lib_handler, "app_main");
     if (!app_main_fn) {
-        (void)fprintf(stderr, "%s\n", dlerror());
+        (void)fprintf(stderr, "%s\n", SDL_GetError());
         exit(EXIT_FAILURE);
     }
 

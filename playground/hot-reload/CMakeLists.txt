@@ -26,7 +26,7 @@ if(PLAYGROUND_HOT_RELOAD_ENABLE AND NOT CMAKE_LINK_LIBRARY_USING_WHOLE_ARCHIVE_S
 endif()
 
 set(PLAYGROUND_APP_LINK_LIBS
-     SDL3::SDL3 SDL3_ttf::SDL3_ttf utf8proc::utf8proc
+    SDL3::SDL3 SDL3_ttf::SDL3_ttf utf8proc::utf8proc
 )
 
 if (PLAYGROUND_HOT_RELOAD_ENABLE)
@@ -57,7 +57,6 @@ if (PLAYGROUND_HOT_RELOAD_ENABLE)
     )
     target_link_libraries(playground_hot_reload PRIVATE
         $<LINK_LIBRARY:WHOLE_ARCHIVE, ${PLAYGROUND_APP_LINK_LIBS} >
-        dl
     )
     set_target_properties(playground_hot_reload PROPERTIES
         ENABLE_EXPORTS ON
@@ -70,11 +69,14 @@ else()
     )
 endif()
 
-install(
-    TARGETS
-        playground_hot_reload
+install(TARGETS playground_hot_reload
     RUNTIME DESTINATION .
 )
+if(PLAYGROUND_HOT_RELOAD_ENABLE)
+    install(TARGETS playground_hot_reloadable_app
+        LIBRARY DESTINATION .
+    )
+endif()
 install(TARGETS playground_hot_reload
     RUNTIME_DEPENDENCY_SET playground_hot_reload-deps
     RUNTIME DESTINATION .
