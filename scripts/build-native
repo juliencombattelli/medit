@@ -6,7 +6,7 @@ set -eu
 
 source ./scripts/build-common-setup.sh native
 
-CMAKE_FLAGS=(-DCMAKE_INSTALL_PREFIX="$DEPS_INSTALL_DIR")
+CMAKE_FLAGS=()
 
 setup_deps "$DEPS_SOURCE_DIR" "$DEPS_BUILD_DIR" "${CMAKE_FLAGS[@]}"
 

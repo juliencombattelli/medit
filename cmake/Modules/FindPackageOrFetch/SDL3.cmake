@@ -11,7 +11,7 @@ if(SDL3_FOUND)
 else()
     message(STATUS "Using vendored SDL3")
     include(FetchContent)
-    
+
     FetchContent_Declare(
         sdl
         GIT_REPOSITORY https://github.com/libsdl-org/SDL.git
@@ -34,9 +34,10 @@ else()
     set(SDL_TESTS OFF)
     set(SDL_EXAMPLES OFF)
 
-    # Force static linking
-    set(SDL_STATIC ON)
-    set(SDL_SHARED OFF)
+    # Use shared libraries
+    set(BUILD_SHARED_LIBS ON)
+    set(SDL_STATIC OFF)
+    set(SDL_SHARED ON)
 
     FetchContent_MakeAvailable(sdl)
 endif()

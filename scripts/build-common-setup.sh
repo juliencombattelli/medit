@@ -6,7 +6,7 @@ VARIANT="$1"
 
 export DEPS_SOURCE_DIR="../medit-deps"
 export DEPS_BUILD_DIR="../medit-deps-build/$VARIANT"
-export DEPS_INSTALL_DIR="../medit-deps-install/$VARIANT"
+export DEPS_INSTALL_DIR="$PWD/../medit-deps-install/$VARIANT"
 export MEDIT_BUILD_DIR="build/$VARIANT"
 
 setup_deps() {
@@ -61,29 +61,32 @@ setup_deps() {
 
     CONFIG=RelWithDebInfo
 
-    echo "Building and installing SDL (static)"
+    echo "Building and installing SDL (shared)"
     cmake -S "$SRC_DIR/SDL" -B "$BUILD_DIR/SDL/build" \
         -G"Ninja Multi-Config" "${CMAKE_FLAGS[@]}" \
-        -DSDL_SHARED=OFF -DSDL_STATIC=ON -DSDL_INSTALL_DOCS=ON \
+        -DCMAKE_PREFIX_PATH="$DEPS_INSTALL_DIR" \
+        -DSDL_SHARED=ON -DSDL_STATIC=OFF -DSDL_INSTALL_DOCS=ON \
         -DCMAKE_POSITION_INDEPENDENT_CODE=ON
     cmake --build "$BUILD_DIR/SDL/build" --parallel --config $CONFIG
-    cmake --install "$BUILD_DIR/SDL/build" --config $CONFIG
+    cmake --install "$BUILD_DIR/SDL/build" --config $CONFIG --prefix "$DEPS_INSTALL_DIR"
 
-    echo "Building and installing SDL_ttf (static)"
+    echo "Building and installing SDL_ttf (shared)"
     cmake -S "$SRC_DIR/SDL_ttf" -B "$BUILD_DIR/SDL_ttf/build" \
         -G"Ninja Multi-Config" "${CMAKE_FLAGS[@]}" \
-        -DBUILD_SHARED_LIBS=OFF -DSDLTTF_INSTALL_MAN=ON -DSDLTTF_VENDORED=ON \
+        -DCMAKE_PREFIX_PATH="$DEPS_INSTALL_DIR" \
+        -DBUILD_SHARED_LIBS=ON -DSDLTTF_INSTALL_MAN=ON -DSDLTTF_VENDORED=ON \
         -DCMAKE_POSITION_INDEPENDENT_CODE=ON
     cmake --build "$BUILD_DIR/SDL_ttf/build" --parallel --config $CONFIG
-    cmake --install "$BUILD_DIR/SDL_ttf/build" --config $CONFIG
+    cmake --install "$BUILD_DIR/SDL_ttf/build" --config $CONFIG --prefix "$DEPS_INSTALL_DIR"
 
-    echo "Building and installing utf8proc (static)"
+    echo "Building and installing utf8proc (shared)"
     cmake -S "$SRC_DIR/utf8proc" -B "$BUILD_DIR/utf8proc/build" \
         -G"Ninja Multi-Config" "${CMAKE_FLAGS[@]}" \
-        -DBUILD_SHARED_LIBS=OFF -DUTF8PROC_ENABLE_TESTING=OFF \
+        -DCMAKE_PREFIX_PATH="$DEPS_INSTALL_DIR" \
+        -DBUILD_SHARED_LIBS=ON -DUTF8PROC_ENABLE_TESTING=OFF \
         -DCMAKE_POSITION_INDEPENDENT_CODE=ON
     cmake --build "$BUILD_DIR/utf8proc/build" --parallel --config $CONFIG
-    cmake --install "$BUILD_DIR/utf8proc/build" --config $CONFIG
+    cmake --install "$BUILD_DIR/utf8proc/build" --config $CONFIG --prefix "$DEPS_INSTALL_DIR"
 
     echo "Downloading fonts..."
     mkdir -p asset/font

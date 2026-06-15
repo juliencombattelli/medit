@@ -16,8 +16,6 @@ set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
 
-include(cmake/Modules/SetupRPath.cmake)
-
 include(cmake/Modules/FindPackageOrFetch/SDL3.cmake)
 include(cmake/Modules/FindPackageOrFetch/SDL3_ttf.cmake)
 include(cmake/Modules/FindPackageOrFetch/utf8proc.cmake)
@@ -61,10 +59,10 @@ if(MINGW)
         # Refer to https://gitlab.kitware.com/cmake/cmake/-/merge_requests/9325
         # and https://gitlab.kitware.com/cmake/cmake/-/work_items/20753
         file(WRITE ${PROJECT_BINARY_DIR}/objdump_wrapper.sh
-        "${CMAKE_OBJDUMP} $@ | sed 's/^    DLL Name:/\tDLL Name:/'"
+            "${CMAKE_OBJDUMP} $@ | sed 's/^    DLL Name:/\tDLL Name:/'"
         )
         file(CHMOD ${PROJECT_BINARY_DIR}/objdump_wrapper.sh
-        PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE
+            PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE
         )
         set(CMAKE_GET_RUNTIME_DEPENDENCIES_COMMAND ${PROJECT_BINARY_DIR}/objdump_wrapper.sh)
 
@@ -128,26 +126,29 @@ elseif(UNIX)
         [[/librt\.so]]        # realtime (glibc <2.34, or musl symlink)
     )
     set_target_properties(medit PROPERTIES
-        INSTALL_RPATH "$ORIGIN"
-        BUILD_RPATH_USE_ORIGIN ON
+        INSTALL_RPATH "\${ORIGIN}"
     )
 endif()
 
-install(TARGETS medit
-    RUNTIME_DEPENDENCY_SET medit-deps
-    RUNTIME DESTINATION .
-)
 # Install the DLLs next to the main binary
-set(CMAKE_INSTALL_SYSTEM_RUNTIME_DESTINATION ".")
-include(InstallRequiredSystemLibraries)
-install(RUNTIME_DEPENDENCY_SET medit-deps
-    PRE_EXCLUDE_REGEXES
-        ${MEDIT_PRE_EXCLUDE_REGEXES}
-    POST_EXCLUDE_REGEXES
-        ${MEDIT_POST_EXCLUDE_REGEXES}
-    DESTINATION .
-    DIRECTORIES ${MEDIT_TOOLCHAIN_DLL_PATH}
-)
+if (WIN32)
+    # TODO check if this is needed {
+    set(CMAKE_INSTALL_SYSTEM_RUNTIME_DESTINATION ".")
+    include(InstallRequiredSystemLibraries)
+    # } TODO
+    install(FILES $<TARGET_RUNTIME_DLLS:medit> DESTINATION .)
+else()
+    install(TARGETS medit
+        RUNTIME_DEPENDENCY_SET medit-deps
+        RUNTIME DESTINATION .
+    )
+    install(RUNTIME_DEPENDENCY_SET medit-deps
+        PRE_EXCLUDE_REGEXES ${MEDIT_PRE_EXCLUDE_REGEXES}
+        POST_EXCLUDE_REGEXES ${MEDIT_POST_EXCLUDE_REGEXES}
+        DESTINATION .
+        DIRECTORIES ${MEDIT_TOOLCHAIN_DLL_PATH}
+    )
+endif()
 install(DIRECTORY asset DESTINATION .)
 # Install sources as well just to be able to open them on Windows for playing around
 install(DIRECTORY src DESTINATION .)

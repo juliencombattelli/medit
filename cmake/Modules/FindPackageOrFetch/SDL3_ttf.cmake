@@ -20,7 +20,9 @@ else()
         GIT_PROGRESS ON
     )
     set(SDLTTF_VENDORED ON)
-    set(BUILD_SHARED_LIBS OFF) # Force static linking
+
+    # Use shared libraries
+    set(BUILD_SHARED_LIBS ON)
 
     FetchContent_MakeAvailable(sdl_ttf)
 endif()

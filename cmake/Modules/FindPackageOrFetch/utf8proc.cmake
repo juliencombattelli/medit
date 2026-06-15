@@ -11,7 +11,7 @@ if(utf8proc_FOUND)
 else()
     message(STATUS "Using vendored utf8proc")
     include(FetchContent)
-    
+
     FetchContent_Declare(
         utf8proc
         GIT_REPOSITORY https://github.com/JuliaStrings/utf8proc.git
@@ -22,8 +22,8 @@ else()
     # Disable unwanted targets
     set(UTF8PROC_ENABLE_TESTING OFF)
 
-    # Force static linking
-    set(BUILD_SHARED_LIBS OFF)
+    # Use shared libraries
+    set(BUILD_SHARED_LIBS ON)
 
     FetchContent_MakeAvailable(utf8proc)
 

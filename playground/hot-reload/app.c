@@ -69,7 +69,7 @@ AppResult app_main(void* old_app_state)
         static size_t local_frame_count = 0;
         printf("Frame count: from_state=%zu, from_static=%zu\n", app_state->frame_count++, local_frame_count++);
 
-        SDL_SetRenderDrawColor(app_state->renderer, 0, 128, 0, 255);
+        SDL_SetRenderDrawColor(app_state->renderer, 0x18, 0x18, 0x18, 255);
         SDL_RenderClear(app_state->renderer);
 
         SDL_RenderPresent(app_state->renderer);
