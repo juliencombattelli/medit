@@ -126,7 +126,7 @@ elseif(UNIX)
         [[/librt\.so]]        # realtime (glibc <2.34, or musl symlink)
     )
     set_target_properties(medit PROPERTIES
-        INSTALL_RPATH "\${ORIGIN}"
+        INSTALL_RPATH "$ORIGIN"
     )
 endif()
 
@@ -136,6 +136,7 @@ if (WIN32)
     set(CMAKE_INSTALL_SYSTEM_RUNTIME_DESTINATION ".")
     include(InstallRequiredSystemLibraries)
     # } TODO
+    install(TARGETS medit RUNTIME DESTINATION .)
     install(FILES $<TARGET_RUNTIME_DLLS:medit> DESTINATION .)
 else()
     install(TARGETS medit
@@ -157,26 +158,22 @@ include(CTest)
 
 add_executable(test_dynarray test/dynarray.c)
 target_compile_options(test_dynarray PRIVATE ${COMPILE_OPTIONS})
-target_link_options(test_dynarray PRIVATE ${LINK_OPTIONS})
 target_include_directories(test_dynarray PRIVATE src)
 add_test(NAME Dynarray COMMAND test_dynarray)
 
 add_executable(test_layout test/layout.c)
 target_compile_options(test_layout PRIVATE ${COMPILE_OPTIONS})
-target_link_options(test_layout PRIVATE ${LINK_OPTIONS})
 target_include_directories(test_layout PRIVATE src)
 add_test(NAME Layout COMMAND test_layout)
 
 add_executable(test_unicode test/unicode.c src/core/unicode.c)
 target_compile_options(test_unicode PRIVATE ${COMPILE_OPTIONS})
-target_link_options(test_unicode PRIVATE ${LINK_OPTIONS})
 target_include_directories(test_unicode PRIVATE src)
 target_link_libraries(test_unicode PRIVATE utf8proc::utf8proc)
 add_test(NAME Unicode COMMAND test_unicode)
 
 add_executable(test_string_view test/string_view.c src/core/string_view.c)
 target_compile_options(test_string_view PRIVATE ${COMPILE_OPTIONS})
-target_link_options(test_string_view PRIVATE ${LINK_OPTIONS})
 target_include_directories(test_string_view PRIVATE src)
 add_test(NAME StringView COMMAND test_string_view)
 
@@ -197,7 +194,7 @@ check_asan_supported(
     COMPILE_OPTIONS ASAN_COMPILE_OPTIONS
     LINK_OPTIONS ASAN_LINK_OPTIONS
 )
-if(MEDIT_ENABLE_ASAN STREQUAL ON AND NOT HAVE_ASAN)
+if(MEDIT_ENABLE_ASAN STREQUAL "ON" AND NOT HAVE_ASAN)
     message(WARNING
         "MEDIT_ENABLE_ASAN is set to ON but the current compiler/linker does not support AddressSanitizer "
         "(${CMAKE_C_COMPILER_ID} ${CMAKE_C_COMPILER_VERSION}, ${CMAKE_C_COMPILER}). "
@@ -205,7 +202,7 @@ if(MEDIT_ENABLE_ASAN STREQUAL ON AND NOT HAVE_ASAN)
     )
 elseif(HAVE_ASAN)
     # Enable AddressSanitizer for all targets built if requested
-    foreach(_target medit test_dynarray test_layout test_unicode playground_ui_clay)
+    foreach(_target medit test_dynarray test_layout test_unicode test_string_view playground_ui_clay)
         if(MEDIT_ENABLE_ASAN STREQUAL "ON")
             target_compile_options(${_target} PRIVATE ${ASAN_COMPILE_OPTIONS})
             target_link_options(${_target} PRIVATE ${ASAN_LINK_OPTIONS})
