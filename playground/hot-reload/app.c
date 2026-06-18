@@ -1,4 +1,4 @@
-#include "loader.h"
+#include "loader/loader_app_main.h"
 
 #include <core/assert.h>
 
@@ -16,8 +16,10 @@ typedef struct AppState {
     size_t frame_count;
 } AppState;
 
-AppResult app_main(void* old_app_state)
+MeditAppResult medit_loader_app_main(int argc, char** argv, void* old_app_state)
 {
+    (void)argc, (void)argv;
+
     bool reload_requested = old_app_state != NULL;
     AppState* app_state = (AppState*)old_app_state;
 
@@ -52,7 +54,7 @@ AppResult app_main(void* old_app_state)
             switch (event.type) {
                 case SDL_EVENT_QUIT: running = false; break;
                 case SDL_EVENT_KEY_DOWN:
-#ifdef HOT_RELOAD_ENABLE
+#ifdef MEDIT_HOT_RELOAD_ENABLED
                     if (event.key.key == SDLK_F5) {
                         reload_requested = true;
                         running = false;
@@ -78,7 +80,7 @@ AppResult app_main(void* old_app_state)
     if (reload_requested) {
         // Exit without cleaning up to allow hot-reloading
         printf("Hot-reloading application...\n");
-        return (AppResult) { .app_state = app_state, .should_reload = true };
+        return (MeditAppResult) { .app_state = app_state, .should_reload = true };
     }
 
     SDL_StopTextInput(app_state->window);
@@ -92,5 +94,5 @@ AppResult app_main(void* old_app_state)
 
     free(app_state);
 
-    return (AppResult) { .return_code = 0 };
+    return (MeditAppResult) { .return_code = 0 };
 }
