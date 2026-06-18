@@ -2,6 +2,8 @@
 
 #include "sdl3_internal.h"
 
+#include "default_config.h"
+
 #include <core/assert.h>
 #include <core/dynarray.h>
 #include <core/unicode.h>
@@ -50,95 +52,119 @@ static void report_perf_counter(PerfCounter* perf_counter, void* userdata)
         SDL_NS_TO_MS((double)perf_counter->accumulated_ns) / (double)perf_counter->frame_count);
 }
 
-void medit_ui_sdl3_run(Meditor* medit)
+MeditAppResult medit_ui_sdl3_run(void* old_ui_state)
 {
-    SDL3Ui ui = { 0 };
-    assert(ui_sdl3_create(&ui, medit));
+    bool reload_requested = old_ui_state != NULL;
+    SDL3Ui* ui = (SDL3Ui*)old_ui_state;
+    Meditor* medit = NULL;
 
-    ui_sdl3_load_editor_font(&ui);
+    if (!reload_requested) {
+        ui = (SDL3Ui*)calloc(1, sizeof(SDL3Ui));
+        ui->medit = (Meditor*)calloc(1, sizeof(Meditor));
+        medit = ui->medit;
+        medit->config = medit_default_config();
 
-    temp_ui_sdl3_setup_layout(&ui);
-
-    for (size_t i = 0; i < medit->file_views.count; ++i) {
-        FileViewGroup* group = &medit->file_views.items[i];
-        for (size_t j = 0; j < group->count; ++j) {
-            FileView* file_view = &group->items[j];
-            Cursor* cursor = &file_view->cursors.items[0];
-            Line* line = &medit_file_view_file(medit, file_view)->lines.items[0];
-
-            UcGraphemeIter it = { 0 };
-            uc_grapheme_iter_init(&it, (uint8_t*)line->items, line->count, cursor->byte);
-            UcSpan out = { 0 };
-            uc_grapheme_iter_next(&it, &out);
-            cursor->len = out.len;
-            printf("group %zu, fileview %zu, cursor->len=%zu\n", i, j, cursor->len);
+        if (!ui_sdl3_create(ui, medit)) {
+            return (MeditAppResult) { .return_code = MEDIT_STATUS_FAILED_TO_CREATE_GUI };
         }
+
+        ui_sdl3_load_editor_font(ui);
+
+        temp_ui_sdl3_setup_layout(ui);
+
+        for (size_t i = 0; i < medit->file_views.count; ++i) {
+            FileViewGroup* group = &medit->file_views.items[i];
+            for (size_t j = 0; j < group->count; ++j) {
+                FileView* file_view = &group->items[j];
+                Cursor* cursor = &file_view->cursors.items[0];
+                Line* line = &medit_file_view_file(medit, file_view)->lines.items[0];
+
+                UcGraphemeIter it = { 0 };
+                uc_grapheme_iter_init(&it, (uint8_t*)line->items, line->count, cursor->byte);
+                UcSpan out = { 0 };
+                uc_grapheme_iter_next(&it, &out);
+                cursor->len = out.len;
+                printf("group %zu, fileview %zu, cursor->len=%zu\n", i, j, cursor->len);
+            }
+        }
+
+        ui_sdl3_enable_cursor_blink(ui);
+
+        perf_counter_start_periodic_report(
+            &ui->perf_counter,
+            PERF_COUNTER_REPORT_PERIOD_MS,
+            report_perf_counter,
+            NULL);
+    } else {
+        medit = ui->medit;
+        reload_requested = false;
+        printf("Application hot-reloaded\n");
     }
-
-    ui_sdl3_enable_cursor_blink(&ui);
-
-    perf_counter_start_periodic_report(
-        &ui.perf_counter,
-        PERF_COUNTER_REPORT_PERIOD_MS,
-        report_perf_counter,
-        NULL);
 
     medit->running = true;
     while (medit->running) {
-        bool should_render = ui_sdl3_handle_event(&ui);
-        if (ui.editor_font_size != medit->config.editor_font_size) {
-            ui_sdl3_unload_editor_font(&ui);
-            ui_sdl3_load_editor_font(&ui);
-            should_render = true;
+        EventReaction reaction = ui_sdl3_handle_event(ui);
+        if (ui->editor_font_size != medit->config.editor_font_size) {
+            ui_sdl3_unload_editor_font(ui);
+            ui_sdl3_load_editor_font(ui);
+            reaction |= REQUEST_HOT_RELOADING;
         }
 
-        if (!should_render) {
+        if (reaction & REQUEST_HOT_RELOADING) {
+            return (MeditAppResult) { .should_reload = true, .app_state = ui };
+        }
+
+        if (!(reaction & REQUEST_RENDER)) {
             continue;
         }
 
-        ui_sdl3_clear(&ui);
-        ui_sdl3_draw_frame_begin(&ui);
+        ui_sdl3_clear(ui);
+        ui_sdl3_draw_frame_begin(ui);
         {
             // 1. Queue background layer: panels, tab bars, group backgrounds
-            ui_sdl3_draw_panels(&ui);
-            ui_panel(&ui.ui_ctx_bg, ui.layout.editor_area, medit->config.color_theme.panel_border);
+            ui_sdl3_draw_panels(ui);
+            ui_panel(&ui->ui_ctx_bg, ui->layout.editor_area, medit->config.color_theme.panel_border);
 
             for (size_t i = 0; i < medit->file_views.count; ++i) {
                 FileViewGroup* group = &medit->file_views.items[i];
-                ui_sdl3_compute_line_number_gutter_width(&ui, group);
-                ui_sdl3_draw_file_view_group(&ui, group);
+                ui_sdl3_compute_line_number_gutter_width(ui, group);
+                ui_sdl3_draw_file_view_group(ui, group);
             }
 
             // 2. Flush background layer so file content is drawn on top
-            ui_sdl3_flush_draw_list(&ui, &ui.ui_draw_list_bg);
+            ui_sdl3_flush_draw_list(ui, &ui->ui_draw_list_bg);
 
             // 3. Draw file content directly (lines + line numbers)
             for (size_t i = 0; i < medit->file_views.count; ++i) {
                 FileViewGroup* group = &medit->file_views.items[i];
                 Rect text_area = group->content_area;
-                rect_cut_left(&text_area, ui.line_nr_padding);
-                ui_sdl3_scroll_file_view(&ui, text_area, group);
-                ui_sdl3_draw_file_view_group_content(&ui, group);
+                rect_cut_left(&text_area, ui->line_nr_padding);
+                ui_sdl3_scroll_file_view(ui, text_area, group);
+                ui_sdl3_draw_file_view_group_content(ui, group);
                 // 4. Queue cursor rects into overlay layer
-                ui_sdl3_queue_cursor(&ui, text_area, group);
+                ui_sdl3_queue_cursor(ui, text_area, group);
             }
 
             // 5. Flush overlay layer (cursor rects) on top of file content
-            ui_sdl3_flush_draw_list(&ui, &ui.ui_draw_list_overlay);
+            ui_sdl3_flush_draw_list(ui, &ui->ui_draw_list_overlay);
 
             // 6. Draw cursor glyphs on top of cursor rects
             for (size_t i = 0; i < medit->file_views.count; ++i) {
                 FileViewGroup* group = &medit->file_views.items[i];
                 Rect text_area = group->content_area;
-                rect_cut_left(&text_area, ui.line_nr_padding);
-                ui_sdl3_draw_cursor_glyphs(&ui, text_area, group);
+                rect_cut_left(&text_area, ui->line_nr_padding);
+                ui_sdl3_draw_cursor_glyphs(ui, text_area, group);
             }
         }
-        ui_sdl3_render_frame(&ui);
+        ui_sdl3_render_frame(ui);
 
-        perf_counter_frame_end(&ui.perf_counter);
+        perf_counter_frame_end(&ui->perf_counter);
     }
 
-    ui_sdl3_unload_editor_font(&ui);
-    ui_sdl3_destroy(&ui);
+    ui_sdl3_unload_editor_font(ui);
+    ui_sdl3_destroy(ui);
+
+    medit_close_all_files(medit);
+
+    return (MeditAppResult) { .return_code = MEDIT_STATUS_SUCCESS };
 }

@@ -16,7 +16,7 @@ typedef struct AppState {
     size_t frame_count;
 } AppState;
 
-MeditAppResult medit_loader_app_main(int argc, char** argv, void* old_app_state)
+MeditAppResult MEDIT_LOADER_APP_MAIN_FN(int argc, char** argv, void* old_app_state)
 {
     (void)argc, (void)argv;
 

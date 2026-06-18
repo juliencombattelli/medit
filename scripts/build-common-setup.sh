@@ -113,4 +113,17 @@ configure_and_build() {
         -DCMAKE_PREFIX_PATH="$DEPS_INSTALL_DIR"
 
     cmake --build "$MEDIT_BUILD_DIR" -j
+
+    cmake --install "$MEDIT_BUILD_DIR" --prefix "${MEDIT_BUILD_DIR}-install"
+
+    # Second build with hot reloading playground disabled
+    cmake -S . -B "${MEDIT_BUILD_DIR}-hot_reloading_off" \
+        "$@" \
+        -DCMAKE_BUILD_TYPE="RelWithDebInfo" -DFETCHCONTENT_QUIET=NO \
+        -DCMAKE_PREFIX_PATH="$DEPS_INSTALL_DIR" \
+        -DPLAYGROUND_HOT_RELOAD_HOT_RELOAD_ENABLE=NO
+
+    cmake --build "${MEDIT_BUILD_DIR}-hot_reloading_off" -j
+
+    cmake --install "${MEDIT_BUILD_DIR}-hot_reloading_off" --prefix "${MEDIT_BUILD_DIR}-hot_reloading_off-install"
 }

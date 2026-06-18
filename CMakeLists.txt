@@ -35,7 +35,9 @@ add_subdirectory(vendor/clay)
 
 add_executable(medit
     # Editor entry point
-    src/main.c src/default_settings.c
+    src/main.c src/default_config.c src/medit.c
+    # Loader (TODO remove)
+    src/loader/loader.c
     # Core modules
     src/core/meditor.c src/core/keybind.c src/core/unicode.c src/core/utils.c
     src/core/rect.c src/core/action.c src/core/ui.c src/core/string_view.c

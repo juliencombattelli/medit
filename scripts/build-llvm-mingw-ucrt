@@ -32,3 +32,7 @@ CMAKE_FLAGS=("${TOOLCHAIN_ARGS[@]}")
 setup_deps "$DEPS_SOURCE_DIR" "$DEPS_BUILD_DIR" "${CMAKE_FLAGS[@]}"
 
 configure_and_build "${TOOLCHAIN_ARGS[@]}"
+
+cmake --install "${MEDIT_BUILD_DIR}" --prefix "/mnt/c/Users/az03374/Development/Medit/llvm-mingw-ucrt/"
+
+cmake --install "${MEDIT_BUILD_DIR}-hot_reloading_off" --prefix "/mnt/c/Users/az03374/Development/Medit/llvm-mingw-ucrt-hot_reloading_off"

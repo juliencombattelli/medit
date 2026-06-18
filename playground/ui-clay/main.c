@@ -2,7 +2,7 @@
 
 #include <core/assert.h>
 
-#include <default_settings.h>
+#include <default_config.h>
 
 #include <SDL3/SDL.h>
 #include <SDL3_ttf/SDL_ttf.h>

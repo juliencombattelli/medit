@@ -114,7 +114,7 @@ static void ui_sdl3_dispatch_event(SDL3Ui* ui, SDL_Event* event)
     }
 }
 
-bool ui_sdl3_handle_event(SDL3Ui* ui)
+EventReaction ui_sdl3_handle_event(SDL3Ui* ui)
 {
     // Save current font size to monitor changes
     ui->editor_font_size = ui->medit->config.editor_font_size;
