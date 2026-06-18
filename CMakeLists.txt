@@ -12,13 +12,15 @@ set_property(CACHE MEDIT_ENABLE_ASAN PROPERTY STRINGS AUTO ON OFF)
 
 ################################################################################
 
+include(cmake/Modules/CheckPlatformSupported.cmake)
+
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
 
-include(cmake/Modules/FindPackageOrFetch/SDL3.cmake)
-include(cmake/Modules/FindPackageOrFetch/SDL3_ttf.cmake)
-include(cmake/Modules/FindPackageOrFetch/utf8proc.cmake)
+find_package(SDL3 CONFIG REQUIRED)
+find_package(SDL3_ttf CONFIG REQUIRED)
+find_package(utf8proc CONFIG REQUIRED)
 
 if(MSVC)
     set(COMPILE_OPTIONS /W4)
@@ -50,105 +52,28 @@ target_compile_options(medit PRIVATE ${COMPILE_OPTIONS})
 target_include_directories(medit PRIVATE src)
 target_link_libraries(medit PRIVATE SDL3::SDL3 SDL3_ttf::SDL3_ttf utf8proc::utf8proc)
 
-if(MINGW)
-    if (CMAKE_C_COMPILER_ID MATCHES ".*Clang")
-        # The following objdump trick is required when CMake (before v3.29) and LLVM's objdump are used
-        # in combination: the objdump binary from LLVM uses 4 spaces before "DLL Name:" where other
-        # objdump builds print a tab. CMake before v3.29 is only checking for tabs, leading to no DLL
-        # being detected at all.
-        # Refer to https://gitlab.kitware.com/cmake/cmake/-/merge_requests/9325
-        # and https://gitlab.kitware.com/cmake/cmake/-/work_items/20753
-        file(WRITE ${PROJECT_BINARY_DIR}/objdump_wrapper.sh
-            "${CMAKE_OBJDUMP} $@ | sed 's/^    DLL Name:/\tDLL Name:/'"
-        )
-        file(CHMOD ${PROJECT_BINARY_DIR}/objdump_wrapper.sh
-            PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE
-        )
-        set(CMAKE_GET_RUNTIME_DEPENDENCIES_COMMAND ${PROJECT_BINARY_DIR}/objdump_wrapper.sh)
-
-        # TODO don't assume x86_64 here
-        set(MEDIT_TOOLCHAIN_DLL_PATH ${LLVM_MINGW_UCRT_DIR}/x86_64-w64-mingw32/bin)
-    endif()
-
-    # TODO check how installation goes with MSVC
-    set(MEDIT_TOOLCHAIN_PRE_EXCLUDE_REGEXES
-        # The following DLLs are not included in the LLVM-MinGW toolchain, so we exclude them
-        # before resolution as they will therefore never be resolved to proper system32 DLLs and
-        # would trigger a resolution error
-        [[^advapi32\.dll$]]
-        [[^gdi32\.dll$]]
-        [[^imm32\.dll$]]
-        [[^kernel32\.dll$]]
-        [[^oleaut32\.dll$]]
-        [[^rpcrt4\.dll$]]
-        [[^setupapi\.dll$]]
-        [[^shell32\.dll$]]
-        [[^user32\.dll$]]
-        [[^usp10\.dll$]]
-        [[^version\.dll$]]
-        [[^winmm\.dll$]]
-        [[^ole32\.dll$]]
-        [[^msvcrt\.dll$]]
-    )
-endif()
-
-if(WIN32)
-    if(MSVC)
-        # Required to locate ASan DLL properly
-        set(MEDIT_TOOLCHAIN_DLL_PATH $ENV{VCToolsInstallDir}/bin/Hostx86/x64)
-    endif()
-    set(MEDIT_PRE_EXCLUDE_REGEXES
-        [[api-ms-.*]] [[ext-ms-.*]]
-        [[vcruntime.*]] # installed via InstallRequiredSystemLibraries
-        ${MEDIT_TOOLCHAIN_PRE_EXCLUDE_REGEXES}
-    )
-    set(MEDIT_POST_EXCLUDE_REGEXES
-        [[.*[/\]system32[/\].*\.dll]]
-    )
-elseif(APPLE)
-    set(MEDIT_POST_EXCLUDE_REGEXES
-        [[.*\.framework.*]]
-        [[/usr/lib/libSystem]]
-        [[/usr/lib/libobjc]]
-    )
-    set_target_properties(medit PROPERTIES
-        INSTALL_RPATH "@executable_path"
-        MACOSX_RPATH ON
-    )
-elseif(UNIX)
-    set(MEDIT_POST_EXCLUDE_REGEXES
-        [[ld-linux]]          # glibc dynamic linker
-        [[ld-musl]]           # musl dynamic linker
-        [[/libc\.so]]         # C library
-        [[/libm\.so]]         # math (always part of base system)
-        [[/libdl\.so]]        # dlopen (glibc <2.34, or musl symlink)
-        [[/libpthread\.so]]   # threads (glibc <2.34, or musl symlink)
-        [[/librt\.so]]        # realtime (glibc <2.34, or musl symlink)
-    )
+if(UNIX)
     set_target_properties(medit PROPERTIES
         INSTALL_RPATH "$ORIGIN"
     )
 endif()
 
-# Install the DLLs next to the main binary
-if (WIN32)
-    # TODO check if this is needed {
-    set(CMAKE_INSTALL_SYSTEM_RUNTIME_DESTINATION ".")
-    include(InstallRequiredSystemLibraries)
-    # } TODO
-    install(TARGETS medit RUNTIME DESTINATION .)
+install(TARGETS medit RUNTIME DESTINATION .)
+if(WIN32)
+    # TARGET_RUNTIME_DLLS resolves DLLs of all CMake-known imported shared-library
+    # targets linked to the executable, regardless of whether they came from a
+    # system install, a manual install (SDL3_DIR=...), or FetchContent.
     install(FILES $<TARGET_RUNTIME_DLLS:medit> DESTINATION .)
-else()
-    install(TARGETS medit
-        RUNTIME_DEPENDENCY_SET medit-deps
-        RUNTIME DESTINATION .
-    )
-    install(RUNTIME_DEPENDENCY_SET medit-deps
-        PRE_EXCLUDE_REGEXES ${MEDIT_PRE_EXCLUDE_REGEXES}
-        POST_EXCLUDE_REGEXES ${MEDIT_POST_EXCLUDE_REGEXES}
-        DESTINATION .
-        DIRECTORIES ${MEDIT_TOOLCHAIN_DLL_PATH}
-    )
+elseif(UNIX AND NOT APPLE)
+    # We cannot use $<TARGET_SONAME_FILE:...> directly because install(FILES)
+    # copies symlinks as symlinks, which breaks in a relocated directory.
+    # Instead we install the real versioned file under the SONAME name.
+    foreach(_dep SDL3::SDL3 SDL3_ttf::SDL3_ttf utf8proc::utf8proc)
+        install(FILES $<TARGET_FILE:${_dep}>
+            DESTINATION .
+            RENAME $<TARGET_SONAME_FILE_NAME:${_dep}>
+        )
+    endforeach()
 endif()
 install(DIRECTORY asset DESTINATION .)
 # Install sources as well just to be able to open them on Windows for playing around
