@@ -114,7 +114,7 @@ static void ui_sdl3_dispatch_event(SDL3Ui* ui, SDL_Event* event)
     }
 }
 
-bool ui_sdl3_handle_event(SDL3Ui* ui)
+EventReaction ui_sdl3_handle_event(SDL3Ui* ui)
 {
     // Save current font size to monitor changes
     ui->editor_font_size = ui->medit->config.editor_font_size;
@@ -125,14 +125,19 @@ bool ui_sdl3_handle_event(SDL3Ui* ui)
         perf_counter_frame_begin(&ui->perf_counter);
         SDL_Event event = { 0 };
         while (SDL_PollEvent(&event)) {
+#ifdef MEDIT_HOT_RELOAD_ENABLED
+            if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_F5) {
+                return REQUEST_HOT_RELOADING;
+            }
+#endif
             ui_sdl3_reset_cursor_blinking_timer_on_input(ui, &event);
             ui_sdl3_dispatch_event(ui, &event);
         }
-        return true;
+        return REQUEST_RENDER;
     }
     // Timeout (no events): nothing changed, skip render
     perf_counter_frame_discard(&ui->perf_counter);
-    return false;
+    return 0;
 }
 
 bool ui_sdl3_create(SDL3Ui* ui, Meditor* medit)

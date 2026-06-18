@@ -33,9 +33,18 @@ endif()
 
 add_subdirectory(vendor/clay)
 
-add_executable(medit
-    # Editor entry point
-    src/main.c src/default_settings.c
+include(src/loader/cmake/Loader.cmake)
+
+add_hot_reloadable_executable(medit medit_app)
+
+target_sources(medit PRIVATE src/main.c)
+target_compile_options(medit PRIVATE ${COMPILE_OPTIONS})
+target_include_directories(medit PRIVATE src)
+target_link_libraries(medit PRIVATE SDL3::SDL3 SDL3_ttf::SDL3_ttf utf8proc::utf8proc)
+
+target_sources(medit_app PRIVATE
+    # Hot reloadable entry point
+    src/medit.c src/default_config.c
     # Core modules
     src/core/meditor.c src/core/keybind.c src/core/unicode.c src/core/utils.c
     src/core/rect.c src/core/action.c src/core/ui.c src/core/string_view.c
@@ -48,17 +57,10 @@ add_executable(medit
     src/ui/sdl3/utils/perf_counter.c
     src/ui/sdl3/utils/font.c
 )
-target_compile_options(medit PRIVATE ${COMPILE_OPTIONS})
-target_include_directories(medit PRIVATE src)
-target_link_libraries(medit PRIVATE SDL3::SDL3 SDL3_ttf::SDL3_ttf utf8proc::utf8proc)
+target_compile_options(medit_app PRIVATE ${COMPILE_OPTIONS})
+target_include_directories(medit_app PRIVATE src)
+target_link_libraries(medit_app PRIVATE SDL3::SDL3 SDL3_ttf::SDL3_ttf utf8proc::utf8proc)
 
-if(UNIX)
-    set_target_properties(medit PROPERTIES
-        INSTALL_RPATH "$ORIGIN"
-    )
-endif()
-
-install(TARGETS medit RUNTIME DESTINATION .)
 if(WIN32)
     # TARGET_RUNTIME_DLLS resolves DLLs of all CMake-known imported shared-library
     # targets linked to the executable, regardless of whether they came from a
@@ -75,6 +77,7 @@ elseif(UNIX AND NOT APPLE)
         )
     endforeach()
 endif()
+
 install(DIRECTORY asset DESTINATION .)
 # Install sources as well just to be able to open them on Windows for playing around
 install(DIRECTORY src DESTINATION .)

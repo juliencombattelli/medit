@@ -1,5 +1,5 @@
 add_executable(playground_ui
-    main.c ui2.c ${PROJECT_SOURCE_DIR}/src/default_settings.c
+    main.c ui2.c ${PROJECT_SOURCE_DIR}/src/default_config.c
 )
 target_compile_options(playground_ui PRIVATE ${COMPILE_OPTIONS})
 target_include_directories(playground_ui PRIVATE ${PROJECT_SOURCE_DIR}/src)

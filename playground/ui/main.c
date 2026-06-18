@@ -1,6 +1,6 @@
 #include <core/assert.h>
 
-#include <default_settings.h>
+#include <default_config.h>
 
 #include "ui2.h"
 

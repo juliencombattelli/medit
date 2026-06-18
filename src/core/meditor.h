@@ -20,6 +20,12 @@ enum {
 
 int clamp_font_size(int size);
 
+typedef enum {
+    MEDIT_STATUS_SUCCESS,
+    MEDIT_STATUS_FAILURE,
+    MEDIT_STATUS_FAILED_TO_CREATE_GUI,
+} MeditStatusCode;
+
 typedef struct {
     char* items;
     size_t count;

@@ -1,8 +1,8 @@
-#include "default_settings.h"
+#include "default_config.h"
 
 #include "core/color.h"
 
-ColorTheme default_color_theme(void)
+static ColorTheme default_color_theme(void)
 {
     return (ColorTheme) {
         .editor_fg = color_from_u32(0xD4D4D4FFu),
@@ -22,5 +22,13 @@ ColorTheme default_color_theme(void)
         .scrollbar_thumb = color_from_u32(0xFFFFFF1Fu),
         .scrollbar_thumb_scroll_area_hovered = color_from_u32(0xFFFFFF3Fu),
         .scrollbar_thumb_hovered = color_from_u32(0xFFFFFF5Fu),
+    };
+}
+
+Config medit_default_config(void) {
+    return (Config) {
+        .editor_font_size = FONT_SIZE_DEFAULT,
+        .editor_font_path = FONT_PATH_DEFAULT,
+        .color_theme = default_color_theme(),
     };
 }

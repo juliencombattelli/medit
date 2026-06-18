@@ -30,6 +30,11 @@ enum UserEvents {
     EVENT_CURSOR_BLINK = 42,
 };
 
+typedef enum {
+    REQUEST_HOT_RELOADING   = 1 << 0,
+    REQUEST_RENDER          = 1 << 1,
+} EventReaction;
+
 typedef struct {
     int width;
     int height;
@@ -122,7 +127,7 @@ void ui_sdl3_on_key_down(SDL3Ui* ui, SDL_Event* event);
 void ui_sdl3_resize_window(SDL3Ui* ui);
 bool ui_sdl3_create(SDL3Ui* ui, Meditor* medit);
 void ui_sdl3_destroy(SDL3Ui* ui);
-bool ui_sdl3_handle_event(SDL3Ui* ui);
+EventReaction ui_sdl3_handle_event(SDL3Ui* ui);
 void ui_sdl3_enable_cursor_blink(SDL3Ui* ui);
 void ui_sdl3_disable_cursor_blink(SDL3Ui* ui);
 
