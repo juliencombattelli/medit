@@ -23,22 +23,26 @@ compatible version.
 Alternatively, you can build them from source and install them locally.
 If so, you may have to install additional software for your platform.
 
+#### Convenience scripts
+
+Medit provides the scripts `./scripts/build-<target>.sh` to easily fetch the
+dependencies and build them before building the project for some targets.
+
+Note that as SDL & Co will be built from source, you may still have to follow
+the instructions to install [its own build dependencies](#sdl-dependencies).
+
+The following targets are currently supported and well-tested by those scripts:
+- Linux (native)
+- LLVM-based MinGW (cross-compile from Linux)
+
+The following targets were supported but are no longer used and maintained:
+- MinGW
+
 #### SDL dependencies
 
-For SDL libraries:
+For SDL libraries, you will find the instructions to install all required
+dependencies here:
 - Linux: https://github.com/libsdl-org/SDL/blob/release-3.4.2/docs/README-linux.md
 - Windows: https://github.com/libsdl-org/SDL/blob/release-3.4.2/docs/README-windows.md
 
 Doc for other platforms at https://github.com/libsdl-org/SDL/blob/release-3.4.2/docs
-
-### Convenience scripts
-
-Medit provides the scripts `./scripts/<target>/build.sh` to easily build the
-project for a specific target, along with its dependencies.
-
-Note that as SDL will be built from source, you may have to follow the
-instructions to install [its own build dependencies](#sdl-dependencies).
-
-The following targets are currently supported by those scripts:
-- Linux (native)
-- MinGW (from Windows or Linux)
