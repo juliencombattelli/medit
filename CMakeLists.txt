@@ -22,6 +22,8 @@ find_package(SDL3 CONFIG REQUIRED)
 find_package(SDL3_ttf CONFIG REQUIRED)
 find_package(utf8proc CONFIG REQUIRED)
 
+add_subdirectory(vendor/clay)
+
 if(MSVC)
     set(COMPILE_OPTIONS /W4)
 elseif(CMAKE_C_COMPILER_ID MATCHES ".*Clang" OR CMAKE_C_COMPILER_ID STREQUAL "GNU")
@@ -31,8 +33,6 @@ elseif(CMAKE_C_COMPILER_ID MATCHES ".*Clang" OR CMAKE_C_COMPILER_ID STREQUAL "GN
     )
 endif()
 
-add_subdirectory(vendor/clay)
-
 include(src/loader/cmake/Loader.cmake)
 
 add_hot_reloadable_executable(medit medit_app)
@@ -40,7 +40,7 @@ add_hot_reloadable_executable(medit medit_app)
 target_sources(medit PRIVATE src/main.c)
 target_compile_options(medit PRIVATE ${COMPILE_OPTIONS})
 target_include_directories(medit PRIVATE src)
-target_link_libraries(medit PRIVATE SDL3::SDL3 SDL3_ttf::SDL3_ttf utf8proc::utf8proc)
+target_link_libraries(medit PRIVATE SDL3::SDL3)
 
 target_sources(medit_app PRIVATE
     # Hot reloadable entry point
@@ -61,10 +61,20 @@ target_compile_options(medit_app PRIVATE ${COMPILE_OPTIONS})
 target_include_directories(medit_app PRIVATE src)
 target_link_libraries(medit_app PRIVATE SDL3::SDL3 SDL3_ttf::SDL3_ttf utf8proc::utf8proc)
 
+list(APPEND MEDIT_INSTALLED_TARGETS medit)
+if(MEDIT_HOT_RELOAD_ENABLE)
+    list(APPEND MEDIT_INSTALLED_TARGETS medit_app)
+endif()
+
+install(TARGETS ${MEDIT_INSTALLED_TARGETS}
+    # Runtime dependency sets are not used due to bugs when cross-compiling between Linux and Windows.
+    # Refer to https://gitlab.kitware.com/cmake/cmake/-/work_items/20753.
+    RUNTIME_DEPENDENCY_SET medit_runtime_deps
+    RUNTIME DESTINATION .
+    LIBRARY DESTINATION .
+)
+
 if(WIN32)
-    # TARGET_RUNTIME_DLLS resolves DLLs of all CMake-known imported shared-library
-    # targets linked to the executable, regardless of whether they came from a
-    # system install, a manual install (SDL3_DIR=...), or FetchContent.
     install(FILES $<TARGET_RUNTIME_DLLS:medit> DESTINATION .)
 elseif(UNIX AND NOT APPLE)
     # We cannot use $<TARGET_SONAME_FILE:...> directly because install(FILES)
@@ -143,4 +153,7 @@ elseif(HAVE_ASAN)
             )
         endif()
     endforeach()
+    if(WIN32 AND ASAN_RUNTIME_DLLS)
+        install(FILES ${ASAN_RUNTIME_DLLS} DESTINATION .)
+    endif()
 endif()

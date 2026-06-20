@@ -22,12 +22,8 @@ set(CMAKE_RC_COMPILER_TARGET x86_64-w64-mingw32)
 set(CMAKE_GET_RUNTIME_DEPENDENCIES_PLATFORM "windows+pe")
 set(CMAKE_GET_RUNTIME_DEPENDENCIES_TOOL "objdump")
 
-# Workaround for the LLVM MinGW toolchain that may not support linker arguments
-# --{push,pop}-state but CMake tries to use them anyway.
-# LLVM issue: https://github.com/llvm/llvm-project/issues/131007
-# CMake issue: https://gitlab.kitware.com/cmake/cmake/-/work_items/27822
-# This workaround works only with CMake 4.2 onward.
-cmake_minimum_required(VERSION 4.2)
-set(CACHE{CMAKE_LINKER_PUSHPOP_STATE_SUPPORTED} TYPE INTERNAL VALUE 0)
-set(CACHE{CMAKE_C_LINKER_PUSHPOP_STATE_SUPPORTED} TYPE INTERNAL VALUE 0)
-set(CACHE{CMAKE_CXX_LINKER_PUSHPOP_STATE_SUPPORTED} TYPE INTERNAL VALUE 0)
+set(ASAN_RUNTIME_DLLS
+    ${LLVM_MINGW_UCRT_DIR}/x86_64-w64-mingw32/bin/libclang_rt.asan_dynamic-x86_64.dll
+    ${LLVM_MINGW_UCRT_DIR}/x86_64-w64-mingw32/bin/libc++.dll
+    ${LLVM_MINGW_UCRT_DIR}/x86_64-w64-mingw32/bin/libunwind.dll
+)
