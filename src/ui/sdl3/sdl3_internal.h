@@ -134,6 +134,8 @@ void ui_sdl3_disable_cursor_blink(SDL3Ui* ui);
 // sdl3_font.c
 void ui_sdl3_load_editor_font(SDL3Ui* ui);
 void ui_sdl3_unload_editor_font(SDL3Ui* ui);
+void ui_sdl3_ttf_setup(SDL3Ui* ui);
+void ui_sdl3_ttf_teardown(SDL3Ui* ui);
 
 // sdl3_file_view.c
 void ui_sdl3_queue_cursor(SDL3Ui* ui, Rect text_area, FileViewGroup* group);

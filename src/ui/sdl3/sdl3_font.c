@@ -86,3 +86,37 @@ void ui_sdl3_unload_editor_font(SDL3Ui* ui)
     TTF_CloseFont(ui->font_editor.emoji);
     ui->font_editor = (Font) { 0 };
 }
+
+void ui_sdl3_ttf_setup(SDL3Ui* ui)
+{
+    // The entire SDL_ttf subsystem is (re)created on every entry into the app
+    // library, including after a hot reload. libSDL3_ttf.so is referenced only
+    // by this hot-reloadable library, so the loader's dlclose drops its
+    // refcount to zero and the dynamic linker reloads it at a NEW address on the
+    // next reload. Any SDL_ttf object (font, text, text engine and their
+    // internal hashtables) that survived the reload would still hold function
+    // pointers into the old, now-unmapped libSDL3_ttf.so and crash when used
+    // (e.g. a wild jump through a stale hashtable hash callback or engine
+    // vtable). Recreating everything here rebinds every internal pointer to the
+    // currently mapped library.
+    if (!TTF_Init()) {
+        printf("Failed to initialize SDL_ttf: %s\n", SDL_GetError());
+        abort();
+    }
+
+    ui->text_engine = TTF_CreateRendererTextEngine(ui->renderer);
+    assert(ui->text_engine != NULL);
+
+    ui_sdl3_load_editor_font(ui);
+}
+
+void ui_sdl3_ttf_teardown(SDL3Ui* ui)
+{
+    ui_sdl3_unload_editor_font(ui);
+
+    TTF_DestroyRendererTextEngine(ui->text_engine);
+    ui->text_engine = NULL;
+
+    TTF_Quit();
+}
+

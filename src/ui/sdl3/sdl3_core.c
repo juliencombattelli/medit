@@ -142,8 +142,11 @@ EventReaction ui_sdl3_handle_event(SDL3Ui* ui)
 
 bool ui_sdl3_create(SDL3Ui* ui, Meditor* medit)
 {
+    // NOTE: SDL_ttf is intentionally NOT initialized here. Its whole lifecycle
+    // (TTF_Init/TTF_Quit, text engine, fonts, text cache) is owned per run cycle
+    // by ui_sdl3_ttf_setup/ui_sdl3_ttf_teardown so that it is fully recreated
+    // across every hot reload. See ui_sdl3_ttf_setup for the rationale.
     try(SDL_Init(SDL_INIT_VIDEO));
-    try(TTF_Init());
 
     SDL_Window* window = SDL_CreateWindow(
         "Medit",
@@ -160,13 +163,9 @@ bool ui_sdl3_create(SDL3Ui* ui, Meditor* medit)
     // try(SDL_SetRenderVSync(renderer, 1));
     try(SDL_SetRenderVSync(renderer, SDL_RENDERER_VSYNC_DISABLED));
 
-    TTF_TextEngine* text_engine = TTF_CreateRendererTextEngine(renderer);
-    try(text_engine);
-
     ui->medit = medit;
     ui->window = window;
     ui->renderer = renderer;
-    ui->text_engine = text_engine;
 
     try(SDL_ShowWindow(ui->window));
 
@@ -180,6 +179,8 @@ bool ui_sdl3_create(SDL3Ui* ui, Meditor* medit)
     return true;
 }
 
+// The SDL_ttf subsystem (text engine, fonts, text cache, TTF_Quit) is torn
+// down separately by ui_sdl3_ttf_teardown before this point.
 void ui_sdl3_destroy(SDL3Ui* ui)
 {
     SDL_StopTextInput(ui->window);
@@ -187,11 +188,9 @@ void ui_sdl3_destroy(SDL3Ui* ui)
     ui_draw_cmd_list_free(&ui->ui_draw_list_bg);
     ui_draw_cmd_list_free(&ui->ui_draw_list_overlay);
 
-    TTF_DestroyRendererTextEngine(ui->text_engine);
     SDL_DestroyRenderer(ui->renderer);
     SDL_DestroyWindow(ui->window);
 
-    TTF_Quit();
     SDL_Quit();
 
     *ui = (SDL3Ui) { 0 };

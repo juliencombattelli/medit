@@ -75,7 +75,7 @@ MeditAppResult medit_ui_sdl3_run(void* old_ui_state)
             return (MeditAppResult) { .return_code = MEDIT_STATUS_FAILED_TO_CREATE_GUI };
         }
 
-        ui_sdl3_load_editor_font(ui);
+        ui_sdl3_ttf_setup(ui);
 
         temp_ui_sdl3_setup_layout(ui);
 
@@ -95,29 +95,39 @@ MeditAppResult medit_ui_sdl3_run(void* old_ui_state)
             }
         }
 
-        ui_sdl3_enable_cursor_blink(ui);
-
-        perf_counter_start_periodic_report(
-            &ui->perf_counter,
-            PERF_COUNTER_REPORT_PERIOD_MS,
-            report_perf_counter,
-            NULL);
     } else {
         medit = ui->medit;
         reload_requested = false;
+        // The keybinding table lives in the persistent Meditor state, but its
+        // action callbacks are function pointers into this shared library. After
+        // a hot reload the library has been unloaded and reloaded (potentially at
+        // different addresses), so the previously stored pointers are stale and
+        // would jump into invalid/old code on the next keypress. Re-bind them so
+        // they resolve to this freshly loaded library.
+        medit_load_default_keybind_full(medit, &UI_SDL3_ACTIONS, ui);
+        ui_sdl3_ttf_setup(ui);
         printf("Application hot-reloaded\n");
     }
+
+    ui_sdl3_enable_cursor_blink(ui);
+
+    perf_counter_start_periodic_report(
+        &ui->perf_counter,
+        PERF_COUNTER_REPORT_PERIOD_MS,
+        report_perf_counter,
+        NULL);
 
     medit->running = true;
     while (medit->running) {
         EventReaction reaction = ui_sdl3_handle_event(ui);
         if (ui->editor_font_size != medit->config.editor_font_size) {
-            ui_sdl3_unload_editor_font(ui);
-            ui_sdl3_load_editor_font(ui);
             reaction |= REQUEST_HOT_RELOADING;
         }
 
         if (reaction & REQUEST_HOT_RELOADING) {
+            perf_counter_stop_periodic_report(&ui->perf_counter);
+            ui_sdl3_disable_cursor_blink(ui);
+            ui_sdl3_ttf_teardown(ui);
             return (MeditAppResult) { .should_reload = true, .app_state = ui };
         }
 
@@ -168,7 +178,10 @@ MeditAppResult medit_ui_sdl3_run(void* old_ui_state)
         perf_counter_frame_end(&ui->perf_counter);
     }
 
-    ui_sdl3_unload_editor_font(ui);
+    perf_counter_stop_periodic_report(&ui->perf_counter);
+    ui_sdl3_disable_cursor_blink(ui);
+
+    ui_sdl3_ttf_teardown(ui);
     ui_sdl3_destroy(ui);
 
     medit_close_all_files(medit);
