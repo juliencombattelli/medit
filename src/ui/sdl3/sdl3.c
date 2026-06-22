@@ -121,7 +121,9 @@ MeditAppResult medit_ui_sdl3_run(void* old_ui_state)
     while (medit->running) {
         EventReaction reaction = ui_sdl3_handle_event(ui);
         if (ui->editor_font_size != medit->config.editor_font_size) {
-            reaction |= REQUEST_HOT_RELOADING;
+            ui_sdl3_unload_editor_font(ui);
+            ui_sdl3_load_editor_font(ui);
+            reaction |= REQUEST_RENDER;
         }
 
         if (reaction & REQUEST_HOT_RELOADING) {
