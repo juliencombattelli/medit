@@ -40,9 +40,9 @@ MeditAppResult medit_loader_reload_app(int argc, char** argv, void* old_app_stat
     // generation) that is updated for each reload.
     static uint32_t generation = 0;
 #define U32_MAX_DIGIT_COUNT 10
-#define APP_LIBRARY_COPY_MAX_LEN (sizeof(app_library) + sizeof('-') + U32_MAX_DIGIT_COUNT)
+#define APP_LIBRARY_COPY_MAX_LEN (sizeof(app_library) + sizeof('.') + U32_MAX_DIGIT_COUNT)
     char app_library_copy[APP_LIBRARY_COPY_MAX_LEN] = { 0 };
-    int len = SDL_snprintf(app_library_copy, sizeof(app_library_copy), "%s-%u", app_library, generation++);
+    int len = SDL_snprintf(app_library_copy, sizeof(app_library_copy), "%s.%u", app_library, generation++);
     if (len > 0 && len < (int)sizeof(app_library_copy)) {
         if (!SDL_CopyFile(app_library, app_library_copy)) {
             (void)fprintf(stderr, "%s\n", SDL_GetError());

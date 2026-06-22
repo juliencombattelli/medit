@@ -76,6 +76,9 @@ install(TARGETS ${MEDIT_INSTALLED_TARGETS}
 
 if(WIN32)
     install(FILES $<TARGET_RUNTIME_DLLS:medit> DESTINATION .)
+    if(MEDIT_HOT_RELOAD_ENABLE)
+        install(FILES $<TARGET_RUNTIME_DLLS:medit_app> DESTINATION .)
+    endif()
 elseif(UNIX AND NOT APPLE)
     # We cannot use $<TARGET_SONAME_FILE:...> directly because install(FILES)
     # copies symlinks as symlinks, which breaks in a relocated directory.
