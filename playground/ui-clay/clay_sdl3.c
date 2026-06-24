@@ -20,7 +20,7 @@ void SDL_Clay_RenderClayCommands(SDL_Renderer* renderer, Clay_RenderCommandArray
             case CLAY_RENDER_COMMAND_TYPE_RECTANGLE: {
                 Clay_RectangleRenderData* config = &rcmd->renderData.rectangle;
                 SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
-                Clay_Color bg = rcmd->renderData.rectangle.backgroundColor;
+                SDL_FColor bg = clay_to_sdl_color(rcmd->renderData.rectangle.backgroundColor);
                 SDL_SetRenderDrawColorFloat(renderer, bg.r, bg.g, bg.b, bg.a);
                 if (config->cornerRadius.topLeft > 0) {
                     SDL_Ext_RenderFillRoundedRect(
