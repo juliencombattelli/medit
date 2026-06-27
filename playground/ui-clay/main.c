@@ -102,8 +102,9 @@ static void scrollbar_layout(
                     .layout = {
                         .sizing = {
                             .width = CLAY_SIZING_FIXED(
-                                (scroll_data.scrollContainerDimensions.width / scroll_data.contentDimensions.width)
-                                * scroll_data.scrollContainerDimensions.width),
+                                ((scroll_data.scrollContainerDimensions.width / scroll_data.contentDimensions.width)
+                                * scroll_data.scrollContainerDimensions.width)
+                                - (scroll_data.config.vertical ? 12 : 0)),
                             .height = CLAY_SIZING_FIXED(12),
                         }
                     },
