@@ -160,12 +160,12 @@ void Clay_Ext_UpdateScrollContainerCustom(
 
     // Apply scroll delta for mouse wheel and dragging close to the edges
     if (scroll.config.horizontal) {
-        scroll.scrollPosition->x += delta.x * config.sensitivity;
+        scroll.scrollPosition->x += delta.x * config.sensitivity_h;
         const float min_x = -MAX(scroll.contentDimensions.width - scroll.scrollContainerDimensions.width, 0);
         scroll.scrollPosition->x = CLAMP(scroll.scrollPosition->x, min_x, 0);
     }
     if (scroll.config.vertical) {
-        scroll.scrollPosition->y += delta.y * config.sensitivity;
+        scroll.scrollPosition->y += delta.y * config.sensitivity_v;
         const float min_y = -MAX(scroll.contentDimensions.height - scroll.scrollContainerDimensions.height, 0);
         scroll.scrollPosition->y = CLAMP(scroll.scrollPosition->y, min_y, 0);
     }

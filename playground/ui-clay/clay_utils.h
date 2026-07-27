@@ -78,7 +78,8 @@ void mouse_state_update(MouseState* mouse_state, uint32_t buttons);
 //------------------------------------------------------------------------------
 
 typedef struct {
-    float sensitivity;
+    float sensitivity_h;
+    float sensitivity_v;
     bool use_both_wheels;
     bool enable_drag_on_edges;
 } ScrollContainerConfig;

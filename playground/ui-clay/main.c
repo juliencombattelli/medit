@@ -253,7 +253,8 @@ static void menu_bar_layout(void)
 {
     CLAY(CLAY_ID("menu_bar"), {
         .layout = {
-            .sizing = { .height = CLAY_SIZING_FIXED(60), .width = CLAY_SIZING_GROW(0) },
+            .layoutDirection = CLAY_TOP_TO_BOTTOM,
+            .sizing = { .height = CLAY_SIZING_FIXED(300), .width = CLAY_SIZING_GROW(0) },
             .padding = CLAY_PADDING_ALL(8),
             .childGap = 8
         },
@@ -261,30 +262,39 @@ static void menu_bar_layout(void)
         .cornerRadius = CLAY_CORNER_RADIUS(8),
         .clip = { .horizontal = true, .vertical = true, .childOffset = Clay_GetScrollOffset() },
     }) {
-        for (uint32_t i = 0; i < menu_bar_element_count; i++) {
-            MenuBarElementData element_data = menu_bar_elements[i];
-            CLAY(CLAY_IDI("menu_bar_element", i), {
+        for (uint32_t row = 0; row < 8; row++) {
+            CLAY(CLAY_IDI("menu_bar_row", row), {
                 .layout = {
-                    .sizing = {
-                        .height = CLAY_SIZING_FIXED(120),
-                        .width = CLAY_SIZING_FIXED(element_data.width),
-                    },
+                    .layoutDirection = CLAY_LEFT_TO_RIGHT,
+                    .childGap = 8,
                 },
-                .backgroundColor = element_data.color,
-                .cornerRadius = CLAY_CORNER_RADIUS(8),
             }) {
-                if (Clay_Hovered() && !is_any_element_dragged(&drag_state)
-                    && dragged_menu_bar_element == NO_DRAGGED_MENU_BAR_ELEMENT
-                    && mouse_state.buttons[MOUSE_BUTTON_LEFT].state == MOUSE_BUTTON_PRESSED)
-                {
-                    float distance_from_click_origin = distance(
-                        mouse_state.buttons[MOUSE_BUTTON_LEFT].click_origin,
-                        mouse_state.pos);
-                    if (distance_from_click_origin > drag_dead_zone_pixels) {
-                        dragged_menu_bar_element = i;
-                        drag_state.active_id = Clay_GetElementId(CLAY_STRING("dragged_menu_bar_element")).id;
-                        drag_state.is_droppable = true;
-                        drag_state.click_origin = mouse_state.buttons[MOUSE_BUTTON_LEFT].click_origin;
+                for (uint32_t i = 0; i < menu_bar_element_count; i++) {
+                    MenuBarElementData element_data = menu_bar_elements[i];
+                    CLAY(CLAY_IDI("menu_bar_element", (row << 8) + i), {
+                        .layout = {
+                            .sizing = {
+                                .height = CLAY_SIZING_FIXED(100),
+                                .width = CLAY_SIZING_FIXED(element_data.width),
+                            },
+                        },
+                        .backgroundColor = element_data.color,
+                        .cornerRadius = CLAY_CORNER_RADIUS(8),
+                    }) {
+                        if (Clay_Hovered() && !is_any_element_dragged(&drag_state)
+                            && dragged_menu_bar_element == NO_DRAGGED_MENU_BAR_ELEMENT
+                            && mouse_state.buttons[MOUSE_BUTTON_LEFT].state == MOUSE_BUTTON_PRESSED)
+                        {
+                            float distance_from_click_origin = distance(
+                                mouse_state.buttons[MOUSE_BUTTON_LEFT].click_origin,
+                                mouse_state.pos);
+                            if (distance_from_click_origin > drag_dead_zone_pixels) {
+                                dragged_menu_bar_element = i;
+                                drag_state.active_id = Clay_GetElementId(CLAY_STRING("dragged_menu_bar_element")).id;
+                                drag_state.is_droppable = true;
+                                drag_state.click_origin = mouse_state.buttons[MOUSE_BUTTON_LEFT].click_origin;
+                            }
+                        }
                     }
                 }
             }
@@ -513,7 +523,8 @@ int main(void)
             mouse_state.pos,
             mouse_state.scroll_delta,
             (ScrollContainerConfig) {
-                .sensitivity = 30.f,
+                .sensitivity_h = 30.f,
+                .sensitivity_v = 10.f,
                 .enable_drag_on_edges = true,
             },
             &mouse_state,
@@ -526,7 +537,8 @@ int main(void)
             mouse_state.pos,
             mouse_state.scroll_delta,
             (ScrollContainerConfig) {
-                .sensitivity = 30.f,
+                .sensitivity_h = 30.f,
+                .sensitivity_v = 30.f,
                 .use_both_wheels = true,
             },
             &mouse_state,
