@@ -14,6 +14,8 @@ typedef struct {
     TTF_Font* font;
 } AppState;
 
+#define TITLE_BAR_HEIGHT 30
+
 #define NO_DRAGGED_MENU_BAR_ELEMENT ((size_t)-1)
 
 static const Clay_Color background_color            = { 0x18, 0x18, 0x18, 0xFF };
@@ -416,6 +418,38 @@ static void status_bar_layout(void)
     });
 }
 
+static void title_bar_layout(void)
+{
+    CLAY(CLAY_ID("title_bar"), {
+        .layout = {
+            .layoutDirection = CLAY_LEFT_TO_RIGHT,
+            .sizing = {
+                .width = CLAY_SIZING_GROW(0),
+                .height = CLAY_SIZING_FIXED(TITLE_BAR_HEIGHT),
+            },
+        },
+        .backgroundColor = { 0x7F, 0x00, 0x7F, 0xFF},
+    }) {
+        CLAY(CLAY_ID("title_bar_filler"), {
+            .layout = {
+                .sizing = {
+                    .width = CLAY_SIZING_GROW(0),
+                    .height = CLAY_SIZING_GROW(0),
+                },
+            },
+        });
+        CLAY(CLAY_ID("title_bar_ctrl_buttons"), {
+            .layout = {
+                .sizing = {
+                    .width = CLAY_SIZING_FIXED(60),
+                    .height = CLAY_SIZING_GROW(0),
+                },
+            },
+            .backgroundColor = { 0xFF, 0x00, 0xFF, 0xFF},
+        });
+    }
+}
+
 static Clay_RenderCommandArray editor_layout(void)
 {
     Clay_BeginLayout();
@@ -427,14 +461,27 @@ static Clay_RenderCommandArray editor_layout(void)
                 .width = CLAY_SIZING_GROW(0),
                 .height = CLAY_SIZING_GROW(0),
             },
-            .padding = CLAY_PADDING_ALL(16),
-            .childGap = 16,
         },
         .backgroundColor = { 0x7F, 0x00, 0x00, 0xFF},
     }) {
-        menu_bar_layout();
-        middle_area_layout();
-        status_bar_layout();
+        title_bar_layout();
+
+        CLAY(CLAY_ID("window_frame_inner"), {
+            .layout = {
+                .layoutDirection = CLAY_TOP_TO_BOTTOM,
+                .sizing = {
+                    .width = CLAY_SIZING_GROW(0),
+                    .height = CLAY_SIZING_GROW(0),
+                },
+                .padding = CLAY_PADDING_ALL(16),
+                .childGap = 16,
+            },
+            .backgroundColor = { 0x7F, 0x00, 0x00, 0xFF},
+        }) {
+            menu_bar_layout();
+            middle_area_layout();
+            status_bar_layout();
+        }
     }
 
     Clay_ElementId dragged_menu_bar_element_id = Clay_GetElementId(CLAY_STRING("dragged_menu_bar_element"));
@@ -459,14 +506,53 @@ static void handle_clay_errors(Clay_ErrorData error_data)
     printf("%s\n", error_data.errorText.chars);
 }
 
-int main(void)
+#define WINDOW_HIT_TEST_MARGIN 20
+
+SDL_HitTestResult handle_sdl_window_hit_test(SDL_Window *window, const SDL_Point *area, void *data) {
+    int width = 0, height = 0;
+    SDL_GetWindowSize(window, &width, &height);
+
+    SDL_HitTestResult hit_test = SDL_HITTEST_NORMAL;
+
+    if (area->y < TITLE_BAR_HEIGHT) {
+        if (area->y < TITLE_BAR_HEIGHT / 4) {
+            if (area->x < WINDOW_HIT_TEST_MARGIN) {
+                hit_test = SDL_HITTEST_RESIZE_TOPLEFT;
+            } else if (area->x > width - WINDOW_HIT_TEST_MARGIN) {
+                hit_test = SDL_HITTEST_RESIZE_TOPRIGHT;
+            } else {
+                hit_test = SDL_HITTEST_RESIZE_TOP;
+            }
+        } else {
+            hit_test = SDL_HITTEST_DRAGGABLE;
+        }
+    } else if (area->y > height - WINDOW_HIT_TEST_MARGIN) {
+        if (area->x < WINDOW_HIT_TEST_MARGIN) {
+            hit_test = SDL_HITTEST_RESIZE_BOTTOMLEFT;
+        } else if (area->x > width - WINDOW_HIT_TEST_MARGIN) {
+            hit_test = SDL_HITTEST_RESIZE_BOTTOMRIGHT;
+        } else {
+            hit_test = SDL_HITTEST_RESIZE_BOTTOM;
+        }
+    } else if (area->x < WINDOW_HIT_TEST_MARGIN) {
+        hit_test = SDL_HITTEST_RESIZE_LEFT;
+    } else if (area->x > width - WINDOW_HIT_TEST_MARGIN) {
+        hit_test = SDL_HITTEST_RESIZE_RIGHT;
+    }
+
+    // printf("Window hit test: %d\n", hit_test);
+
+    return hit_test;
+}
+
+int main(int argc, char** argv)
 {
     AppState state = { 0 };
 
     assert(SDL_Init(SDL_INIT_VIDEO));
     assert(TTF_Init());
 
-    state.window = SDL_CreateWindow("UI Playground", 1280, 720, SDL_WINDOW_HIDDEN | SDL_WINDOW_RESIZABLE);
+    state.window = SDL_CreateWindow("UI Playground", 1280, 720, SDL_WINDOW_HIDDEN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_BORDERLESS);
     assert(state.window);
 
     state.renderer = SDL_CreateRenderer(state.window, NULL);
@@ -478,7 +564,9 @@ int main(void)
     assert(state.text_engine);
 
     assert(SDL_ShowWindow(state.window));
-    assert(SDL_StartTextInput(state.window));
+    assert_sdl(SDL_StartTextInput(state.window));
+
+    assert_sdl(SDL_SetWindowHitTest(state.window, handle_sdl_window_hit_test, NULL));
 
     int width = 0, height = 0;
     SDL_GetWindowSize(state.window, &width, &height);

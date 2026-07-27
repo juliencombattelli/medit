@@ -7,4 +7,7 @@
 #define assert(expr)                                                                               \
     ((expr) ? (void)0 : ((void)fprintf(stderr, "%s:%u: %s\n", __FILE__, __LINE__, #expr), abort()))
 
+#define assert_sdl(expr)                                                                               \
+    ((expr) ? (void)0 : ((void)fprintf(stderr, "%s:%u: %s: SDL Error: %s\n", __FILE__, __LINE__, #expr, SDL_GetError()), abort()))
+
 #endif // MEDIT_CORE_ASSERT_H_
