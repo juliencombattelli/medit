@@ -14,7 +14,7 @@ typedef struct {
     TTF_Font* font;
 } AppState;
 
-#define TITLE_BAR_HEIGHT 30
+#define TITLE_BAR_HEIGHT 38
 
 #define NO_DRAGGED_MENU_BAR_ELEMENT ((size_t)-1)
 
@@ -545,6 +545,8 @@ SDL_HitTestResult handle_sdl_window_hit_test(SDL_Window *window, const SDL_Point
     return hit_test;
 }
 
+#include "win32/sdl3_ext_win32.h"
+
 int main(int argc, char** argv)
 {
     AppState state = { 0 };
@@ -562,6 +564,8 @@ int main(int argc, char** argv)
 
     state.text_engine = TTF_CreateRendererTextEngine(state.renderer);
     assert(state.text_engine);
+
+    SDL_Ext_SetWindowsMessageHook(state.window, TITLE_BAR_HEIGHT);
 
     assert(SDL_ShowWindow(state.window));
     assert_sdl(SDL_StartTextInput(state.window));
