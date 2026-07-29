@@ -512,32 +512,36 @@ SDL_HitTestResult handle_sdl_window_hit_test(SDL_Window *window, const SDL_Point
     int width = 0, height = 0;
     SDL_GetWindowSize(window, &width, &height);
 
+    const bool at_left      = area->x < WINDOW_HIT_TEST_MARGIN;
+    const bool at_right     = area->x > width - WINDOW_HIT_TEST_MARGIN;
+    const bool at_top       = area->y < TITLE_BAR_HEIGHT / 4;
+    const bool at_title_bar = area->y < TITLE_BAR_HEIGHT;
+    const bool at_bottom    = area->y > height - WINDOW_HIT_TEST_MARGIN;
+
     SDL_HitTestResult hit_test = SDL_HITTEST_NORMAL;
 
-    if (area->y < TITLE_BAR_HEIGHT) {
-        if (area->y < TITLE_BAR_HEIGHT / 4) {
-            if (area->x < WINDOW_HIT_TEST_MARGIN) {
-                hit_test = SDL_HITTEST_RESIZE_TOPLEFT;
-            } else if (area->x > width - WINDOW_HIT_TEST_MARGIN) {
-                hit_test = SDL_HITTEST_RESIZE_TOPRIGHT;
-            } else {
-                hit_test = SDL_HITTEST_RESIZE_TOP;
-            }
+    if (at_top) {
+        if (at_left) {
+            hit_test = SDL_HITTEST_RESIZE_TOPLEFT;
+        } else if (at_right) {
+            hit_test = SDL_HITTEST_RESIZE_TOPRIGHT;
         } else {
-            hit_test = SDL_HITTEST_DRAGGABLE;
+            hit_test = SDL_HITTEST_RESIZE_TOP;
         }
-    } else if (area->y > height - WINDOW_HIT_TEST_MARGIN) {
-        if (area->x < WINDOW_HIT_TEST_MARGIN) {
+    } else if (at_bottom) {
+        if (at_left) {
             hit_test = SDL_HITTEST_RESIZE_BOTTOMLEFT;
-        } else if (area->x > width - WINDOW_HIT_TEST_MARGIN) {
+        } else if (at_right) {
             hit_test = SDL_HITTEST_RESIZE_BOTTOMRIGHT;
         } else {
             hit_test = SDL_HITTEST_RESIZE_BOTTOM;
         }
-    } else if (area->x < WINDOW_HIT_TEST_MARGIN) {
+    } else if (at_left) {
         hit_test = SDL_HITTEST_RESIZE_LEFT;
-    } else if (area->x > width - WINDOW_HIT_TEST_MARGIN) {
+    } else if (at_right) {
         hit_test = SDL_HITTEST_RESIZE_RIGHT;
+    } else if (at_title_bar) {
+        hit_test = SDL_HITTEST_DRAGGABLE;
     }
 
     // printf("Window hit test: %d\n", hit_test);
