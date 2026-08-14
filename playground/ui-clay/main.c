@@ -1,4 +1,5 @@
 #include "clay_sdl3.h"
+#include "titlebar.h"
 
 #include <core/assert.h>
 
@@ -14,7 +15,9 @@ typedef struct {
     TTF_Font* font;
 } AppState;
 
-#define TITLE_BAR_HEIGHT 38
+#define TITLE_BAR_HEIGHT 32
+#define TITLE_BAR_BUTTONS_WIDTH 46
+#define WINDOW_HIT_TEST_MARGIN 4
 
 #define NO_DRAGGED_MENU_BAR_ELEMENT ((size_t)-1)
 
@@ -418,39 +421,7 @@ static void status_bar_layout(void)
     });
 }
 
-static void title_bar_layout(void)
-{
-    CLAY(CLAY_ID("title_bar"), {
-        .layout = {
-            .layoutDirection = CLAY_LEFT_TO_RIGHT,
-            .sizing = {
-                .width = CLAY_SIZING_GROW(0),
-                .height = CLAY_SIZING_FIXED(TITLE_BAR_HEIGHT),
-            },
-        },
-        .backgroundColor = { 0x7F, 0x00, 0x7F, 0xFF},
-    }) {
-        CLAY(CLAY_ID("title_bar_filler"), {
-            .layout = {
-                .sizing = {
-                    .width = CLAY_SIZING_GROW(0),
-                    .height = CLAY_SIZING_GROW(0),
-                },
-            },
-        });
-        CLAY(CLAY_ID("title_bar_ctrl_buttons"), {
-            .layout = {
-                .sizing = {
-                    .width = CLAY_SIZING_FIXED(60),
-                    .height = CLAY_SIZING_GROW(0),
-                },
-            },
-            .backgroundColor = { 0xFF, 0x00, 0xFF, 0xFF},
-        });
-    }
-}
-
-static Clay_RenderCommandArray editor_layout(void)
+static Clay_RenderCommandArray editor_layout(TitlebarState* titlebar_state)
 {
     Clay_BeginLayout();
 
@@ -464,7 +435,7 @@ static Clay_RenderCommandArray editor_layout(void)
         },
         .backgroundColor = { 0x7F, 0x00, 0x00, 0xFF},
     }) {
-        title_bar_layout();
+        titlebar_layout(titlebar_state);
 
         CLAY(CLAY_ID("window_frame_inner"), {
             .layout = {
@@ -506,83 +477,58 @@ static void handle_clay_errors(Clay_ErrorData error_data)
     printf("%s\n", error_data.errorText.chars);
 }
 
-#define WINDOW_HIT_TEST_MARGIN 20
-
-SDL_HitTestResult handle_sdl_window_hit_test(SDL_Window *window, const SDL_Point *area, void *data) {
-    int width = 0, height = 0;
-    SDL_GetWindowSize(window, &width, &height);
-
-    const bool at_left      = area->x < WINDOW_HIT_TEST_MARGIN;
-    const bool at_right     = area->x > width - WINDOW_HIT_TEST_MARGIN;
-    const bool at_top       = area->y < TITLE_BAR_HEIGHT / 4;
-    const bool at_title_bar = area->y < TITLE_BAR_HEIGHT;
-    const bool at_bottom    = area->y > height - WINDOW_HIT_TEST_MARGIN;
-
-    SDL_HitTestResult hit_test = SDL_HITTEST_NORMAL;
-
-    if (at_top) {
-        if (at_left) {
-            hit_test = SDL_HITTEST_RESIZE_TOPLEFT;
-        } else if (at_right) {
-            hit_test = SDL_HITTEST_RESIZE_TOPRIGHT;
-        } else {
-            hit_test = SDL_HITTEST_RESIZE_TOP;
-        }
-    } else if (at_bottom) {
-        if (at_left) {
-            hit_test = SDL_HITTEST_RESIZE_BOTTOMLEFT;
-        } else if (at_right) {
-            hit_test = SDL_HITTEST_RESIZE_BOTTOMRIGHT;
-        } else {
-            hit_test = SDL_HITTEST_RESIZE_BOTTOM;
-        }
-    } else if (at_left) {
-        hit_test = SDL_HITTEST_RESIZE_LEFT;
-    } else if (at_right) {
-        hit_test = SDL_HITTEST_RESIZE_RIGHT;
-    } else if (at_title_bar) {
-        hit_test = SDL_HITTEST_DRAGGABLE;
-    }
-
-    // printf("Window hit test: %d\n", hit_test);
-
-    return hit_test;
-}
-
-#include "win32/sdl3_ext_win32.h"
-
 int main(int argc, char** argv)
 {
+    (void)argc;
+    (void)argv;
+
     AppState state = { 0 };
 
     assert(SDL_Init(SDL_INIT_VIDEO));
     assert(TTF_Init());
 
-    state.window = SDL_CreateWindow("UI Playground", 1280, 720, SDL_WINDOW_HIDDEN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_BORDERLESS);
-    assert(state.window);
+    SDL_WindowFlags window_flags = SDL_WINDOW_HIDDEN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_BORDERLESS | SDL_WINDOW_HIGH_PIXEL_DENSITY;
+
+#if SDL_PLATFORM_LINUX
+    const char* is_running_on_wslg = SDL_getenv("WSL2_GUI_APPS_ENABLED");
+    if (is_running_on_wslg && SDL_strcmp(SDL_GetCurrentVideoDriver(), "x11") == 0) {
+        // When running in WSLg using X11, borderless apps show a weird offset from top-left screen corner when maximized
+        // So we force classic windowed mode with borders
+        window_flags &= ~SDL_WINDOW_BORDERLESS;
+    }
+#endif
+
+    state.window = SDL_CreateWindow("UI Playground", 1280, 720, window_flags);
+    assert_sdl(state.window);
 
     state.renderer = SDL_CreateRenderer(state.window, NULL);
-    assert(state.renderer);
+    assert_sdl(state.renderer);
 
-    assert(SDL_SetRenderVSync(state.renderer, 1));
+    assert_sdl(SDL_SetRenderVSync(state.renderer, 1));
 
     state.text_engine = TTF_CreateRendererTextEngine(state.renderer);
-    assert(state.text_engine);
+    assert_sdl(state.text_engine);
 
-    SDL_Ext_SetWindowsMessageHook(state.window, TITLE_BAR_HEIGHT);
-
-    assert(SDL_ShowWindow(state.window));
+    assert_sdl(SDL_ShowWindow(state.window));
     assert_sdl(SDL_StartTextInput(state.window));
 
-    assert_sdl(SDL_SetWindowHitTest(state.window, handle_sdl_window_hit_test, NULL));
+    TitlebarState titlebar_state = {
+        .height = TITLE_BAR_HEIGHT,
+        .resize_border = WINDOW_HIT_TEST_MARGIN,
+        .button_width = TITLE_BAR_BUTTONS_WIDTH,
+    };
 
-    int width = 0, height = 0;
-    SDL_GetWindowSize(state.window, &width, &height);
-    uint32_t mem_size = Clay_MinMemorySize();
-    Clay_Initialize(
-        Clay_CreateArenaWithCapacityAndMemory(mem_size, malloc(mem_size)),
-        (Clay_Dimensions) { .width = (float)width, .height = (float)height },
-        (Clay_ErrorHandler) { .errorHandlerFunction = handle_clay_errors });
+    titlebar_init(&titlebar_state, state.window);
+
+    {
+        int width = 0, height = 0;
+        SDL_GetWindowSize(state.window, &width, &height);
+        uint32_t mem_size = Clay_MinMemorySize();
+        Clay_Initialize(
+            Clay_CreateArenaWithCapacityAndMemory(mem_size, malloc(mem_size)),
+            (Clay_Dimensions) { .width = (float)width, .height = (float)height },
+            (Clay_ErrorHandler) { .errorHandlerFunction = handle_clay_errors });
+    }
 
     bool running = true;
     while (running) {
@@ -608,7 +554,7 @@ int main(int argc, char** argv)
             }
         }
 
-        mouse_state_update(&mouse_state, sdl_get_mouse_state(&mouse_state));
+        mouse_state_update(&mouse_state, sdl_get_mouse_state(state.window, &mouse_state));
 
         Clay_SetPointerState(mouse_state.pos, mouse_state.buttons[MOUSE_BUTTON_LEFT].state);
 
@@ -646,7 +592,9 @@ int main(int argc, char** argv)
             mouse_state.scroll_delta,
             0.f); // not used when touch and drag scrolling is disabled
 
-        Clay_RenderCommandArray render_commands = editor_layout();
+        titlebar_update(&titlebar_state, state.window, &mouse_state, &running);
+
+        Clay_RenderCommandArray render_commands = editor_layout(&titlebar_state);
 
         SDL_SetRenderDrawColor(state.renderer, 0, 128, 0, 255);
         SDL_RenderClear(state.renderer);

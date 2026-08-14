@@ -34,9 +34,25 @@ _Static_assert(SDL_BUTTON_RMASK  == MOUSE_BUTTON_MASK(MOUSE_BUTTON_RIGHT), "");
 _Static_assert(SDL_BUTTON_X1MASK == MOUSE_BUTTON_MASK(MOUSE_BUTTON_SIDE_1), "");
 _Static_assert(SDL_BUTTON_X2MASK == MOUSE_BUTTON_MASK(MOUSE_BUTTON_SIDE_2), "");
 
-static inline uint32_t sdl_get_mouse_state(MouseState* mouse_state)
+#include <stdio.h>
+
+static inline uint32_t sdl_get_mouse_state(SDL_Window* window, MouseState* mouse_state)
 {
-    return SDL_GetMouseState(&mouse_state->pos.x, &mouse_state->pos.y);
+    // Use SDL_GetGlobalMouseState as SDL_GetMouseState may not get an up-to-date state when mouse is over custom window
+    // decorations on Windows
+
+    float gx = 0, gy = 0;
+    uint32_t mouse_buttons = SDL_GetGlobalMouseState(&gx, &gy);
+
+    int wx = 0, wy = 0;
+    SDL_GetWindowPosition(window, &wx, &wy);
+
+    mouse_state->pos.x = gx - (float)wx;
+    mouse_state->pos.y = gy - (float)wy;
+
+    printf("mouse_buttons=%u, x=%f, y=%f\n", mouse_buttons, mouse_state->pos.x, mouse_state->pos.y);
+
+    return mouse_buttons;
 }
 
 //------------------------------------------------------------------------------
