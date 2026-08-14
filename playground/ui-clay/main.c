@@ -537,12 +537,11 @@ int main(int argc, char** argv)
         while (SDL_PollEvent(&event)) {
             switch (event.type) {
                 case SDL_EVENT_QUIT: running = false; break;
-                case SDL_EVENT_WINDOW_RESIZED:
-                    Clay_SetLayoutDimensions((Clay_Dimensions) {
-                        (float)event.window.data1,
-                        (float)event.window.data2,
-                    });
-                    break;
+                case SDL_EVENT_WINDOW_RESIZED: {
+                    int width = event.window.data1;
+                    int height = event.window.data2;
+                    Clay_SetLayoutDimensions((Clay_Dimensions) { (float)width, (float)height });
+                } break;
                 case SDL_EVENT_MOUSE_WHEEL:
                     mouse_state.scroll_delta.x += event.wheel.x;
                     mouse_state.scroll_delta.y += event.wheel.y;
