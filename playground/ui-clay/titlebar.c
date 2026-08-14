@@ -64,6 +64,8 @@ static LRESULT CALLBACK custom_wndproc(HWND hwnd, UINT msg, WPARAM wParam, LPARA
                 return 0;
             }
         } break;
+
+        default: break;
     }
 
     return CallWindowProc(sdl_wndproc, hwnd, msg, wParam, lParam);
