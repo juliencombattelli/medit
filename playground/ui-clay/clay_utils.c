@@ -15,10 +15,10 @@ static void set_mouse_button_state(MouseButtonData* button, bool pressed_this_fr
     } else {
         if (button->state == MOUSE_BUTTON_RELEASED_THIS_FRAME) {
             button->state = MOUSE_BUTTON_RELEASED;
-        } else if (button->state != MOUSE_BUTTON_RELEASED) {
-            button->state = MOUSE_BUTTON_RELEASED_THIS_FRAME;
             button->click_origin.x = 0;
             button->click_origin.y = 0;
+        } else if (button->state != MOUSE_BUTTON_RELEASED) {
+            button->state = MOUSE_BUTTON_RELEASED_THIS_FRAME;
         }
     }
 }
