@@ -143,8 +143,7 @@ static SDL_HitTestResult handle_sdl_window_hit_test(SDL_Window *window, const SD
 
 #endif
 
-
-void titlebar_recalc_button_rects(TitlebarState* state, int window_width)
+static void titlebar_recalc_button_rects(TitlebarState* state, int window_width)
 {
     state->minimize_button_rect = (SDL_Rect){
         .x = window_width - (state->button_width * 3),
@@ -168,7 +167,7 @@ void titlebar_recalc_button_rects(TitlebarState* state, int window_width)
     };
 }
 
-int titlebar_button_at(SDL_Point point, const TitlebarState* state)
+static int titlebar_button_at(SDL_Point point, const TitlebarState* state)
 {
     if (SDL_PointInRect(&point, &state->minimize_button_rect)) {
         return TITLEBAR_BTN_MIN;
@@ -182,8 +181,7 @@ int titlebar_button_at(SDL_Point point, const TitlebarState* state)
     return TITLEBAR_BTN_NONE;
 }
 
-
-void titlebar_update_hovered_button(TitlebarState* state, SDL_Window* window)
+static void titlebar_update_hovered_button(TitlebarState* state, SDL_Window* window)
 {
     float gx = 0, gy = 0;
     SDL_GetGlobalMouseState(&gx, &gy);
