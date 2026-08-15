@@ -492,8 +492,8 @@ int main(int argc, char** argv)
 #if SDL_PLATFORM_LINUX
     const char* is_running_on_wslg = SDL_getenv("WSL2_GUI_APPS_ENABLED");
     if (is_running_on_wslg && SDL_strcmp(SDL_GetCurrentVideoDriver(), "x11") == 0) {
-        // When running in WSLg using X11, borderless apps show a weird offset from top-left screen corner when maximized
-        // So we force classic windowed mode with borders
+        // When running in WSLg using X11, borderless apps show a weird offset from top-left screen corner when
+        // maximized if fractional scaling is used. So we force classic windowed mode with borders.
         window_flags &= ~SDL_WINDOW_BORDERLESS;
     }
 #endif
