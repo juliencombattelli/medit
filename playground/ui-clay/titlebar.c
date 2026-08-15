@@ -12,6 +12,13 @@
 #define PROP_MEDIT_WIN32_SDL_WNDPROC "medit.win32.sdl_wndproc"
 #define PROP_MEDIT_WIN32_TITLEBAR_STATE "medit.win32.titlebar_state"
 
+static SDL_Point sdl_win32_screen_to_client(HWND hwnd, LONG x, LONG y)
+{
+    POINT point = { x, y };
+    assert(ScreenToClient(hwnd, &point) != 0);
+    return (SDL_Point){ .x = point.x, .y = point.y };
+}
+
 static LRESULT CALLBACK custom_wndproc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     WNDPROC sdl_wndproc = (WNDPROC)GetProp(hwnd, PROP_MEDIT_WIN32_SDL_WNDPROC);
@@ -27,29 +34,27 @@ static LRESULT CALLBACK custom_wndproc(HWND hwnd, UINT msg, WPARAM wParam, LPARA
                 p->rgrc[0].left   += frameX;
                 p->rgrc[0].right  -= frameX;
                 p->rgrc[0].bottom -= frameY;
-                if (maximized) {
-                    // avoid off-screen clip
-                    p->rgrc[0].top += frameY;
-                }
+                if (maximized) p->rgrc[0].top += frameY; // avoid off-screen clip
                 return 0;
             }
         } break;
         case WM_NCHITTEST: {
-            POINT pt = { GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
-            ScreenToClient(hwnd, &pt);
-            SDL_Point point = { .x = pt.x, .y = pt.y };
-            if (SDL_PointInRect(&point, &titlebar_state->maximize_button_rect)) {
-                return HTMAXBUTTON;
+            SDL_Point point = sdl_win32_screen_to_client(hwnd, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+            LRESULT hit = DefWindowProc(hwnd, msg, wParam, lParam);
+            if (hit != HTCLIENT) return hit;
+            // The default hit testing done by DefWindowProc never returns HTTOP* when the mouse is in the top border
+            // due to the custom WM_NCCALCSIZE calculation
+            if (point.y < titlebar_state->resize_border) {
+                RECT rect;
+                GetClientRect(hwnd, &rect);
+                if (point.x < titlebar_state->resize_border) return HTTOPLEFT;
+                if (rect.right - point.x < titlebar_state->resize_border) return HTTOPRIGHT;
+                return HTTOP;
             }
-            if (SDL_PointInRect(&point, &titlebar_state->minimize_button_rect)) {
-                return HTMINBUTTON;
-            }
-            if (SDL_PointInRect(&point, &titlebar_state->close_button_rect)) {
-                return HTCLOSE;
-            }
-            if (pt.y >= 0 && pt.y < titlebar_state->height) {
-                return HTCAPTION;
-            }
+            if (SDL_PointInRect(&point, &titlebar_state->maximize_button_rect)) return HTMAXBUTTON;
+            if (SDL_PointInRect(&point, &titlebar_state->minimize_button_rect)) return HTMINBUTTON;
+            if (SDL_PointInRect(&point, &titlebar_state->close_button_rect)) return HTCLOSE;
+            if (point.y >= 0 && point.y < titlebar_state->height) return HTCAPTION;
             return HTCLIENT;
         } break;
         case WM_NCLBUTTONDOWN: {
@@ -60,9 +65,7 @@ static LRESULT CALLBACK custom_wndproc(HWND hwnd, UINT msg, WPARAM wParam, LPARA
             // desyncing our edge detector. Returning 0 suppresses all of that so our portable poll is the single click authority.
             // NOTE: only swallow the button hit-tests, never HTCAPTION, that modal loop is the native drag-to-move we want
             // to keep. Snap Layouts are unaffected (they key off HTMAXBUTTON from WM_NCHITTEST on hover).
-            if (wParam == HTMINBUTTON || wParam == HTMAXBUTTON || wParam == HTCLOSE) {
-                return 0;
-            }
+            if (wParam == HTMINBUTTON || wParam == HTMAXBUTTON || wParam == HTCLOSE) return 0;
         } break;
 
         default: break;
@@ -79,7 +82,7 @@ bool titlebar_win32_init(SDL_Window* window, TitlebarState* titlebar_state)
         return false;
     }
 
-    DWM_WINDOW_CORNER_PREFERENCE corner = DWMWCP_ROUND;
+    DWM_WINDOW_CORNER_PREFERENCE corner = DWMWCP_DEFAULT;
     DwmSetWindowAttribute(hwnd, DWMWA_WINDOW_CORNER_PREFERENCE, &corner, sizeof(corner));
 
     WNDPROC sdl_wndproc = (WNDPROC)SetWindowLongPtr(hwnd, GWLP_WNDPROC, (LONG_PTR)custom_wndproc);
@@ -200,6 +203,7 @@ static void titlebar_update_hovered_button(TitlebarState* state, SDL_Window* win
 void titlebar_init(TitlebarState* titlebar_state, SDL_Window* window)
 {
 #if SDL_PLATFORM_WINDOWS
+    // Note: SDL_SetWindowsMessageHook cannot be used here as it does not allow to inject events for SDL
     assert(titlebar_win32_init(window, titlebar_state));
 #else
     assert_sdl(SDL_SetWindowHitTest(window, handle_sdl_window_hit_test, titlebar_state));
