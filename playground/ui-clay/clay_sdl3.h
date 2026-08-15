@@ -50,7 +50,7 @@ static inline uint32_t sdl_get_mouse_state(SDL_Window* window, MouseState* mouse
     mouse_state->pos.x = gx - (float)wx;
     mouse_state->pos.y = gy - (float)wy;
 
-    printf("mouse_buttons=%u, x=%f, y=%f\n", mouse_buttons, mouse_state->pos.x, mouse_state->pos.y);
+    // printf("mouse_buttons=%u, x=%f, y=%f\n", mouse_buttons, mouse_state->pos.x, mouse_state->pos.y);
 
     return mouse_buttons;
 }
