@@ -254,6 +254,31 @@ static void dragged_menu_bar_element_drop_indicator_layout(void)
     }
 }
 
+static void handle_menu_bar_element_interaction(Clay_ElementId element_id, Clay_PointerData pointer, void *userdata)
+{
+    (void)pointer;
+
+    uint32_t i = (uint32_t)(uintptr_t)userdata;
+
+    Clay_ElementData bar_elem = Clay_GetElementData(element_id);
+    bool clicked = bar_elem.found && point_inside_rect(mouse_state.buttons[MOUSE_BUTTON_LEFT].click_origin, bar_elem.boundingBox);
+
+    if (clicked
+        && !is_any_element_dragged(&drag_state)
+        && dragged_menu_bar_element == NO_DRAGGED_MENU_BAR_ELEMENT)
+    {
+        float distance_from_click_origin = distance(
+            mouse_state.buttons[MOUSE_BUTTON_LEFT].click_origin,
+            mouse_state.pos);
+        if (distance_from_click_origin > drag_dead_zone_pixels) {
+            dragged_menu_bar_element = i;
+            drag_state.active_id = Clay_GetElementId(CLAY_STRING("dragged_menu_bar_element")).id;
+            drag_state.is_droppable = true;
+            drag_state.click_origin = mouse_state.buttons[MOUSE_BUTTON_LEFT].click_origin;
+        }
+    }
+}
+
 static void menu_bar_layout(void)
 {
     CLAY(CLAY_ID("menu_bar"), {
@@ -286,20 +311,7 @@ static void menu_bar_layout(void)
                         .backgroundColor = element_data.color,
                         .cornerRadius = CLAY_CORNER_RADIUS(8),
                     }) {
-                        if (Clay_Hovered() && !is_any_element_dragged(&drag_state)
-                            && dragged_menu_bar_element == NO_DRAGGED_MENU_BAR_ELEMENT
-                            && mouse_state.buttons[MOUSE_BUTTON_LEFT].state == MOUSE_BUTTON_PRESSED)
-                        {
-                            float distance_from_click_origin = distance(
-                                mouse_state.buttons[MOUSE_BUTTON_LEFT].click_origin,
-                                mouse_state.pos);
-                            if (distance_from_click_origin > drag_dead_zone_pixels) {
-                                dragged_menu_bar_element = i;
-                                drag_state.active_id = Clay_GetElementId(CLAY_STRING("dragged_menu_bar_element")).id;
-                                drag_state.is_droppable = true;
-                                drag_state.click_origin = mouse_state.buttons[MOUSE_BUTTON_LEFT].click_origin;
-                            }
-                        }
+                        Clay_OnHover(handle_menu_bar_element_interaction, (void*)(uintptr_t)i);
                     }
                 }
             }
