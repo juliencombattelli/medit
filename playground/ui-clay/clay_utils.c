@@ -81,6 +81,12 @@ void Clay_Ext_UpdateScrollContainerCustom(
         return;
     }
 
+    const Clay_ElementData scrollbar_h_data = Clay_GetElementData(scrollbar_h_id);
+    const Clay_BoundingBox scrollbar_h_bb = scrollbar_h_data.boundingBox;
+
+    const Clay_ElementData scrollbar_v_data = Clay_GetElementData(scrollbar_v_id);
+    const Clay_BoundingBox scrollbar_v_bb = scrollbar_v_data.boundingBox;
+
     const MouseButtonData mb_left = mouse_state->buttons[MOUSE_BUTTON_LEFT];
 
     const bool dragging = is_any_element_dragged(drag_state) && mb_left.state == MOUSE_BUTTON_PRESSED;
@@ -90,12 +96,16 @@ void Clay_Ext_UpdateScrollContainerCustom(
 
     // Register currently dragged scrollbar if any
     if (!dragging) {
-        if (Clay_PointerOver(scrollbar_h_id)) {
+        if (Clay_PointerOver(scrollbar_h_id)
+            && point_inside_rect(mb_left.click_origin, scrollbar_h_bb)
+        ) {
             drag_state->active_id = scrollbar_h_id.id;
             drag_state->is_droppable = false;
             drag_state->click_origin = *scroll.scrollPosition;
         }
-        if (Clay_PointerOver(scrollbar_v_id)) {
+        if (Clay_PointerOver(scrollbar_v_id)
+            && point_inside_rect(mb_left.click_origin, scrollbar_v_bb)
+        ) {
             drag_state->active_id = scrollbar_v_id.id;
             drag_state->is_droppable = false;
             drag_state->click_origin = *scroll.scrollPosition;
