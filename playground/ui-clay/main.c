@@ -127,7 +127,6 @@ static Clay_Color get_scrollbar_color(void)
 static void scrollbar_layout(void)
 {
     // TODO verify that only one scrollbar is displayed when overflowing on only one dimension
-    // TODO display the vertical scrollbar on the full height, but the horizontal on the full width minus the vertical scrollbar if displayed
     uint32_t parent_id = Clay_GetOpenElementId();
     Clay_ScrollContainerData scroll_data = Clay_GetScrollContainerData((Clay_ElementId){ .id = parent_id });
     if (scroll_data.found) {
