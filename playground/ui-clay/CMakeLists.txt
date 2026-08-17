@@ -5,7 +5,7 @@ add_executable(playground_ui_clay
 target_compile_options(playground_ui_clay PRIVATE ${COMPILE_OPTIONS})
 target_include_directories(playground_ui_clay PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_link_libraries(playground_ui_clay PRIVATE
-    SDL3::SDL3 SDL3_ttf::SDL3_ttf utf8proc::utf8proc Clay::Clay
+    SDL3::SDL3 SDL3_ttf::SDL3_ttf utf8proc::utf8proc Clay::Clay m
 )
 if(WIN32)
     target_link_libraries(playground_ui_clay PRIVATE dwmapi)

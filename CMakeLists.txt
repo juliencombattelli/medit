@@ -40,7 +40,7 @@ add_hot_reloadable_executable(medit medit_app)
 target_sources(medit PRIVATE src/main.c)
 target_compile_options(medit PRIVATE ${COMPILE_OPTIONS})
 target_include_directories(medit PRIVATE src)
-target_link_libraries(medit PRIVATE SDL3::SDL3)
+target_link_libraries(medit PRIVATE SDL3::SDL3 m)
 
 target_sources(medit_app PRIVATE
     # Hot reloadable entry point
