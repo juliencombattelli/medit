@@ -57,6 +57,70 @@ static MenuBarElementData menu_bar_elements[] = {
 
 static const size_t menu_bar_element_count = sizeof(menu_bar_elements) / sizeof(menu_bar_elements[0]);
 
+typedef struct {
+    const char* container_id;
+    const char* scrollbar_h_area_id;
+    const char* scrollbar_h_button_id;
+    const char* scrollbar_v_area_id;
+    const char* scrollbar_v_button_id;
+    ScrollContainerConfig config;
+} ScrollContainerData;
+
+static const ScrollContainerData scroll_container_data_array[] = {
+    {
+        .container_id = "menu_bar",
+        .scrollbar_h_area_id = "menu_bar_scrollbar_h_outer",
+        .scrollbar_h_button_id = "menu_bar_scrollbar_h_button",
+        .scrollbar_v_area_id = "menu_bar_scrollbar_v_outer",
+        .scrollbar_v_button_id = "menu_bar_scrollbar_v_button",
+        .config = {
+            .sensitivity_h = 30.f,
+            .sensitivity_v = 10.f,
+            .enable_drag_on_edges = true,
+        },
+    },
+    {
+        .container_id = "menu_bar2",
+        .scrollbar_h_area_id = "menu_bar2_scrollbar_h_outer",
+        .scrollbar_h_button_id = "menu_bar2_scrollbar_h_button",
+        .scrollbar_v_area_id = NULL,
+        .scrollbar_v_button_id = NULL,
+        .config = {
+            .sensitivity_h = 30.f,
+            .sensitivity_v = 10.f,
+            .use_both_wheels = true,
+        },
+    },
+};
+
+static const size_t scroll_container_data_count = sizeof(scroll_container_data_array) / sizeof(scroll_container_data_array[0]);
+
+static void Clay_Ext_UpdateScrollContainers(void)
+{
+    for (size_t i = 0; i < scroll_container_data_count; i++) {
+        const ScrollContainerData* scroll_container_data = &scroll_container_data_array[i];
+        Clay_Ext_UpdateScrollContainerCustom(
+            Clay_GetElementId(Clay_Ext_StringFromCStr(scroll_container_data->container_id)),
+            Clay_GetElementId(Clay_Ext_StringFromCStr(scroll_container_data->scrollbar_h_button_id)),
+            Clay_GetElementId(Clay_Ext_StringFromCStr(scroll_container_data->scrollbar_v_button_id)),
+            mouse_state.pos,
+            mouse_state.scroll_delta,
+            (ScrollContainerConfig) {
+                .sensitivity_h = 30.f,
+                .sensitivity_v = 10.f,
+                .enable_drag_on_edges = true,
+            },
+            &mouse_state,
+            &drag_state);
+    }
+
+    // Handle scroll delta with mouse wheels only for other scrollable areas
+    Clay_UpdateScrollContainers(
+        false, // do not enable touch and drag scrolling as it is handled per scrollable area
+        mouse_state.scroll_delta,
+        0.f); // not used when touch and drag scrolling is disabled
+}
+
 static Clay_Color get_scrollbar_color(void)
 {
     if (drag_state.active_id == Clay_GetOpenElementId()) {
@@ -68,14 +132,6 @@ static Clay_Color get_scrollbar_color(void)
     return scrollbar_inactive_color;
 }
 
-static Clay_String clay_string_from_c_str(const char* str) {
-    return (Clay_String) {
-        .isStaticallyAllocated = true,
-        .length = (int32_t)strlen(str),
-        .chars = str,
-    };
-}
-
 // Lay out an scrollbar with predefined settings for a given container
 static void scrollbar_layout(
     const char* scroll_container_id,
@@ -84,11 +140,11 @@ static void scrollbar_layout(
 {
     // TODO verify that only one scrollbar is displayed when overflowing on only one dimension
     // TODO display the vertical scrollbar on the full height, but the horizontal on the full width minus the vertical scrollbar if displayed
-    Clay_ElementId menu_bar_id = Clay_GetElementId(clay_string_from_c_str(scroll_container_id));
+    Clay_ElementId menu_bar_id = Clay_GetElementId(Clay_Ext_StringFromCStr(scroll_container_id));
     Clay_ScrollContainerData scroll_data = Clay_GetScrollContainerData(menu_bar_id);
     if (scroll_data.found) {
         if (scroll_data.config.horizontal) {
-            CLAY(CLAY_SID(clay_string_from_c_str(scrollbar_h_outer_id)), {
+            CLAY(CLAY_SID(Clay_Ext_StringFromCStr(scrollbar_h_outer_id)), {
                 .floating = {
                     .attachTo = CLAY_ATTACH_TO_ELEMENT_WITH_ID,
                     .offset = { .x =
@@ -103,7 +159,7 @@ static void scrollbar_layout(
                     },
                 },
             }) {
-                CLAY(CLAY_SID(clay_string_from_c_str(scrollbar_h_button_id)), {
+                CLAY(CLAY_SID(Clay_Ext_StringFromCStr(scrollbar_h_button_id)), {
                     .layout = {
                         .sizing = {
                             .width = CLAY_SIZING_FIXED(
@@ -119,7 +175,7 @@ static void scrollbar_layout(
             }
         }
         if (scroll_data.config.vertical) {
-            CLAY(CLAY_SID(clay_string_from_c_str(scrollbar_v_outer_id)), {
+            CLAY(CLAY_SID(Clay_Ext_StringFromCStr(scrollbar_v_outer_id)), {
                 .floating = {
                     .attachTo = CLAY_ATTACH_TO_ELEMENT_WITH_ID,
                     .offset = { .y =
@@ -134,7 +190,7 @@ static void scrollbar_layout(
                     },
                 },
             }) {
-                CLAY(CLAY_SID(clay_string_from_c_str(scrollbar_v_button_id)), {
+                CLAY(CLAY_SID(Clay_Ext_StringFromCStr(scrollbar_v_button_id)), {
                     .layout = {
                         .sizing = {
                             .width = CLAY_SIZING_FIXED(12),
@@ -149,6 +205,24 @@ static void scrollbar_layout(
             }
         }
     }
+}
+
+static void scrollbar_layout_auto(void)
+{
+    for (size_t i = 0; i < scroll_container_data_count; i++) {
+        const ScrollContainerData* scroll_container_data = &scroll_container_data_array[i];
+        Clay_ElementId container_id = Clay_GetElementId(Clay_Ext_StringFromCStr(scroll_container_data->container_id));
+        if (container_id.id == Clay_GetOpenElementId()) {
+            scrollbar_layout(
+                scroll_container_data->container_id,
+                scroll_container_data->scrollbar_h_area_id,
+                scroll_container_data->scrollbar_h_button_id,
+                scroll_container_data->scrollbar_v_area_id,
+                scroll_container_data->scrollbar_v_button_id);
+            return;
+        }
+    }
+    assert(false && "No scrollbar data matched");
 }
 
 static void dragged_menu_bar_element_layout(void)
@@ -317,9 +391,7 @@ static void menu_bar_layout(void)
             }
         }
 
-        scrollbar_layout("menu_bar",
-            "menu_bar_scrollbar_h_outer", "menu_bar_scrollbar_h_button",
-            "menu_bar_scrollbar_v_outer", "menu_bar_scrollbar_v_button");
+        scrollbar_layout_auto();
     }
 
     CLAY(CLAY_ID("menu_bar2"), {
@@ -344,7 +416,7 @@ static void menu_bar_layout(void)
             });
         }
 
-        scrollbar_layout("menu_bar2", "menu_bar2_scrollbar_h_outer", "menu_bar2_scrollbar_h_button", NULL, NULL);
+        scrollbar_layout_auto();
     }
 
     CLAY(CLAY_ID("menu_bar3"), {
@@ -569,39 +641,7 @@ int main(int argc, char** argv)
 
         Clay_SetPointerState(mouse_state.pos, mouse_state.buttons[MOUSE_BUTTON_LEFT].state);
 
-        Clay_Ext_UpdateScrollContainerCustom(
-            CLAY_ID("menu_bar"),
-            CLAY_ID("menu_bar_scrollbar_h_button"),
-            CLAY_ID("menu_bar_scrollbar_v_button"),
-            mouse_state.pos,
-            mouse_state.scroll_delta,
-            (ScrollContainerConfig) {
-                .sensitivity_h = 30.f,
-                .sensitivity_v = 10.f,
-                .enable_drag_on_edges = true,
-            },
-            &mouse_state,
-            &drag_state);
-
-        Clay_Ext_UpdateScrollContainerCustom(
-            CLAY_ID("menu_bar2"),
-            CLAY_ID("menu_bar2_scrollbar_h_button"),
-            CLAY_EXT_NULL_ELEMENT_ID,
-            mouse_state.pos,
-            mouse_state.scroll_delta,
-            (ScrollContainerConfig) {
-                .sensitivity_h = 30.f,
-                .sensitivity_v = 30.f,
-                .use_both_wheels = true,
-            },
-            &mouse_state,
-            &drag_state);
-
-        // Handle scroll delta with mouse wheels only for other scrollable areas
-        Clay_UpdateScrollContainers(
-            false, // do not enable touch and drag scrolling as it is handled per scrollable area
-            mouse_state.scroll_delta,
-            0.f); // not used when touch and drag scrolling is disabled
+        Clay_Ext_UpdateScrollContainers();
 
         titlebar_update(&titlebar_state, state.window, &mouse_state, &running);
 

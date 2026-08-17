@@ -4,9 +4,19 @@
 #include "clay.h"
 
 #include <math.h>
+#include <string.h>
 
 #define CLAY_EXT_NULL_ID (0u) // ID 0 is internally reserved for null IDs in Clay
 #define CLAY_EXT_NULL_ELEMENT_ID (Clay_ElementId) { 0 }
+
+static inline Clay_String Clay_Ext_StringFromCStr(const char* str) {
+    return (Clay_String) {
+        .isStaticallyAllocated = true,
+        .length = str ? (int32_t)strlen(str) : 0,
+        .chars = str,
+    };
+}
+
 
 //------------------------------------------------------------------------------
 // Maths helpers
