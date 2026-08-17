@@ -59,20 +59,12 @@ static const size_t menu_bar_element_count = sizeof(menu_bar_elements) / sizeof(
 
 typedef struct {
     const char* container_id;
-    const char* scrollbar_h_area_id;
-    const char* scrollbar_h_button_id;
-    const char* scrollbar_v_area_id;
-    const char* scrollbar_v_button_id;
     ScrollContainerConfig config;
 } ScrollContainerData;
 
 static const ScrollContainerData scroll_container_data_array[] = {
     {
         .container_id = "menu_bar",
-        .scrollbar_h_area_id = "menu_bar_scrollbar_h_outer",
-        .scrollbar_h_button_id = "menu_bar_scrollbar_h_button",
-        .scrollbar_v_area_id = "menu_bar_scrollbar_v_outer",
-        .scrollbar_v_button_id = "menu_bar_scrollbar_v_button",
         .config = {
             .sensitivity_h = 30.f,
             .sensitivity_v = 10.f,
@@ -81,10 +73,6 @@ static const ScrollContainerData scroll_container_data_array[] = {
     },
     {
         .container_id = "menu_bar2",
-        .scrollbar_h_area_id = "menu_bar2_scrollbar_h_outer",
-        .scrollbar_h_button_id = "menu_bar2_scrollbar_h_button",
-        .scrollbar_v_area_id = NULL,
-        .scrollbar_v_button_id = NULL,
         .config = {
             .sensitivity_h = 30.f,
             .sensitivity_v = 10.f,
@@ -99,10 +87,13 @@ static void Clay_Ext_UpdateScrollContainers(void)
 {
     for (size_t i = 0; i < scroll_container_data_count; i++) {
         const ScrollContainerData* scroll_container_data = &scroll_container_data_array[i];
+        const Clay_ElementId container_id = CLAY_SID(Clay_Ext_StringFromCStr(scroll_container_data->container_id));
+        const Clay_ElementId scrollbar_h_button_id = Clay__HashString(CLAY_STRING("scrollbar_h_button"), container_id.id);
+        const Clay_ElementId scrollbar_v_button_id = Clay__HashString(CLAY_STRING("scrollbar_v_button"), container_id.id);
         Clay_Ext_UpdateScrollContainerCustom(
-            Clay_GetElementId(Clay_Ext_StringFromCStr(scroll_container_data->container_id)),
-            Clay_GetElementId(Clay_Ext_StringFromCStr(scroll_container_data->scrollbar_h_button_id)),
-            Clay_GetElementId(Clay_Ext_StringFromCStr(scroll_container_data->scrollbar_v_button_id)),
+            container_id,
+            scrollbar_h_button_id,
+            scrollbar_v_button_id,
             mouse_state.pos,
             mouse_state.scroll_delta,
             (ScrollContainerConfig) {
@@ -132,19 +123,18 @@ static Clay_Color get_scrollbar_color(void)
     return scrollbar_inactive_color;
 }
 
-// Lay out an scrollbar with predefined settings for a given container
-static void scrollbar_layout(
-    const char* scroll_container_id,
-    const char* scrollbar_h_outer_id, const char* scrollbar_h_button_id,
-    const char* scrollbar_v_outer_id, const char* scrollbar_v_button_id)
+// Lay out a scrollbar with predefined settings for the opened element
+static void scrollbar_layout(void)
 {
     // TODO verify that only one scrollbar is displayed when overflowing on only one dimension
     // TODO display the vertical scrollbar on the full height, but the horizontal on the full width minus the vertical scrollbar if displayed
-    Clay_ElementId menu_bar_id = Clay_GetElementId(Clay_Ext_StringFromCStr(scroll_container_id));
-    Clay_ScrollContainerData scroll_data = Clay_GetScrollContainerData(menu_bar_id);
+    uint32_t parent_id = Clay_GetOpenElementId();
+    Clay_ScrollContainerData scroll_data = Clay_GetScrollContainerData((Clay_ElementId){ .id = parent_id });
     if (scroll_data.found) {
         if (scroll_data.config.horizontal) {
-            CLAY(CLAY_SID(Clay_Ext_StringFromCStr(scrollbar_h_outer_id)), {
+            const Clay_ElementId outer_id = CLAY_ID_LOCAL("scrollbar_h_outer");
+            const Clay_ElementId button_id = CLAY_ID_LOCAL("scrollbar_h_button");
+            CLAY(outer_id, {
                 .floating = {
                     .attachTo = CLAY_ATTACH_TO_ELEMENT_WITH_ID,
                     .offset = { .x =
@@ -152,14 +142,14 @@ static void scrollbar_layout(
                         * scroll_data.scrollContainerDimensions.width
                     },
                     .zIndex = 1,
-                    .parentId = menu_bar_id.id,
+                    .parentId = parent_id,
                     .attachPoints = {
                         .element = CLAY_ATTACH_POINT_LEFT_BOTTOM,
                         .parent = CLAY_ATTACH_POINT_LEFT_BOTTOM,
                     },
                 },
             }) {
-                CLAY(CLAY_SID(Clay_Ext_StringFromCStr(scrollbar_h_button_id)), {
+                CLAY(button_id, {
                     .layout = {
                         .sizing = {
                             .width = CLAY_SIZING_FIXED(
@@ -175,7 +165,9 @@ static void scrollbar_layout(
             }
         }
         if (scroll_data.config.vertical) {
-            CLAY(CLAY_SID(Clay_Ext_StringFromCStr(scrollbar_v_outer_id)), {
+            const Clay_ElementId outer_id = CLAY_ID_LOCAL("scrollbar_v_outer");
+            const Clay_ElementId button_id = CLAY_ID_LOCAL("scrollbar_v_button");
+            CLAY(outer_id, {
                 .floating = {
                     .attachTo = CLAY_ATTACH_TO_ELEMENT_WITH_ID,
                     .offset = { .y =
@@ -183,14 +175,14 @@ static void scrollbar_layout(
                         * scroll_data.scrollContainerDimensions.height
                     },
                     .zIndex = 1,
-                    .parentId = menu_bar_id.id,
+                    .parentId = parent_id,
                     .attachPoints = {
                         .element = CLAY_ATTACH_POINT_RIGHT_TOP,
                         .parent = CLAY_ATTACH_POINT_RIGHT_TOP,
                     },
                 },
             }) {
-                CLAY(CLAY_SID(Clay_Ext_StringFromCStr(scrollbar_v_button_id)), {
+                CLAY(button_id, {
                     .layout = {
                         .sizing = {
                             .width = CLAY_SIZING_FIXED(12),
@@ -205,24 +197,6 @@ static void scrollbar_layout(
             }
         }
     }
-}
-
-static void scrollbar_layout_auto(void)
-{
-    for (size_t i = 0; i < scroll_container_data_count; i++) {
-        const ScrollContainerData* scroll_container_data = &scroll_container_data_array[i];
-        Clay_ElementId container_id = Clay_GetElementId(Clay_Ext_StringFromCStr(scroll_container_data->container_id));
-        if (container_id.id == Clay_GetOpenElementId()) {
-            scrollbar_layout(
-                scroll_container_data->container_id,
-                scroll_container_data->scrollbar_h_area_id,
-                scroll_container_data->scrollbar_h_button_id,
-                scroll_container_data->scrollbar_v_area_id,
-                scroll_container_data->scrollbar_v_button_id);
-            return;
-        }
-    }
-    assert(false && "No scrollbar data matched");
 }
 
 static void dragged_menu_bar_element_layout(void)
@@ -391,7 +365,7 @@ static void menu_bar_layout(void)
             }
         }
 
-        scrollbar_layout_auto();
+        scrollbar_layout();
     }
 
     CLAY(CLAY_ID("menu_bar2"), {
@@ -416,7 +390,7 @@ static void menu_bar_layout(void)
             });
         }
 
-        scrollbar_layout_auto();
+        scrollbar_layout();
     }
 
     CLAY(CLAY_ID("menu_bar3"), {
