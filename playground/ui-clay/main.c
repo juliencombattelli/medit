@@ -104,32 +104,52 @@ static void dragged_menu_bar_element_layout(Ui* ui)
 
 static void dragged_menu_bar_element_drop_indicator_layout(Ui* ui)
 {
-    // Compute the destination tab index and line position
-    const Clay_PointerData pointer = Clay_GetPointerState();
+    const uint32_t menubar_drop_indicator_width = MENUBAR_ELEMENT_GAP % 2 == 0 ? MENUBAR_DROP_INDICATOR_WIDTH : MENUBAR_DROP_INDICATOR_WIDTH + 1;
+
     const Clay_ElementData bar_element_data = Clay_GetElementData(CLAY_ID("menu_bar"));
-    const float bar_x = bar_element_data.found ? bar_element_data.boundingBox.x : 0.f;
+    if (!bar_element_data.found) {
+        return;
+    }
+    const float bar_x = bar_element_data.boundingBox.x;
+    const Clay_PointerData pointer = Clay_GetPointerState();
     const float pointer_x = pointer.position.x;
-    float line_x = 0.f;
+
+    // Find the two elements data surrounding the current cursor position
     uint32_t tab_i = 0;
-    for (; tab_i < menu_bar_element_count; tab_i++) {
-        Clay_ElementData element_data = Clay_GetElementData(CLAY_IDI("menu_bar_element", tab_i));
+    Clay_ElementData previous_element_data = { 0 };
+    Clay_ElementData next_element_data = { 0 };
+    for (uint32_t element_i = 0; element_i < menu_bar_element_count; element_i++) {
+        Clay_ElementData element_data = Clay_GetElementData(CLAY_IDI("menu_bar_element", element_i));
         if (!element_data.found) {
             continue;
         }
-        float left = element_data.boundingBox.x;
-        float right = left + element_data.boundingBox.width;
-        float mid = left + (element_data.boundingBox.width / 2.f);
-        if (pointer_x >= left && pointer_x < right) {
-            if (pointer_x < mid) {
-                line_x = left - (MENUBAR_ELEMENT_GAP + MENUBAR_DROP_INDICATOR_WIDTH) / 2.f;
-            } else {
-                line_x = right + (MENUBAR_ELEMENT_GAP - MENUBAR_DROP_INDICATOR_WIDTH) / 2.f;
-                tab_i++;
-            }
-            line_x -= bar_x;
+        float mid = element_data.boundingBox.x + (element_data.boundingBox.width / 2.f);
+        if (pointer_x < mid) {
+            next_element_data = element_data;
+            tab_i = element_i;
             break;
         }
+        previous_element_data = element_data;
+        tab_i = element_i + 1;
     }
+
+    // Compute the drop indicator x position
+    float line_x = 0.f;
+    if (next_element_data.found) {
+        float next_left = next_element_data.boundingBox.x;
+        if (previous_element_data.found) {
+            float previous_right = previous_element_data.boundingBox.x + previous_element_data.boundingBox.width;
+            line_x = ((previous_right + next_left) / 2.f) - (menubar_drop_indicator_width / 2.f);
+        } else {
+            line_x = next_left - ((MENUBAR_ELEMENT_GAP + menubar_drop_indicator_width) / 2.f);
+        }
+    } else if (previous_element_data.found) {
+        float previous_right = previous_element_data.boundingBox.x + previous_element_data.boundingBox.width;
+        line_x = previous_right + ((MENUBAR_ELEMENT_GAP - menubar_drop_indicator_width) / 2.f);
+    } else {
+        return;
+    }
+    line_x -= bar_x;
 
     // If the line is outside of the container don't draw it and don't handle dropping
     if (line_x < 0 || line_x > bar_element_data.boundingBox.width) {
@@ -152,7 +172,7 @@ static void dragged_menu_bar_element_drop_indicator_layout(Ui* ui)
         CLAY(CLAY_ID("drop_indicator_line"), {
             .layout = {
                 .sizing = {
-                    .width = CLAY_SIZING_FIXED(MENUBAR_DROP_INDICATOR_WIDTH),
+                    .width = CLAY_SIZING_FIXED(menubar_drop_indicator_width),
                     .height = CLAY_SIZING_FIXED(60),
                 },
             },
