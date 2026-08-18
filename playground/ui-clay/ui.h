@@ -2,6 +2,7 @@
 
 #include "clay_utils.h"
 #include "theme.h"
+#include "titlebar.h"
 
 static inline Clay_Color to_clay_color(Color color) {
     return (Clay_Color) { .r = color.r, .g = color.g, .b = color.b, .a = color.a };
@@ -14,13 +15,12 @@ typedef struct {
 
 typedef struct {
     UiTheme theme;
+    TitlebarState titlebar_state;
     MouseState mouse_state;
     DragState drag_state;
     const ScrollContainerCustom* scroll_containers;
-    const size_t scroll_container_count;
+    size_t scroll_container_count;
 } Ui;
-
-Ui medit_ui_init(void);
 
 bool medit_ui_is_any_element_dragged(const Ui* ui);
 

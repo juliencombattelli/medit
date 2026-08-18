@@ -19,10 +19,10 @@ typedef struct {
     Color scrollbar_thumb;
     Color scrollbar_thumb_scroll_area_hovered;
     Color scrollbar_thumb_hovered;
-} ColorTheme;
+} ColorTheme2;
 
 typedef struct {
-    ColorTheme colors;
+    ColorTheme2 colors;
     uint8_t dragged_tab_transparency;
     uint32_t title_bar_height;
     uint32_t title_bar_button_width;

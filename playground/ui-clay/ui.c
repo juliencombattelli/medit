@@ -1,13 +1,5 @@
 #include "ui.h"
 
-Ui medit_ui_init(void)
-{
-    return (Ui) {
-        .mouse_state = {0},
-        .drag_state = { .active_id = CLAY_EXT_NULL_ID },
-    };
-}
-
 bool medit_ui_is_any_element_dragged(const Ui* ui)
 {
     return ui->drag_state.active_id != CLAY_EXT_NULL_ID;

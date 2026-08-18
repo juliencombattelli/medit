@@ -1,5 +1,5 @@
 add_executable(playground_ui_clay
-    main.c clay_utils.c clay_sdl3.c sdl3_ext.c titlebar.c
+    main.c clay_utils.c clay_sdl3.c sdl3_ext.c titlebar.c ui.c
     ${PROJECT_SOURCE_DIR}/src/default_config.c
 )
 target_compile_options(playground_ui_clay PRIVATE ${COMPILE_OPTIONS})
