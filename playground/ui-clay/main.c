@@ -18,6 +18,7 @@ typedef struct {
 #define NO_DRAGGED_MENU_BAR_ELEMENT ((size_t)-1)
 
 #define MENUBAR_ELEMENT_GAP 8
+#define MENUBAR_DROP_INDICATOR_WIDTH 2
 
 static const Clay_Color background_color            = { 0x18, 0x18, 0x18, 0xFF };
 static const Clay_Color sidebars_background_color   = { 0x18, 0x7f, 0x18, 0xFF };
@@ -120,9 +121,9 @@ static void dragged_menu_bar_element_drop_indicator_layout(Ui* ui)
         float mid = left + (element_data.boundingBox.width / 2.f);
         if (pointer_x >= left && pointer_x < right) {
             if (pointer_x < mid) {
-                line_x = left;
+                line_x = left - (MENUBAR_ELEMENT_GAP + MENUBAR_DROP_INDICATOR_WIDTH) / 2.f;
             } else {
-                line_x = right;
+                line_x = right + (MENUBAR_ELEMENT_GAP - MENUBAR_DROP_INDICATOR_WIDTH) / 2.f;
                 tab_i++;
             }
             line_x -= bar_x;
@@ -151,7 +152,7 @@ static void dragged_menu_bar_element_drop_indicator_layout(Ui* ui)
         CLAY(CLAY_ID("drop_indicator_line"), {
             .layout = {
                 .sizing = {
-                    .width = CLAY_SIZING_FIXED(2),
+                    .width = CLAY_SIZING_FIXED(MENUBAR_DROP_INDICATOR_WIDTH),
                     .height = CLAY_SIZING_FIXED(60),
                 },
             },
