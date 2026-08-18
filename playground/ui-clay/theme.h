@@ -21,6 +21,9 @@ typedef struct {
     Color scrollbar_thumb_inactive;
     Color scrollbar_thumb_hovered;
     Color scrollbar_thumb_active;
+    Color titlebar_ctrl_button_minimize;
+    Color titlebar_ctrl_button_maximize;
+    Color titlebar_ctrl_button_close;
 } ColorTheme2;
 
 typedef struct {

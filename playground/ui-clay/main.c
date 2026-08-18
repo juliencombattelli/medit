@@ -419,8 +419,11 @@ int main(int argc, char** argv)
         .theme = {
             .colors = {
                 .scrollbar_thumb_inactive = { 100 + 100, 100, 100, 150 },
-                .scrollbar_thumb_hovered = { 120 + 100, 120, 120, 150 },
-                .scrollbar_thumb_active = { 140 + 100, 140, 140, 150 },
+                .scrollbar_thumb_hovered  = { 120 + 100, 120, 120, 150 },
+                .scrollbar_thumb_active   = { 140 + 100, 140, 140, 150 },
+                .titlebar_ctrl_button_minimize = { 0xFF, 0xFF, 0x00, 0xFF},
+                .titlebar_ctrl_button_maximize = { 0xFF, 0x00, 0xFF, 0xFF},
+                .titlebar_ctrl_button_close    = { 0x00, 0xFF, 0xFF, 0xFF},
             },
             .scrollbar_corner_radius = 6,
             .scrollbar_size = 12,

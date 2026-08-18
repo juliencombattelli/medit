@@ -274,7 +274,7 @@ void medit_ui_layout_titlebar(Ui* ui)
                         .height = CLAY_SIZING_GROW(0),
                     },
                 },
-                .backgroundColor = { 0xFF, 0xFF, 0x00, 0xFF},
+                .backgroundColor = to_clay_color(ui->theme.colors.titlebar_ctrl_button_minimize),
             });
             CLAY(CLAY_ID("titlebar_ctrl_button_max"), {
                 .layout = {
@@ -283,7 +283,7 @@ void medit_ui_layout_titlebar(Ui* ui)
                         .height = CLAY_SIZING_GROW(0),
                     },
                 },
-                .backgroundColor = { 0xFF, 0x00, 0xFF, 0xFF},
+                .backgroundColor = to_clay_color(ui->theme.colors.titlebar_ctrl_button_maximize),
             });
             CLAY(CLAY_ID("titlebar_ctrl_button_close"), {
                 .layout = {
@@ -292,7 +292,7 @@ void medit_ui_layout_titlebar(Ui* ui)
                         .height = CLAY_SIZING_GROW(0),
                     },
                 },
-                .backgroundColor = { 0x00, 0xFF, 0xFF, 0xFF},
+                .backgroundColor = to_clay_color(ui->theme.colors.titlebar_ctrl_button_close),
             });
         }
     }
