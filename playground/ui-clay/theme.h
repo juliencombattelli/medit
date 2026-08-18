@@ -26,8 +26,8 @@ typedef struct {
 typedef struct {
     ColorTheme2 colors;
     uint8_t dragged_tab_transparency;
-    uint32_t title_bar_height;
-    uint32_t title_bar_button_width;
+    uint32_t titlebar_height;
+    uint32_t titlebar_button_width;
     uint32_t window_resize_border;
     uint32_t scrollbar_size;
     uint32_t scrollbar_corner_radius;

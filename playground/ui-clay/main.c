@@ -1,5 +1,4 @@
 #include "clay_sdl3.h"
-#include "titlebar.h"
 #include "ui.h"
 
 #include <core/assert.h>
@@ -15,10 +14,6 @@ typedef struct {
     TTF_TextEngine* text_engine;
     TTF_Font* font;
 } AppState;
-
-#define TITLE_BAR_HEIGHT 32
-#define TITLE_BAR_BUTTONS_WIDTH 46
-#define WINDOW_HIT_TEST_MARGIN 4
 
 #define NO_DRAGGED_MENU_BAR_ELEMENT ((size_t)-1)
 
@@ -369,7 +364,7 @@ static Clay_RenderCommandArray editor_layout(Ui* ui)
         },
         .backgroundColor = { 0x7F, 0x00, 0x00, 0xFF},
     }) {
-        titlebar_layout(&ui->titlebar_state);
+        medit_ui_layout_titlebar(ui);
 
         CLAY(CLAY_ID("window_frame_inner"), {
             .layout = {
@@ -421,11 +416,6 @@ int main(int argc, char** argv)
     Ui ui = {
         .scroll_containers = scroll_container_data_array,
         .scroll_container_count = scroll_container_data_count,
-        .titlebar_state = {
-            .height = TITLE_BAR_HEIGHT,
-            .resize_border = WINDOW_HIT_TEST_MARGIN,
-            .button_width = TITLE_BAR_BUTTONS_WIDTH,
-        },
         .theme = {
             .colors = {
                 .scrollbar_thumb_inactive = { 100 + 100, 100, 100, 150 },
@@ -437,6 +427,9 @@ int main(int argc, char** argv)
             .dragged_tab_transparency = 0x9F,
             .panels_gap = 8,
             .panels_corner_radius = CLAY_CORNER_RADIUS(8),
+            .titlebar_height = 32,
+            .titlebar_button_width = 46,
+            .window_resize_border = 4,
         },
     };
 
@@ -468,7 +461,7 @@ int main(int argc, char** argv)
     assert_sdl(SDL_ShowWindow(state.window));
     assert_sdl(SDL_StartTextInput(state.window));
 
-    titlebar_init(&ui.titlebar_state, state.window);
+    medit_ui_titlebar_init(&ui, state.window);
 
     {
         int width = 0, height = 0;
@@ -509,7 +502,7 @@ int main(int argc, char** argv)
 
         medit_ui_update_scroll_containers(&ui);
 
-        titlebar_update(&ui.titlebar_state, state.window, &ui.mouse_state, &running);
+        medit_ui_update_titlebar(&ui, state.window, &running);
 
         Clay_RenderCommandArray render_commands = editor_layout(&ui);
 

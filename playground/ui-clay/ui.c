@@ -46,7 +46,7 @@ static Clay_Color get_scrollbar_color(const Ui* ui)
 }
 
 // Lay out a scrollbar with predefined settings for the opened element
-void medit_ui_layout_scrollbar(const Ui* ui)
+void medit_ui_layout_scrollbar(Ui* ui)
 {
     // TODO verify that only one scrollbar is displayed when overflowing on only one dimension
     const float scrollbar_size = (float)ui->theme.scrollbar_size;
