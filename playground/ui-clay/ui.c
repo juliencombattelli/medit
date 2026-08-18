@@ -37,12 +37,12 @@ void medit_ui_update_scroll_containers(Ui* ui)
 static Clay_Color get_scrollbar_color(const Ui* ui)
 {
     if (ui->drag_state.active_id == Clay_GetOpenElementId()) {
-        return to_clay_color(ui->theme.colors.scrollbar_thumb_hovered);
+        return to_clay_color(ui->theme.colors.scrollbar_thumb_active);
     }
     if (!medit_ui_is_any_element_dragged(ui) && Clay_Hovered()) {
-        return to_clay_color(ui->theme.colors.scrollbar_thumb_scroll_area_hovered);
+        return to_clay_color(ui->theme.colors.scrollbar_thumb_hovered);
     }
-    return to_clay_color(ui->theme.colors.scrollbar_thumb);
+    return to_clay_color(ui->theme.colors.scrollbar_thumb_inactive);
 }
 
 // Lay out a scrollbar with predefined settings for the opened element

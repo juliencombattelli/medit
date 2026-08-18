@@ -18,9 +18,9 @@ typedef struct {
     Color tab_bar_bg_displayed;
     Color bottom_panel_bg;
     Color panel_border;
-    Color scrollbar_thumb;
-    Color scrollbar_thumb_scroll_area_hovered;
+    Color scrollbar_thumb_inactive;
     Color scrollbar_thumb_hovered;
+    Color scrollbar_thumb_active;
 } ColorTheme2;
 
 typedef struct {

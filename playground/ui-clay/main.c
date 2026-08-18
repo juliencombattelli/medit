@@ -428,9 +428,9 @@ int main(int argc, char** argv)
         },
         .theme = {
             .colors = {
-                .scrollbar_thumb_scroll_area_hovered = { 120 + 100, 120, 120, 150 },
-                .scrollbar_thumb_hovered = { 140 + 100, 140, 140, 150 },
-                .scrollbar_thumb = { 100 + 100, 100, 100, 150 },
+                .scrollbar_thumb_inactive = { 100 + 100, 100, 100, 150 },
+                .scrollbar_thumb_hovered = { 120 + 100, 120, 120, 150 },
+                .scrollbar_thumb_active = { 140 + 100, 140, 140, 150 },
             },
             .scrollbar_corner_radius = 6,
             .scrollbar_size = 12,
