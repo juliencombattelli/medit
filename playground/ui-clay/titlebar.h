@@ -6,18 +6,18 @@
 
 #include <SDL3/SDL.h>
 
-enum {
+typedef enum {
     TITLEBAR_BTN_NONE,
     TITLEBAR_BTN_MIN,
     TITLEBAR_BTN_MAX,
     TITLEBAR_BTN_CLOSE,
-};
+} TitlebarHoveredButton;
 
 typedef struct {
     int height;
     int resize_border;
     int button_width;
-    int hovered_button;
+    TitlebarHoveredButton hovered_button;
     SDL_Rect minimize_button_rect;
     SDL_Rect maximize_button_rect;
     SDL_Rect close_button_rect;

@@ -99,7 +99,7 @@ static void dragged_menu_bar_element_layout(Ui* ui)
                 },
             },
             .backgroundColor = color,
-            .cornerRadius = CLAY_CORNER_RADIUS(8),
+            .cornerRadius = ui->theme.panels_corner_radius,
         });
     }
 }
@@ -213,7 +213,7 @@ static void menu_bar_layout(Ui* ui)
             .childGap = 8
         },
         .backgroundColor = sidebars_background_color,
-        .cornerRadius = CLAY_CORNER_RADIUS(8),
+        .cornerRadius = ui->theme.panels_corner_radius,
         .clip = { .horizontal = true, .vertical = true, .childOffset = Clay_GetScrollOffset() },
     }) {
         for (uint32_t row = 0; row < 8; row++) {
@@ -233,7 +233,7 @@ static void menu_bar_layout(Ui* ui)
                             },
                         },
                         .backgroundColor = element_data.color,
-                        .cornerRadius = CLAY_CORNER_RADIUS(8),
+                        .cornerRadius = ui->theme.panels_corner_radius,
                     }) {
                         Clay_OnHover(handle_menu_bar_element_interaction, ui);
                     }
@@ -249,7 +249,7 @@ static void menu_bar_layout(Ui* ui)
             .sizing = { .height = CLAY_SIZING_FIXED(60), .width = CLAY_SIZING_GROW(0) },
         },
         .backgroundColor = sidebars_background_color,
-        .cornerRadius = CLAY_CORNER_RADIUS(8),
+        .cornerRadius = ui->theme.panels_corner_radius,
         .clip = { .horizontal = true, .childOffset = Clay_GetScrollOffset() },
     }) {
         for (uint32_t i = 0; i < menu_bar_element_count; i++) {
@@ -262,7 +262,7 @@ static void menu_bar_layout(Ui* ui)
                     },
                 },
                 .backgroundColor = element_data.color,
-                .cornerRadius = CLAY_CORNER_RADIUS(8),
+                .cornerRadius = ui->theme.panels_corner_radius,
             });
         }
 
@@ -274,7 +274,7 @@ static void menu_bar_layout(Ui* ui)
             .sizing = { .height = CLAY_SIZING_FIXED(60), .width = CLAY_SIZING_GROW(0) },
         },
         .backgroundColor = sidebars_background_color,
-        .cornerRadius = CLAY_CORNER_RADIUS(8),
+        .cornerRadius = ui->theme.panels_corner_radius,
         .clip = { .horizontal = true, .childOffset = Clay_GetScrollOffset() },
     }) {
         for (uint32_t i = 0; i < menu_bar_element_count; i++) {
@@ -287,7 +287,7 @@ static void menu_bar_layout(Ui* ui)
                     },
                 },
                 .backgroundColor = element_data.color,
-                .cornerRadius = CLAY_CORNER_RADIUS(8),
+                .cornerRadius = ui->theme.panels_corner_radius,
             });
         }
     }
@@ -300,7 +300,7 @@ static void left_panel_layout(Ui* ui)
             .sizing = { .height = CLAY_SIZING_GROW(0), .width = CLAY_SIZING_FIXED(100) },
         },
         .backgroundColor = sidebars_background_color,
-        .cornerRadius = CLAY_CORNER_RADIUS(8),
+        .cornerRadius = ui->theme.panels_corner_radius,
     });
 }
 
@@ -311,7 +311,7 @@ static void editor_area_layout(Ui* ui)
             .sizing = { .height = CLAY_SIZING_GROW(0), .width = CLAY_SIZING_GROW(0) },
         },
         .backgroundColor = editor_background_color,
-        .cornerRadius = CLAY_CORNER_RADIUS(8),
+        .cornerRadius = ui->theme.panels_corner_radius,
     });
 }
 
@@ -322,7 +322,7 @@ static void right_panel_layout(Ui* ui)
             .sizing = { .height = CLAY_SIZING_GROW(0), .width = CLAY_SIZING_FIXED(100) },
         },
         .backgroundColor = sidebars_background_color,
-        .cornerRadius = CLAY_CORNER_RADIUS(8),
+        .cornerRadius = ui->theme.panels_corner_radius,
     });
 }
 
@@ -336,7 +336,7 @@ static void middle_area_layout(Ui* ui)
             .childGap = 16,
         },
         .backgroundColor = background_color,
-        .cornerRadius = CLAY_CORNER_RADIUS(8),
+        .cornerRadius = ui->theme.panels_corner_radius,
     }) {
         left_panel_layout(ui);
         editor_area_layout(ui);
@@ -351,7 +351,7 @@ static void status_bar_layout(Ui* ui)
             .sizing = { .height = CLAY_SIZING_FIXED(30), .width = CLAY_SIZING_GROW(0) },
         },
         .backgroundColor = sidebars_background_color,
-        .cornerRadius = CLAY_CORNER_RADIUS(8),
+        .cornerRadius = ui->theme.panels_corner_radius,
     });
 }
 
@@ -379,7 +379,7 @@ static Clay_RenderCommandArray editor_layout(Ui* ui)
                     .height = CLAY_SIZING_GROW(0),
                 },
                 .padding = CLAY_PADDING_ALL(16),
-                .childGap = 16,
+                .childGap = ui->theme.panels_gap,
             },
             .backgroundColor = { 0x7F, 0x00, 0x00, 0xFF},
         }) {
@@ -435,6 +435,8 @@ int main(int argc, char** argv)
             .scrollbar_corner_radius = 6,
             .scrollbar_size = 12,
             .dragged_tab_transparency = 0x9F,
+            .panels_gap = 8,
+            .panels_corner_radius = CLAY_CORNER_RADIUS(8),
         },
     };
 

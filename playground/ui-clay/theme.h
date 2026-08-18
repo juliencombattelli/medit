@@ -2,6 +2,8 @@
 
 #include "../../src/core/color.h"
 
+#include "clay.h"
+
 typedef struct {
     Color editor_fg;
     Color editor_bg;
@@ -29,4 +31,6 @@ typedef struct {
     uint32_t window_resize_border;
     uint32_t scrollbar_size;
     uint32_t scrollbar_corner_radius;
+    uint16_t panels_gap;
+    Clay_CornerRadius panels_corner_radius;
 } UiTheme;

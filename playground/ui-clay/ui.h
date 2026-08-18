@@ -4,7 +4,8 @@
 #include "theme.h"
 #include "titlebar.h"
 
-static inline Clay_Color to_clay_color(Color color) {
+static inline Clay_Color to_clay_color(Color color)
+{
     return (Clay_Color) { .r = color.r, .g = color.g, .b = color.b, .a = color.a };
 }
 
