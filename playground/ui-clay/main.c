@@ -17,6 +17,8 @@ typedef struct {
 
 #define NO_DRAGGED_MENU_BAR_ELEMENT ((size_t)-1)
 
+#define MENUBAR_ELEMENT_GAP 8
+
 static const Clay_Color background_color            = { 0x18, 0x18, 0x18, 0xFF };
 static const Clay_Color sidebars_background_color   = { 0x18, 0x7f, 0x18, 0xFF };
 static const Clay_Color editor_background_color     = { 0x1F, 0x1F, 0x5F, 0xFF };
@@ -205,7 +207,7 @@ static void menu_bar_layout(Ui* ui)
             .layoutDirection = CLAY_TOP_TO_BOTTOM,
             .sizing = { .height = CLAY_SIZING_FIXED(300), .width = CLAY_SIZING_GROW(0) },
             .padding = CLAY_PADDING_ALL(8),
-            .childGap = 8
+            .childGap = MENUBAR_ELEMENT_GAP
         },
         .backgroundColor = sidebars_background_color,
         .cornerRadius = ui->theme.panels_corner_radius,
@@ -215,7 +217,7 @@ static void menu_bar_layout(Ui* ui)
             CLAY(CLAY_IDI("menu_bar_row", row), {
                 .layout = {
                     .layoutDirection = CLAY_LEFT_TO_RIGHT,
-                    .childGap = 8,
+                    .childGap = MENUBAR_ELEMENT_GAP,
                 },
             }) {
                 for (uint32_t i = 0; i < menu_bar_element_count; i++) {
@@ -327,8 +329,8 @@ static void middle_area_layout(Ui* ui)
         .layout = {
             .layoutDirection = CLAY_LEFT_TO_RIGHT,
             .sizing = { .height = CLAY_SIZING_GROW(0), .width = CLAY_SIZING_GROW(0) },
-            .padding = CLAY_PADDING_ALL(16),
-            .childGap = 16,
+            .padding = CLAY_PADDING_ALL(8),
+            .childGap = ui->theme.panels_gap,
         },
         .backgroundColor = background_color,
         .cornerRadius = ui->theme.panels_corner_radius,
