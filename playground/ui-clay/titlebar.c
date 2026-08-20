@@ -190,20 +190,6 @@ static TitlebarHoveredButton titlebar_button_at(SDL_Point point, const TitlebarS
     return TITLEBAR_BTN_NONE;
 }
 
-static void titlebar_update_hovered_button(TitlebarState* state, SDL_Window* window)
-{
-    float gx = 0, gy = 0;
-    SDL_GetGlobalMouseState(&gx, &gy);
-
-    int wx = 0, wy = 0;
-    SDL_GetWindowPosition(window, &wx, &wy);
-
-    int mx = (int)gx - wx;
-    int my = (int)gy - wy;
-
-    state->hovered_button = titlebar_button_at((SDL_Point){mx, my}, state);
-}
-
 void medit_ui_titlebar_init(Ui* ui, SDL_Window* window)
 {
 #if SDL_PLATFORM_WINDOWS
@@ -214,29 +200,13 @@ void medit_ui_titlebar_init(Ui* ui, SDL_Window* window)
 #endif
 }
 
-void medit_ui_update_titlebar(Ui* ui, SDL_Window* window, bool* running)
+void medit_ui_update_titlebar(Ui* ui, int window_width)
 {
-    int window_width = 0;
-    SDL_GetWindowSize(window, &window_width, NULL);
     titlebar_recalc_button_rects(ui, window_width);
 
-    titlebar_update_hovered_button(&ui->titlebar_state, window);
-
-    if (ui->mouse_state.buttons[MOUSE_BUTTON_LEFT].state == MOUSE_BUTTON_RELEASED_THIS_FRAME) {
-        if (ui->titlebar_state.hovered_button == TITLEBAR_BTN_MIN) {
-            SDL_MinimizeWindow(window);
-        }
-        if (ui->titlebar_state.hovered_button == TITLEBAR_BTN_MAX) {
-            if ((SDL_GetWindowFlags(window) & SDL_WINDOW_MAXIMIZED) != 0) {
-                SDL_RestoreWindow(window);
-            } else {
-                SDL_MaximizeWindow(window);
-            }
-        }
-        if (ui->titlebar_state.hovered_button == TITLEBAR_BTN_CLOSE) {
-            *running = false;
-        }
-    }
+    ui->titlebar_state.hovered_button = titlebar_button_at(
+        (SDL_Point){ ui->mouse_state.pos.x, ui->mouse_state.pos.y },
+        &ui->titlebar_state);
 }
 
 void medit_ui_layout_titlebar(Ui* ui)

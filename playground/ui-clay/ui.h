@@ -44,7 +44,7 @@ bool medit_ui_is_any_element_dragged(const Ui* ui);
 
 void medit_ui_update_scroll_containers(Ui* ui);
 
-void medit_ui_update_titlebar(Ui* ui, SDL_Window* window, bool* running);
+void medit_ui_update_titlebar(Ui* ui, int window_width);
 
 void medit_ui_layout_scrollbar(Ui* ui);
 

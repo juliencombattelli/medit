@@ -522,13 +522,32 @@ int main(int argc, char** argv)
             }
         }
 
+        int window_width = 0;
+        SDL_GetWindowSize(state.window, &window_width, NULL);
+
         mouse_state_update(&ui.mouse_state, sdl_get_mouse_state(state.window, &ui.mouse_state));
 
         Clay_SetPointerState(ui.mouse_state.pos, ui.mouse_state.buttons[MOUSE_BUTTON_LEFT].state);
 
         medit_ui_update_scroll_containers(&ui);
 
-        medit_ui_update_titlebar(&ui, state.window, &running);
+        medit_ui_update_titlebar(&ui, window_width);
+
+        if (ui.mouse_state.buttons[MOUSE_BUTTON_LEFT].state == MOUSE_BUTTON_RELEASED_THIS_FRAME) {
+            if (ui.titlebar_state.hovered_button == TITLEBAR_BTN_MIN) {
+                SDL_MinimizeWindow(state.window);
+            }
+            if (ui.titlebar_state.hovered_button == TITLEBAR_BTN_MAX) {
+                if ((SDL_GetWindowFlags(state.window) & SDL_WINDOW_MAXIMIZED) != 0) {
+                    SDL_RestoreWindow(state.window);
+                } else {
+                    SDL_MaximizeWindow(state.window);
+                }
+            }
+            if (ui.titlebar_state.hovered_button == TITLEBAR_BTN_CLOSE) {
+                running = false;
+            }
+        }
 
         Clay_RenderCommandArray render_commands = editor_layout(&ui);
 
