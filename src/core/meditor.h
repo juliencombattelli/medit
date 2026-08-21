@@ -2,10 +2,10 @@
 #define MEDIT_CORE_MEDITOR_H_
 
 #include "action.h"
-#include "color.h"
 #include "keybind.h"
-#include "rect.h"
-#include "ui.h"
+#include <core/ui/color.h>
+#include <core/ui/rect.h>
+#include <core/ui/ui.h>
 
 #include <stdbool.h>
 
@@ -86,7 +86,6 @@ typedef struct {
     size_t displayed;
     Rect area; // area covered by the group on screen (including tab bar)
     Rect content_area; // area for editor content (area minus tab bar)
-    UiScrollState tab_bar_scroll; // horizontal scroll state for the tab bar
 } FileViewGroup;
 
 typedef struct {
@@ -96,68 +95,12 @@ typedef struct {
     size_t focused;
 } FileViewGroups;
 
-#define LAYOUT_MENU_BAR (1ull << 0ull)
-#define LAYOUT_TAB_BAR (1ull << 1ull)
-#define LAYOUT_SIDE_PANEL (1ull << 2ull)
-#define LAYOUT_BOTTOM_PANEL (1ull << 3ull)
-#define LAYOUT_STATUS_BAR (1ull << 4ull)
-
-typedef struct {
-    int32_t menu_bar_height;
-    int32_t tab_bar_height;
-    int32_t side_panel_width;
-    int32_t bottom_panel_height;
-    int32_t status_bar_height;
-    int32_t separator_size;
-} LayoutSizes;
-
-typedef struct {
-    Panel menu_bar;
-    Panel side_panel;
-    Panel bottom_panel;
-    Panel status_bar;
-    Rect editor_area;
-    uint32_t elements_shown;
-    LayoutSizes sizes;
-} Layout;
-
-static inline bool medit_layout_is_element_shown(Layout* layout, uint32_t mask)
-{
-    return (layout->elements_shown & mask) == mask;
-}
-
-static inline void medit_layout_toggle_shown_element(Layout* layout, uint32_t mask)
-{
-    layout->elements_shown ^= mask;
-}
-
-void medit_layout_recompute(Layout* layout, FileViewGroups* groups, size_t win_w, size_t win_h);
-
-typedef struct {
-    Color editor_fg;
-    Color editor_bg;
-    Color line_number;
-    Color line_number_current;
-    Color sidebar_bg;
-    Color cursor;
-    Color menu_bar_bg;
-    Color status_bar_bg;
-    Color tab_bar_bg;
-    Color tab_bar_bg_hovered;
-    Color tab_bar_bg_displayed;
-    Color bottom_panel_bg;
-    Color panel_border;
-    Color scrollbar_thumb;
-    Color scrollbar_thumb_scroll_area_hovered;
-    Color scrollbar_thumb_hovered;
-} ColorTheme;
-
 typedef struct {
     int window_width;
     int window_height;
     int editor_font_size;
     const char* editor_font_path;
-    ColorTheme color_theme;
+    ColorScheme color_scheme;
 } Config;
 
 typedef struct Meditor {

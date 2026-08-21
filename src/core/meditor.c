@@ -601,65 +601,6 @@ void medit_erase_char(Meditor* medit)
     update_cursor_len(medit);
 }
 
-void medit_layout_recompute(Layout* layout, FileViewGroups* groups, size_t win_w, size_t win_h)
-{
-    assert(groups->count > 0 && "You forgot to create some demo group");
-
-    LayoutSizes s = layout->sizes;
-    Rect window = {
-        .x = 0,
-        .y = 0,
-        .w = size_to_i32(win_w),
-        .h = size_to_i32(win_h),
-    };
-
-    if (medit_layout_is_element_shown(layout, LAYOUT_MENU_BAR)) {
-        layout->menu_bar = panel_cut_top(&window, s.menu_bar_height, s.separator_size);
-    }
-    if (medit_layout_is_element_shown(layout, LAYOUT_STATUS_BAR)) {
-        layout->status_bar = panel_cut_bottom(&window, s.status_bar_height, s.separator_size);
-    }
-    if (medit_layout_is_element_shown(layout, LAYOUT_SIDE_PANEL)) {
-        layout->side_panel = panel_cut_left(&window, s.side_panel_width, s.separator_size);
-    }
-    if (medit_layout_is_element_shown(layout, LAYOUT_BOTTOM_PANEL)) {
-        layout->bottom_panel = panel_cut_bottom(&window, s.bottom_panel_height, s.separator_size);
-    }
-    layout->editor_area = window;
-
-    size_t cols = 1;
-    while (cols * cols < groups->count) {
-        cols++;
-    }
-    size_t rows = (groups->count + cols - 1) / cols;
-    int32_t row_height = window.h / size_to_i32(rows);
-    int32_t col_width = window.w / size_to_i32(cols);
-
-    Rect editor = layout->editor_area;
-
-    for (size_t r = 0; r < rows; ++r) {
-        if (r > 0) {
-            rect_cut_top(&editor, s.separator_size);
-        }
-        Rect row_rect = rect_cut_top(&editor, row_height);
-        for (size_t c = 0; c < cols; ++c) {
-            if (c > 0) {
-                rect_cut_left(&row_rect, s.separator_size);
-            }
-            size_t idx = (r * cols) + c;
-            if (idx >= groups->count) {
-                break;
-            }
-            groups->items[idx].area = rect_cut_left(&row_rect, col_width);
-            Rect content = groups->items[idx].area;
-            if (medit_layout_is_element_shown(layout, LAYOUT_TAB_BAR)) {
-                rect_cut_top(&content, s.tab_bar_height + s.separator_size);
-            }
-            groups->items[idx].content_area = content;
-        }
-    }
-}
-
 void medit_dump_state(Meditor* medit)
 {
     FileView* file_view = medit_get_focused_file_view(medit);

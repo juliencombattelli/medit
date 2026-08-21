@@ -30,8 +30,6 @@ static void ui_sdl3_on_window_resized(SDL3Ui* ui, int w, int h)
             .width = w,
             .height = h,
         });
-
-    ui_sdl3_recompute_layout(ui);
 }
 
 static Uint32 ui_sdl3_on_cursor_should_blink(void* userdata, SDL_TimerID timer_id, Uint32 interval)
@@ -106,9 +104,6 @@ static void ui_sdl3_dispatch_event(SDL3Ui* ui, SDL_Event* event)
             medit_load_default_keybind_full(ui->medit, &UI_SDL3_ACTIONS, ui);
         } break;
         case SDL_EVENT_MOUSE_WHEEL: {
-            ui->ui_scroll_delta_x += event->wheel.x;
-            ui->ui_scroll_delta_y += event->wheel.y;
-            ui->ui_scroll_valid = true;
         } break;
         default: break;
     }
@@ -152,7 +147,7 @@ bool ui_sdl3_create(SDL3Ui* ui, Meditor* medit)
         "Medit",
         DEFAULT_WINDOW_WIDTH,
         DEFAULT_WINDOW_HEIGHT,
-        SDL_WINDOW_HIDDEN | SDL_WINDOW_RESIZABLE);
+        SDL_WINDOW_HIDDEN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_BORDERLESS);
     try(window);
 
     SDL_Renderer* renderer = SDL_CreateRenderer(window, NULL);
@@ -173,9 +168,6 @@ bool ui_sdl3_create(SDL3Ui* ui, Meditor* medit)
 
     medit_load_default_keybind_full(medit, &UI_SDL3_ACTIONS, ui);
 
-    ui_draw_cmd_list_init(&ui->ui_draw_list_bg);
-    ui_draw_cmd_list_init(&ui->ui_draw_list_overlay);
-
     return true;
 }
 
@@ -184,9 +176,6 @@ bool ui_sdl3_create(SDL3Ui* ui, Meditor* medit)
 void ui_sdl3_destroy(SDL3Ui* ui)
 {
     SDL_StopTextInput(ui->window);
-
-    ui_draw_cmd_list_free(&ui->ui_draw_list_bg);
-    ui_draw_cmd_list_free(&ui->ui_draw_list_overlay);
 
     SDL_DestroyRenderer(ui->renderer);
     SDL_DestroyWindow(ui->window);

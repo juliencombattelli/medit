@@ -1,8 +1,8 @@
 #ifndef MEDIT_UI_SDL3_UTILS_UTILS_H_
 #define MEDIT_UI_SDL3_UTILS_UTILS_H_
 
-#include <core/color.h>
-#include <core/rect.h>
+#include <core/ui/color.h>
+#include <core/ui/rect.h>
 #include <core/safeint.h>
 
 #include <SDL3/SDL.h>

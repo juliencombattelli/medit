@@ -47,10 +47,6 @@ static void action_open_file_dialog(Meditor* medit, void* ui_)
 static void action_toggle_side_panel(Meditor* medit, void* ui_)
 {
     MEDIT_UNUSED(medit);
-
-    SDL3Ui* ui = ui_;
-    medit_layout_toggle_shown_element(&ui->layout, LAYOUT_SIDE_PANEL);
-    ui_sdl3_recompute_layout(ui);
 }
 
 const Actions UI_SDL3_ACTIONS = {
@@ -59,15 +55,6 @@ const Actions UI_SDL3_ACTIONS = {
     .open_file_dialog = action_open_file_dialog,
     .toggle_side_panel = action_toggle_side_panel,
     .dump_state = action_dump_state,
-};
-
-const LayoutSizes UI_SDL3_DEFAULT_LAYOUT_SIZES = {
-    .menu_bar_height = 30,
-    .tab_bar_height = 35,
-    .side_panel_width = 200,
-    .bottom_panel_height = 200,
-    .status_bar_height = 30,
-    .separator_size = 1,
 };
 
 static void ui_sdl3_handle_save_of_dirty_file(

@@ -36,6 +36,11 @@ typedef struct {
     DragState drag_state;
     const ScrollContainerCustom* scroll_containers;
     size_t scroll_container_count;
+    bool fullscreen;
+    bool show_panel_left;
+    bool show_panel_right;
+    bool show_panel_bottom;
+    bool show_status_bar;
 } Ui;
 
 void medit_ui_titlebar_init(Ui* ui, SDL_Window* window);

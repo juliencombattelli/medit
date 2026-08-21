@@ -1,8 +1,4 @@
-#pragma once
-
 #include <core/ui/color.h>
-
-#include "clay.h"
 
 typedef struct {
     Color editor_fg;
@@ -24,10 +20,17 @@ typedef struct {
     Color titlebar_ctrl_button_minimize;
     Color titlebar_ctrl_button_maximize;
     Color titlebar_ctrl_button_close;
-} ColorTheme2;
+} ColorScheme;
 
 typedef struct {
-    ColorTheme2 colors;
+    float top_feft;
+    float top_right;
+    float bottom_left;
+    float bottom_right;
+} CornerRadius;
+
+
+typedef struct {
     uint8_t dragged_tab_transparency;
     uint32_t titlebar_height;
     uint32_t titlebar_button_width;
@@ -35,5 +38,10 @@ typedef struct {
     uint32_t scrollbar_size;
     uint32_t scrollbar_corner_radius;
     uint16_t panels_gap;
-    Clay_CornerRadius panels_corner_radius;
-} UiTheme;
+    CornerRadius panels_corner_radius;
+} LayoutSettings;
+
+typedef struct {
+    ColorScheme color_scheme;
+    LayoutSettings layout_settings;
+} Theme;

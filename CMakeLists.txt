@@ -39,27 +39,30 @@ add_hot_reloadable_executable(medit medit_app)
 
 target_sources(medit PRIVATE src/main.c)
 target_compile_options(medit PRIVATE ${COMPILE_OPTIONS})
-target_include_directories(medit PRIVATE src)
-target_link_libraries(medit PRIVATE SDL3::SDL3 m)
+target_include_directories(medit PRIVATE src vendor/clay)
+target_link_libraries(medit PRIVATE SDL3::SDL3 m Clay::Clay)
 
 target_sources(medit_app PRIVATE
     # Hot reloadable entry point
     src/medit.c src/default_config.c
     # Core modules
     src/core/meditor.c src/core/keybind.c src/core/unicode.c src/core/utils.c
-    src/core/rect.c src/core/action.c src/core/ui.c src/core/string_view.c
+    src/core/action.c src/core/ui/ui.c src/core/string_view.c
+    src/core/ui/clay_utils.c
     # SDL3 UI modules
     src/ui/sdl3/sdl3.c
-    src/ui/sdl3/sdl3_renderer.c src/ui/sdl3/sdl3_layout.c src/ui/sdl3/sdl3_actions.c
+    src/ui/sdl3/sdl3_renderer.c src/ui/sdl3/sdl3_actions.c
     src/ui/sdl3/sdl3_core.c src/ui/sdl3/sdl3_font.c src/ui/sdl3/sdl3_file_view.c
-    src/ui/sdl3/sdl3_tab_bar.c src/ui/sdl3/sdl3_keybind.c
+    src/ui/sdl3/sdl3_keybind.c
+    src/ui/sdl3/sdl3_clay_renderer.c
+    src/ui/sdl3/sdl3_titlebar.c
     # SDL3 utils modules
     src/ui/sdl3/utils/perf_counter.c
     src/ui/sdl3/utils/font.c
 )
 target_compile_options(medit_app PRIVATE ${COMPILE_OPTIONS})
-target_include_directories(medit_app PRIVATE src)
-target_link_libraries(medit_app PRIVATE SDL3::SDL3 SDL3_ttf::SDL3_ttf utf8proc::utf8proc)
+target_include_directories(medit_app PRIVATE src vendor/clay)
+target_link_libraries(medit_app PRIVATE SDL3::SDL3 SDL3_ttf::SDL3_ttf utf8proc::utf8proc Clay::Clay)
 
 list(APPEND MEDIT_INSTALLED_TARGETS medit)
 if(MEDIT_HOT_RELOAD_ENABLE)
@@ -125,8 +128,8 @@ install(
 )
 
 add_subdirectory(playground/hot-reload)
-add_subdirectory(playground/ui)
-add_subdirectory(playground/ui-clay)
+# add_subdirectory(playground/ui)
+# add_subdirectory(playground/ui-clay)
 
 # Sanitizers are not supported by all toolchains (especially MinGW), so check if it works
 include(cmake/Modules/CheckAddressSanitizerSupported.cmake)
@@ -144,6 +147,10 @@ if(MEDIT_ENABLE_ASAN STREQUAL "ON" AND NOT HAVE_ASAN)
 elseif(HAVE_ASAN)
     # Enable AddressSanitizer for all targets built if requested
     foreach(_target medit test_dynarray test_layout test_unicode test_string_view playground_ui_clay)
+        if(NOT TARGET ${_target})
+            message(WARNING "Target ${_target} does not exist, skipping.")
+            continue()
+        endif()
         if(MEDIT_ENABLE_ASAN STREQUAL "ON")
             target_compile_options(${_target} PRIVATE ${ASAN_COMPILE_OPTIONS})
             target_link_options(${_target} PRIVATE ${ASAN_LINK_OPTIONS})
