@@ -25,7 +25,7 @@
 
 void display_sdl3_clear(SDL3Display* display)
 {
-    Color color = display->medit->config.color_scheme.editor_bg;
+    Color color = display->medit->config.theme.color_scheme.editor_bg;
     SDL_SetRenderDrawColor(display->renderer, color_to_RGBA_args(color));
     SDL_RenderClear(display->renderer);
 }

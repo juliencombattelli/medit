@@ -7,7 +7,6 @@
 
 #include "clay.h"
 
-#include <math.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
@@ -113,10 +112,10 @@ typedef struct {
 } ScrollContainerCustom;
 
 typedef struct {
-    Theme theme;
     TitlebarState titlebar_state;
     MouseState mouse_state;
     DragState drag_state;
+    // TODO set ScrollContainerConfig with sensible default in Config to remove this array
     const ScrollContainerCustom* scroll_containers;
     size_t scroll_container_count;
     bool fullscreen;
@@ -125,16 +124,6 @@ typedef struct {
     bool show_panel_bottom;
     bool show_status_bar;
 } Ui;
-
-bool medit_ui_is_any_element_dragged(const Ui* ui);
-
-void medit_ui_update_scroll_containers(Ui* ui);
-
-void medit_ui_update_titlebar(Ui* ui, int window_width);
-
-void medit_ui_layout_scrollbar(Ui* ui);
-
-void medit_ui_layout_titlebar(Ui* ui);
 
 static inline Clay_Color to_clay_color(Color color)
 {

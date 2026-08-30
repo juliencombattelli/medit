@@ -100,11 +100,12 @@ typedef struct {
     int window_height;
     int editor_font_size;
     const char* editor_font_path;
-    ColorScheme color_scheme;
+    Theme theme;
 } Config;
 
 typedef struct Meditor {
     Config config;
+    Ui ui;
     Keybind keybind;
     Files opened_files;
     FileViewGroups file_views;
@@ -154,5 +155,11 @@ void medit_dump_state(Meditor* medit);
 //       limiting available bindings.
 void medit_load_default_keybind_full(Meditor* medit, const Actions* actions, void* ui);
 void medit_load_default_keybind_ansi(Meditor* medit, const Actions* actions, void* ui);
+
+bool medit_ui_is_any_element_dragged(const Meditor* medit);
+void medit_ui_update_scroll_containers(Meditor* medit);
+void medit_ui_update_titlebar(Meditor* medit, int window_width);
+void medit_ui_layout_scrollbar(Meditor* medit);
+void medit_ui_layout_titlebar(Meditor* medit);
 
 #endif // MEDIT_CORE_MEDITOR_H_

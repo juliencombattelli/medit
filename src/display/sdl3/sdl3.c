@@ -39,7 +39,7 @@ static void temp_display_sdl3_setup_layout(SDL3Display* display)
 #endif
 }
 
-static Clay_RenderCommandArray medit_layout(Ui* ui)
+static Clay_RenderCommandArray medit_layout(Meditor* medit)
 {
     Clay_BeginLayout();
 
@@ -53,7 +53,7 @@ static Clay_RenderCommandArray medit_layout(Ui* ui)
         },
         .backgroundColor = { 0x7F, 0x00, 0x00, 0xFF},
     }) {
-        medit_ui_layout_titlebar(ui);
+        medit_ui_layout_titlebar(medit);
 
         CLAY(CLAY_ID("window_frame_inner"), {
             .layout = {
@@ -63,7 +63,7 @@ static Clay_RenderCommandArray medit_layout(Ui* ui)
                     .height = CLAY_SIZING_GROW(0),
                 },
                 .padding = CLAY_PADDING_ALL(16),
-                .childGap = ui->theme.layout_settings.panels_gap,
+                .childGap = medit->config.theme.layout_settings.panels_gap,
             },
             .backgroundColor = { 0x7F, 0x00, 0x00, 0xFF},
         }) {
@@ -106,7 +106,7 @@ static void handle_clay_errors(Clay_ErrorData error_data)
     printf("%s\n", error_data.errorText.chars);
 }
 
-static void display_sdl3_setup_clay(SDL3Display* display, Ui* ui)
+static void display_sdl3_setup_clay(SDL3Display* display)
 {
     int width = 0, height = 0;
     SDL_GetWindowSize(display->window, &width, &height);
@@ -145,29 +145,6 @@ MeditAppResult medit_display_sdl3_run(void* old_display_state)
     SDL3Display* display = (SDL3Display*)old_display_state;
     Meditor* medit = NULL;
 
-    Ui ui = {
-        .theme = {
-            .color_scheme = {
-                .scrollbar_thumb_inactive = { 100 + 100, 100, 100, 150 },
-                .scrollbar_thumb_hovered  = { 120 + 100, 120, 120, 150 },
-                .scrollbar_thumb_active   = { 140 + 100, 140, 140, 150 },
-                .titlebar_ctrl_button_minimize = { 0xFF, 0xFF, 0x00, 0xFF},
-                .titlebar_ctrl_button_maximize = { 0xFF, 0x00, 0xFF, 0xFF},
-                .titlebar_ctrl_button_close    = { 0x00, 0xFF, 0xFF, 0xFF},
-            },
-            .layout_settings = {
-                .scrollbar_corner_radius = 6,
-                .scrollbar_size = 12,
-                .dragged_tab_transparency = 0x9F,
-                .panels_gap = 8,
-                .panels_corner_radius = {8, 8, 8, 8},
-                .titlebar_height = 32,
-                .titlebar_button_width = 46,
-                .window_resize_border = 4,
-            },
-        },
-    };
-
     if (!reload_requested) {
         display = (SDL3Display*)calloc(1, sizeof(SDL3Display));
         display->medit = (Meditor*)calloc(1, sizeof(Meditor));
@@ -180,9 +157,9 @@ MeditAppResult medit_display_sdl3_run(void* old_display_state)
 
         display_sdl3_ttf_setup(display);
 
-        display_sdl3_setup_clay(display, &ui);
+        display_sdl3_setup_clay(display);
 
-        medit_ui_titlebar_init(&ui, display->window);
+        medit_ui_titlebar_init(&medit->ui, display->window);
 
         temp_display_sdl3_setup_layout(display);
 
@@ -249,27 +226,27 @@ MeditAppResult medit_display_sdl3_run(void* old_display_state)
             (float)display->window_size.height,
         });
 
-        mouse_state_update(&ui.mouse_state, sdl_get_mouse_state(display->window, &ui.mouse_state));
+        mouse_state_update(&medit->ui.mouse_state, sdl_get_mouse_state(display->window, &medit->ui.mouse_state));
 
-        Clay_SetPointerState(ui.mouse_state.pos,
-            ui.mouse_state.buttons[MOUSE_BUTTON_LEFT].state < MOUSE_BUTTON_PRESSED);
+        Clay_SetPointerState(medit->ui.mouse_state.pos,
+            medit->ui.mouse_state.buttons[MOUSE_BUTTON_LEFT].state < MOUSE_BUTTON_PRESSED);
 
-        medit_ui_update_scroll_containers(&ui);
+        medit_ui_update_scroll_containers(medit);
 
-        medit_ui_update_titlebar(&ui, display->window_size.width);
+        medit_ui_update_titlebar(medit, display->window_size.width);
 
-        if (ui.mouse_state.buttons[MOUSE_BUTTON_LEFT].state == MOUSE_BUTTON_RELEASED_THIS_FRAME) {
-            if (ui.titlebar_state.hovered_button == TITLEBAR_BTN_MIN) {
+        if (medit->ui.mouse_state.buttons[MOUSE_BUTTON_LEFT].state == MOUSE_BUTTON_RELEASED_THIS_FRAME) {
+            if (medit->ui.titlebar_state.hovered_button == TITLEBAR_BTN_MIN) {
                 SDL_MinimizeWindow(display->window);
             }
-            if (ui.titlebar_state.hovered_button == TITLEBAR_BTN_MAX) {
+            if (medit->ui.titlebar_state.hovered_button == TITLEBAR_BTN_MAX) {
                 if ((SDL_GetWindowFlags(display->window) & SDL_WINDOW_MAXIMIZED) != 0) {
                     SDL_RestoreWindow(display->window);
                 } else {
                     SDL_MaximizeWindow(display->window);
                 }
             }
-            if (ui.titlebar_state.hovered_button == TITLEBAR_BTN_CLOSE) {
+            if (medit->ui.titlebar_state.hovered_button == TITLEBAR_BTN_CLOSE) {
                 medit->running = false;
             }
         }
@@ -299,7 +276,7 @@ MeditAppResult medit_display_sdl3_run(void* old_display_state)
         //     }
         // }
 
-        Clay_RenderCommandArray render_commands = medit_layout(&ui);
+        Clay_RenderCommandArray render_commands = medit_layout(medit);
 
         display_sdl3_clear(display);
         SDL_Clay_RenderClayCommands(display, &render_commands);

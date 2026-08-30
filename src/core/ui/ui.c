@@ -1,6 +1,7 @@
 #include "ui.h"
 
 #include <core/dynarray.h>
+#include <core/meditor.h>
 #include <core/safeint.h>
 #include <core/utils.h>
 
@@ -16,15 +17,15 @@ static inline Clay_String Clay_Ext_StringFromCStr(const char* str) {
     };
 }
 
-bool medit_ui_is_any_element_dragged(const Ui* ui)
+bool medit_ui_is_any_element_dragged(const Meditor* medit)
 {
-    return ui->drag_state.active_id != CLAY_EXT_NULL_ID;
+    return medit->ui.drag_state.active_id != CLAY_EXT_NULL_ID;
 }
 
-void medit_ui_update_scroll_containers(Ui* ui)
+void medit_ui_update_scroll_containers(Meditor* medit)
 {
-    for (size_t i = 0; i < ui->scroll_container_count; i++) {
-        const ScrollContainerCustom* scroll_container = &ui->scroll_containers[i];
+    for (size_t i = 0; i < medit->ui.scroll_container_count; i++) {
+        const ScrollContainerCustom* scroll_container = &medit->ui.scroll_containers[i];
         const Clay_ElementId container_id = CLAY_SID(Clay_Ext_StringFromCStr(scroll_container->container_id));
         const Clay_ElementId scrollbar_h_button_id = Clay__HashString(CLAY_STRING("scrollbar_h_button"), container_id.id);
         const Clay_ElementId scrollbar_v_button_id = Clay__HashString(CLAY_STRING("scrollbar_v_button"), container_id.id);
@@ -32,41 +33,41 @@ void medit_ui_update_scroll_containers(Ui* ui)
             container_id,
             scrollbar_h_button_id,
             scrollbar_v_button_id,
-            ui->mouse_state.pos,
-            ui->mouse_state.scroll_delta,
+            medit->ui.mouse_state.pos,
+            medit->ui.mouse_state.scroll_delta,
             (ScrollContainerConfig) {
                 .sensitivity_h = 30.f,
                 .sensitivity_v = 10.f,
                 .enable_drag_on_edges = true,
             },
-            &ui->mouse_state,
-            &ui->drag_state);
+            &medit->ui.mouse_state,
+            &medit->ui.drag_state);
     }
 
     // Handle scroll delta with mouse wheels only for other scrollable areas
     Clay_UpdateScrollContainers(
         false, // do not enable touch and drag scrolling as it is handled per scrollable area
-        ui->mouse_state.scroll_delta,
+        medit->ui.mouse_state.scroll_delta,
         0.f); // not used when touch and drag scrolling is disabled
 }
 
-static Clay_Color get_scrollbar_color(const Ui* ui)
+static Clay_Color get_scrollbar_color(const Meditor* medit)
 {
-    if (ui->drag_state.active_id == Clay_GetOpenElementId()) {
-        return to_clay_color(ui->theme.color_scheme.scrollbar_thumb_active);
+    if (medit->ui.drag_state.active_id == Clay_GetOpenElementId()) {
+        return to_clay_color(medit->config.theme.color_scheme.scrollbar_thumb_active);
     }
-    if (!medit_ui_is_any_element_dragged(ui) && Clay_Hovered()) {
-        return to_clay_color(ui->theme.color_scheme.scrollbar_thumb_hovered);
+    if (!medit_ui_is_any_element_dragged(medit) && Clay_Hovered()) {
+        return to_clay_color(medit->config.theme.color_scheme.scrollbar_thumb_hovered);
     }
-    return to_clay_color(ui->theme.color_scheme.scrollbar_thumb_inactive);
+    return to_clay_color(medit->config.theme.color_scheme.scrollbar_thumb_inactive);
 }
 
 // Lay out a scrollbar with predefined settings for the opened element
-void medit_ui_layout_scrollbar(Ui* ui)
+void medit_ui_layout_scrollbar(Meditor* medit)
 {
     // TODO verify that only one scrollbar is displayed when overflowing on only one dimension
-    const float scrollbar_size = (float)ui->theme.layout_settings.scrollbar_size;
-    const float scrollbar_corner_radius = (float)ui->theme.layout_settings.scrollbar_corner_radius;
+    const float scrollbar_size = (float)medit->config.theme.layout_settings.scrollbar_size;
+    const float scrollbar_corner_radius = (float)medit->config.theme.layout_settings.scrollbar_corner_radius;
 
     uint32_t parent_id = Clay_GetOpenElementId();
     Clay_ScrollContainerData scroll_data = Clay_GetScrollContainerData((Clay_ElementId){ .id = parent_id });
@@ -99,7 +100,7 @@ void medit_ui_layout_scrollbar(Ui* ui)
                             .height = CLAY_SIZING_FIXED(scrollbar_size),
                         }
                     },
-                    .backgroundColor = get_scrollbar_color(ui),
+                    .backgroundColor = get_scrollbar_color(medit),
                     .cornerRadius = CLAY_CORNER_RADIUS(scrollbar_corner_radius),
                 });
             }
@@ -131,7 +132,7 @@ void medit_ui_layout_scrollbar(Ui* ui)
                                 * scroll_data.scrollContainerDimensions.height),
                         }
                     },
-                    .backgroundColor = get_scrollbar_color(ui),
+                    .backgroundColor = get_scrollbar_color(medit),
                     .cornerRadius = CLAY_CORNER_RADIUS(scrollbar_corner_radius),
                 });
             }

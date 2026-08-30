@@ -49,7 +49,7 @@ static Rect display_sdl3_cursor_rect(
 void display_sdl3_queue_cursor(SDL3Display* display, Rect text_area, FileViewGroup* group)
 {
     Meditor* medit = display->medit;
-    Color cursor_color = display->medit->config.color_scheme.cursor;
+    Color cursor_color = display->medit->config.theme.color_scheme.cursor;
     FileView* file_view = medit_get_displayed_file_view_in_group(medit, group);
     bool focused = medit_get_focused_file_view_group(medit) == group;
 
@@ -77,7 +77,7 @@ void display_sdl3_queue_cursor(SDL3Display* display, Rect text_area, FileViewGro
 void display_sdl3_draw_cursor_glyphs(SDL3Display* display, Rect text_area, FileViewGroup* group)
 {
     Meditor* medit = display->medit;
-    Color cursor_color = display->medit->config.color_scheme.cursor;
+    Color cursor_color = display->medit->config.theme.color_scheme.cursor;
     FileView* file_view = medit_get_displayed_file_view_in_group(medit, group);
     bool focused = medit_get_focused_file_view_group(medit) == group;
 
@@ -171,8 +171,8 @@ static void display_sdl3_draw_line_number(SDL3Display* display, size_t row, Rect
     bool focused = medit_get_focused_file_view_group(medit) == group;
 
     const Color line_number_color = focused && row == file_view->cursors.items[0].line
-        ? medit->config.color_scheme.line_number_current
-        : medit->config.color_scheme.line_number;
+        ? medit->config.theme.color_scheme.line_number_current
+        : medit->config.theme.color_scheme.line_number;
 
     PixelPos pos = {
         .x = gutter.x,
@@ -214,7 +214,7 @@ static void display_sdl3_draw_line(
     //     line->count,
     //     &display->fonts[FONT_ID_EDITOR],
     //     line_pos,
-    //     medit->config.color_scheme.editor_fg);
+    //     medit->config.theme.color_scheme.editor_fg);
 }
 
 // Draw file lines and line numbers directly to the renderer

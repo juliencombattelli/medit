@@ -1,4 +1,4 @@
-#include <core/ui/ui.h>
+#include <core/meditor.h>
 
 #include <core/assert.h>
 
@@ -14,7 +14,7 @@
 #include <stdio.h>
 
 #define PROP_MEDIT_WIN32_SDL_WNDPROC "medit.win32.sdl_wndproc"
-#define PROP_MEDIT_WIN32_UI "medit.win32.ui"
+#define PROP_MEDIT_WIN32_MEDITOR "medit.win32.meditor"
 
 static Point win32_screen_to_client(HWND hwnd, LONG x, LONG y)
 {
@@ -26,7 +26,8 @@ static Point win32_screen_to_client(HWND hwnd, LONG x, LONG y)
 static LRESULT CALLBACK custom_wndproc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     WNDPROC sdl_wndproc = (WNDPROC)GetProp(hwnd, PROP_MEDIT_WIN32_SDL_WNDPROC);
-    Ui* ui = (Ui*)GetProp(hwnd, PROP_MEDIT_WIN32_UI);
+    Meditor* medit = (Meditor*)GetProp(hwnd, PROP_MEDIT_WIN32_MEDITOR);
+    Theme* theme = &medit->config.theme;
 
     switch (msg) {
         case WM_NCCALCSIZE: {
@@ -48,17 +49,17 @@ static LRESULT CALLBACK custom_wndproc(HWND hwnd, UINT msg, WPARAM wParam, LPARA
             if (hit != HTCLIENT) return hit;
             // The default hit testing done by DefWindowProc never returns HTTOP* when the mouse is in the top border
             // due to the custom WM_NCCALCSIZE calculation
-            if (point.y < ui->theme.layout_settings.window_resize_border) {
+            if (point.y < theme->layout_settings.window_resize_border) {
                 RECT rect;
                 GetClientRect(hwnd, &rect);
-                if (point.x < ui->theme.layout_settings.window_resize_border) return HTTOPLEFT;
-                if (rect.right - point.x < ui->theme.layout_settings.window_resize_border) return HTTOPRIGHT;
+                if (point.x < theme->layout_settings.window_resize_border) return HTTOPLEFT;
+                if (rect.right - point.x < theme->layout_settings.window_resize_border) return HTTOPRIGHT;
                 return HTTOP;
             }
-            if (medit_is_point_in_rect_pointers(&point, &ui->titlebar_state.maximize_button_rect)) return HTMAXBUTTON;
-            if (medit_is_point_in_rect_pointers(&point, &ui->titlebar_state.minimize_button_rect)) return HTMINBUTTON;
-            if (medit_is_point_in_rect_pointers(&point, &ui->titlebar_state.close_button_rect)) return HTCLOSE;
-            if (point.y >= 0 && point.y < ui->theme.layout_settings.titlebar_height) return HTCAPTION;
+            if (medit_is_point_in_rect_pointers(&point, &medit->ui.titlebar_state.maximize_button_rect)) return HTMAXBUTTON;
+            if (medit_is_point_in_rect_pointers(&point, &medit->ui.titlebar_state.minimize_button_rect)) return HTMINBUTTON;
+            if (medit_is_point_in_rect_pointers(&point, &medit->ui.titlebar_state.close_button_rect)) return HTCLOSE;
+            if (point.y >= 0 && point.y < theme->layout_settings.titlebar_height) return HTCAPTION;
             return HTCLIENT;
         } break;
         case WM_NCLBUTTONDOWN: {
@@ -78,7 +79,7 @@ static LRESULT CALLBACK custom_wndproc(HWND hwnd, UINT msg, WPARAM wParam, LPARA
     return CallWindowProc(sdl_wndproc, hwnd, msg, wParam, lParam);
 }
 
-static bool titlebar_win32_init(SDL_Window* window, Ui* ui)
+static bool titlebar_win32_init(SDL_Window* window, Meditor* medit)
 {
     HWND hwnd = (HWND)SDL_GetPointerProperty(SDL_GetWindowProperties(window), SDL_PROP_WINDOW_WIN32_HWND_POINTER, NULL);
     if (!hwnd) {
@@ -91,7 +92,7 @@ static bool titlebar_win32_init(SDL_Window* window, Ui* ui)
 
     WNDPROC sdl_wndproc = (WNDPROC)SetWindowLongPtr(hwnd, GWLP_WNDPROC, (LONG_PTR)custom_wndproc);
     SetProp(hwnd, PROP_MEDIT_WIN32_SDL_WNDPROC, (HANDLE)sdl_wndproc);
-    SetProp(hwnd, PROP_MEDIT_WIN32_UI, (HANDLE)ui);
+    SetProp(hwnd, PROP_MEDIT_WIN32_MEDITOR, (HANDLE)medit);
 
     SetWindowPos(hwnd, NULL, 0, 0, 0, 0,
         SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
@@ -103,17 +104,18 @@ static bool titlebar_win32_init(SDL_Window* window, Ui* ui)
 
 static SDL_HitTestResult handle_sdl_window_hit_test(SDL_Window *window, const SDL_Point *_area, void *_data)
 {
-    Ui* ui = (Ui*)_data;
+    Meditor* medit = (Meditor*)_data;
+    Theme* theme = &medit->config.theme;
     Point area = { .x = _area->x, .y = _area->y };
 
     int width = 0, height = 0;
     SDL_GetWindowSize(window, &width, &height);
 
-    const bool at_left      = area.x < ui->theme.layout_settings.window_resize_border;
-    const bool at_right     = area.x > width - ui->theme.layout_settings.window_resize_border;
-    const bool at_top       = area.y < ui->theme.layout_settings.titlebar_height / 4;
-    const bool at_title_bar = area.y < ui->theme.layout_settings.titlebar_height;
-    const bool at_bottom    = area.y > height - ui->theme.layout_settings.window_resize_border;
+    const bool at_left      = area.x < theme->layout_settings.window_resize_border;
+    const bool at_right     = area.x > width - theme->layout_settings.window_resize_border;
+    const bool at_top       = area.y < theme->layout_settings.titlebar_height / 4;
+    const bool at_title_bar = area.y < theme->layout_settings.titlebar_height;
+    const bool at_bottom    = area.y > height - theme->layout_settings.window_resize_border;
 
     SDL_HitTestResult hit_test = SDL_HITTEST_NORMAL;
 
@@ -138,9 +140,9 @@ static SDL_HitTestResult handle_sdl_window_hit_test(SDL_Window *window, const SD
     } else if (at_right) {
         hit_test = SDL_HITTEST_RESIZE_RIGHT;
     } else if (at_title_bar) {
-        if (!medit_is_point_in_rect(area, ui->titlebar_state.minimize_button_rect)
-            && !medit_is_point_in_rect(area, ui->titlebar_state.maximize_button_rect)
-            && !medit_is_point_in_rect(area, ui->titlebar_state.close_button_rect))
+        if (!medit_is_point_in_rect(area, medit->ui.titlebar_state.minimize_button_rect)
+            && !medit_is_point_in_rect(area, medit->ui.titlebar_state.maximize_button_rect)
+            && !medit_is_point_in_rect(area, medit->ui.titlebar_state.close_button_rect))
         {
             hit_test = SDL_HITTEST_DRAGGABLE;
         }
@@ -153,29 +155,30 @@ static SDL_HitTestResult handle_sdl_window_hit_test(SDL_Window *window, const SD
 
 #endif
 
-static void titlebar_recalc_button_rects(Ui* ui, int window_width)
+static void titlebar_recalc_button_rects(Meditor* medit, int window_width)
 {
-    TitlebarState* state = &ui->titlebar_state;
+    Theme* theme = &medit->config.theme;
+    TitlebarState* state = &medit->ui.titlebar_state;
 
     state->minimize_button_rect = (Rect){
-        .x = window_width - (ui->theme.layout_settings.titlebar_button_width * 3),
+        .x = window_width - (theme->layout_settings.titlebar_button_width * 3),
         .y = 0,
-        .w = ui->theme.layout_settings.titlebar_button_width,
-        .h = ui->theme.layout_settings.titlebar_height,
+        .w = theme->layout_settings.titlebar_button_width,
+        .h = theme->layout_settings.titlebar_height,
     };
 
     state->maximize_button_rect = (Rect){
-        .x = window_width - (ui->theme.layout_settings.titlebar_button_width * 2),
+        .x = window_width - (theme->layout_settings.titlebar_button_width * 2),
         .y = 0,
-        .w = ui->theme.layout_settings.titlebar_button_width,
-        .h = ui->theme.layout_settings.titlebar_height,
+        .w = theme->layout_settings.titlebar_button_width,
+        .h = theme->layout_settings.titlebar_height,
     };
 
     state->close_button_rect = (Rect){
-        .x = window_width - (ui->theme.layout_settings.titlebar_button_width * 1),
+        .x = window_width - (theme->layout_settings.titlebar_button_width * 1),
         .y = 0,
-        .w = ui->theme.layout_settings.titlebar_button_width,
-        .h = ui->theme.layout_settings.titlebar_height,
+        .w = theme->layout_settings.titlebar_button_width,
+        .h = theme->layout_settings.titlebar_height,
     };
 }
 
@@ -193,33 +196,35 @@ static TitlebarHoveredButton titlebar_button_at(Point point, const TitlebarState
     return TITLEBAR_BTN_NONE;
 }
 
-void medit_ui_titlebar_init(Ui* ui, SDL_Window* window)
+void medit_ui_titlebar_init(Meditor* medit, SDL_Window* window)
 {
 #if SDL_PLATFORM_WINDOWS
     // Note: SDL_SetWindowsMessageHook cannot be used here as it does not allow to inject events for SDL
-    assert(titlebar_win32_init(window, ui));
+    assert(titlebar_win32_init(window, medit));
 #else
-    assert_sdl(SDL_SetWindowHitTest(window, handle_sdl_window_hit_test, ui));
+    assert_sdl(SDL_SetWindowHitTest(window, handle_sdl_window_hit_test, medit));
 #endif
 }
 
-void medit_ui_update_titlebar(Ui* ui, int window_width)
+void medit_ui_update_titlebar(Meditor* medit, int window_width)
 {
-    titlebar_recalc_button_rects(ui, window_width);
+    titlebar_recalc_button_rects(medit, window_width);
 
-    ui->titlebar_state.hovered_button = titlebar_button_at(
-        (Point){ ui->mouse_state.pos.x, ui->mouse_state.pos.y },
-        &ui->titlebar_state);
+    medit->ui.titlebar_state.hovered_button = titlebar_button_at(
+        (Point){ medit->ui.mouse_state.pos.x, medit->ui.mouse_state.pos.y },
+        &medit->ui.titlebar_state);
 }
 
-void medit_ui_layout_titlebar(Ui* ui)
+void medit_ui_layout_titlebar(Meditor* medit)
 {
+    Theme* theme = &medit->config.theme;
+
     CLAY(CLAY_ID("titlebar"), {
         .layout = {
             .layoutDirection = CLAY_LEFT_TO_RIGHT,
             .sizing = {
                 .width = CLAY_SIZING_GROW(0),
-                .height = CLAY_SIZING_FIXED((float)ui->theme.layout_settings.titlebar_height),
+                .height = CLAY_SIZING_FIXED((float)theme->layout_settings.titlebar_height),
             },
         },
         .backgroundColor = { 0x7F, 0x00, 0x7F, 0xFF},
@@ -243,29 +248,29 @@ void medit_ui_layout_titlebar(Ui* ui)
             CLAY(CLAY_ID("titlebar_ctrl_button_min"), {
                 .layout = {
                     .sizing = {
-                        .width = CLAY_SIZING_FIXED((float)ui->theme.layout_settings.titlebar_button_width),
+                        .width = CLAY_SIZING_FIXED((float)theme->layout_settings.titlebar_button_width),
                         .height = CLAY_SIZING_GROW(0),
                     },
                 },
-                .backgroundColor = to_clay_color(ui->theme.color_scheme.titlebar_ctrl_button_minimize),
+                .backgroundColor = to_clay_color(theme->color_scheme.titlebar_ctrl_button_minimize),
             });
             CLAY(CLAY_ID("titlebar_ctrl_button_max"), {
                 .layout = {
                     .sizing = {
-                        .width = CLAY_SIZING_FIXED((float)ui->theme.layout_settings.titlebar_button_width),
+                        .width = CLAY_SIZING_FIXED((float)theme->layout_settings.titlebar_button_width),
                         .height = CLAY_SIZING_GROW(0),
                     },
                 },
-                .backgroundColor = to_clay_color(ui->theme.color_scheme.titlebar_ctrl_button_maximize),
+                .backgroundColor = to_clay_color(theme->color_scheme.titlebar_ctrl_button_maximize),
             });
             CLAY(CLAY_ID("titlebar_ctrl_button_close"), {
                 .layout = {
                     .sizing = {
-                        .width = CLAY_SIZING_FIXED((float)ui->theme.layout_settings.titlebar_button_width),
+                        .width = CLAY_SIZING_FIXED((float)theme->layout_settings.titlebar_button_width),
                         .height = CLAY_SIZING_GROW(0),
                     },
                 },
-                .backgroundColor = to_clay_color(ui->theme.color_scheme.titlebar_ctrl_button_close),
+                .backgroundColor = to_clay_color(theme->color_scheme.titlebar_ctrl_button_close),
             });
         }
     }

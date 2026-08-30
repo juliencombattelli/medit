@@ -63,6 +63,10 @@ target_sources(medit_app PRIVATE
 target_compile_options(medit_app PRIVATE ${COMPILE_OPTIONS})
 target_include_directories(medit_app PRIVATE src vendor/clay)
 target_link_libraries(medit_app PRIVATE SDL3::SDL3 SDL3_ttf::SDL3_ttf utf8proc::utf8proc Clay::Clay)
+if(WIN32)
+    target_link_libraries(medit_app PRIVATE dwmapi)
+endif()
+
 
 list(APPEND MEDIT_INSTALLED_TARGETS medit)
 if(MEDIT_HOT_RELOAD_ENABLE)
