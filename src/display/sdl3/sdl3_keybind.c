@@ -145,7 +145,7 @@ static uint32_t sdl3_keymod_to_keybind_mod(SDL_Keymod sdl_mods)
     return result;
 }
 
-KeybindEvent ui_sdl3_keybind_translate_event(void* native_event)
+KeybindEvent display_sdl3_keybind_translate_event(void* native_event)
 {
     KeybindEvent result = { 0 };
 

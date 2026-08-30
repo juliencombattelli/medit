@@ -49,16 +49,16 @@ target_sources(medit_app PRIVATE
     src/core/meditor.c src/core/keybind.c src/core/unicode.c src/core/utils.c
     src/core/action.c src/core/ui/ui.c src/core/string_view.c
     src/core/ui/clay_utils.c
-    # SDL3 UI modules
-    src/ui/sdl3/sdl3.c
-    src/ui/sdl3/sdl3_renderer.c src/ui/sdl3/sdl3_actions.c
-    src/ui/sdl3/sdl3_core.c src/ui/sdl3/sdl3_font.c src/ui/sdl3/sdl3_file_view.c
-    src/ui/sdl3/sdl3_keybind.c
-    src/ui/sdl3/sdl3_clay_renderer.c
-    src/ui/sdl3/sdl3_titlebar.c
+    # SDL3 display modules
+    src/display/sdl3/sdl3.c
+    src/display/sdl3/sdl3_renderer.c src/display/sdl3/sdl3_actions.c
+    src/display/sdl3/sdl3_core.c src/display/sdl3/sdl3_font.c src/display/sdl3/sdl3_file_view.c
+    src/display/sdl3/sdl3_keybind.c
+    src/display/sdl3/sdl3_clay_renderer.c
+    src/display/sdl3/sdl3_titlebar.c
     # SDL3 utils modules
-    src/ui/sdl3/utils/perf_counter.c
-    src/ui/sdl3/utils/font.c
+    src/display/sdl3/utils/perf_counter.c
+    src/display/sdl3/utils/font.c
 )
 target_compile_options(medit_app PRIVATE ${COMPILE_OPTIONS})
 target_include_directories(medit_app PRIVATE src vendor/clay)

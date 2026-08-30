@@ -7,30 +7,30 @@
 #include <core/safeint.h>
 #include <core/utils.h>
 
-static Rect ui_sdl3_cursor_rect(
-    SDL3Ui* ui,
+static Rect display_sdl3_cursor_rect(
+    SDL3Display* display,
     Rect text_area,
     const Cursor* cursor,
     FileView* file_view)
 {
-    Line* line = &medit_file_view_file(ui->medit, file_view)->lines.items[cursor->line];
+    Line* line = &medit_file_view_file(display->medit, file_view)->lines.items[cursor->line];
     // Compute x offset of the cursor in the line
     int line_w = 0;
     if (cursor->byte != 0) {
         TTF_MeasureString(
-            ui->fonts[FONT_ID_EDITOR].main,
-            medit_file_view_file(ui->medit, file_view)->lines.items[cursor->line].items,
+            display->fonts[FONT_ID_EDITOR].main,
+            medit_file_view_file(display->medit, file_view)->lines.items[cursor->line].items,
             cursor->byte,
             0,
             &line_w,
             NULL);
     }
     // Compute cursor width
-    int cursor_w = size_to_int(ui->fonts[FONT_ID_EDITOR].default_cursor_width);
+    int cursor_w = size_to_int(display->fonts[FONT_ID_EDITOR].default_cursor_width);
     if (line->count != cursor->byte) {
         // cursor not at end of line (excludes also empty lines)
         TTF_MeasureString(
-            ui->fonts[FONT_ID_EDITOR].main,
+            display->fonts[FONT_ID_EDITOR].main,
             &line->items[cursor->byte],
             cursor->len,
             0,
@@ -39,27 +39,27 @@ static Rect ui_sdl3_cursor_rect(
     }
     return (Rect) {
         .x = text_area.x + line_w,
-        .y = text_area.y + size_to_i32(cursor->line * ui->fonts[FONT_ID_EDITOR].line_spacing),
+        .y = text_area.y + size_to_i32(cursor->line * display->fonts[FONT_ID_EDITOR].line_spacing),
         .w = cursor_w,
-        .h = size_to_i32(ui->fonts[FONT_ID_EDITOR].line_spacing),
+        .h = size_to_i32(display->fonts[FONT_ID_EDITOR].line_spacing),
     };
 }
 
 // Queue cursor rect(s) into the overlay draw layer
-void ui_sdl3_queue_cursor(SDL3Ui* ui, Rect text_area, FileViewGroup* group)
+void display_sdl3_queue_cursor(SDL3Display* display, Rect text_area, FileViewGroup* group)
 {
-    Meditor* medit = ui->medit;
-    Color cursor_color = ui->medit->config.color_scheme.cursor;
+    Meditor* medit = display->medit;
+    Color cursor_color = display->medit->config.color_scheme.cursor;
     FileView* file_view = medit_get_displayed_file_view_in_group(medit, group);
     bool focused = medit_get_focused_file_view_group(medit) == group;
 
-    if (focused && !ui->cursor_blinker.show) {
+    if (focused && !display->cursor_blinker.show) {
         return;
     }
 
     for (size_t i = 0; i < file_view->cursors.count; ++i) {
         const Cursor* cursor = &file_view->cursors.items[i];
-        const Rect on_screen = ui_sdl3_cursor_rect(ui, text_area, cursor, file_view);
+        const Rect on_screen = display_sdl3_cursor_rect(display, text_area, cursor, file_view);
 
         Rect cursor_rect = {
             .x = on_screen.x - file_view->scrolling.x,
@@ -68,42 +68,26 @@ void ui_sdl3_queue_cursor(SDL3Ui* ui, Rect text_area, FileViewGroup* group)
             .h = on_screen.h,
         };
 
-        // TODO
-        // if (focused) {
-        //     UiDrawCmd fill_cmd = {
-        //         .kind = UI_CMD_RECT_FILLED,
-        //         .rect = cursor_rect,
-        //         .color = cursor_color,
-        //     };
-        //     dynarray_append(&ui->ui_draw_list_overlay, fill_cmd);
-        // } else {
-        //     UiDrawCmd outline_cmd = {
-        //         .kind = UI_CMD_RECT_OUTLINED,
-        //         .rect = cursor_rect,
-        //         .color = cursor_color,
-        //         .outline_color = cursor_color,
-        //     };
-        //     dynarray_append(&ui->ui_draw_list_overlay, outline_cmd);
-        // }
+        // TODO draw cursor
     }
 }
 
 // Draw the glyph on top of each cursor rect directly
 // Must be called after the overlay layer has been flushed
-void ui_sdl3_draw_cursor_glyphs(SDL3Ui* ui, Rect text_area, FileViewGroup* group)
+void display_sdl3_draw_cursor_glyphs(SDL3Display* display, Rect text_area, FileViewGroup* group)
 {
-    Meditor* medit = ui->medit;
-    Color cursor_color = ui->medit->config.color_scheme.cursor;
+    Meditor* medit = display->medit;
+    Color cursor_color = display->medit->config.color_scheme.cursor;
     FileView* file_view = medit_get_displayed_file_view_in_group(medit, group);
     bool focused = medit_get_focused_file_view_group(medit) == group;
 
-    if (focused && !ui->cursor_blinker.show) {
+    if (focused && !display->cursor_blinker.show) {
         return;
     }
 
     for (size_t i = 0; i < file_view->cursors.count; ++i) {
         const Cursor* cursor = &file_view->cursors.items[i];
-        const Rect on_screen = ui_sdl3_cursor_rect(ui, text_area, cursor, file_view);
+        const Rect on_screen = display_sdl3_cursor_rect(display, text_area, cursor, file_view);
 
         Color glyph_color = focused ? color_inverse(cursor_color) : cursor_color;
 
@@ -115,19 +99,19 @@ void ui_sdl3_draw_cursor_glyphs(SDL3Ui* ui, Rect text_area, FileViewGroup* group
                 .y = on_screen.y - file_view->scrolling.y,
             };
             // TODO
-            // ui_sdl3_draw_text(ui, grapheme, cursor->len, &ui->fonts[FONT_ID_EDITOR], char_pos, glyph_color);
+            // display_sdl3_draw_text(display, grapheme, cursor->len, &display->fonts[FONT_ID_EDITOR], char_pos, glyph_color);
         }
     }
 }
 
-void ui_sdl3_scroll_file_view(SDL3Ui* ui, Rect text_area, FileViewGroup* group)
+void display_sdl3_scroll_file_view(SDL3Display* display, Rect text_area, FileViewGroup* group)
 {
-    FileView* file_view = medit_get_displayed_file_view_in_group(ui->medit, group);
+    FileView* file_view = medit_get_displayed_file_view_in_group(display->medit, group);
     Cursor* cursor = &file_view->cursors.items[0];
-    const Rect on_screen = ui_sdl3_cursor_rect(ui, text_area, cursor, file_view);
+    const Rect on_screen = display_sdl3_cursor_rect(display, text_area, cursor, file_view);
 
-    const int32_t margin_x = size_to_i32(ui->fonts[FONT_ID_EDITOR].default_cursor_width * 3);
-    const int32_t margin_y = size_to_i32(ui->fonts[FONT_ID_EDITOR].line_spacing * 3);
+    const int32_t margin_x = size_to_i32(display->fonts[FONT_ID_EDITOR].default_cursor_width * 3);
+    const int32_t margin_y = size_to_i32(display->fonts[FONT_ID_EDITOR].line_spacing * 3);
 
     const int32_t right_border = text_area.x + text_area.w - margin_x;
     const int32_t bottom_border = text_area.y + text_area.h - margin_y;
@@ -149,19 +133,19 @@ void ui_sdl3_scroll_file_view(SDL3Ui* ui, Rect text_area, FileViewGroup* group)
     file_view->scrolling.y = SDL_clamp(file_view->scrolling.y, scroll_min_y, scroll_max_y);
 }
 
-void ui_sdl3_compute_line_number_gutter_width(SDL3Ui* ui, FileViewGroup* group)
+void display_sdl3_compute_line_number_gutter_width(SDL3Display* display, FileViewGroup* group)
 {
-    Meditor* medit = ui->medit;
+    Meditor* medit = display->medit;
     FileView* file_view = medit_get_displayed_file_view_in_group(medit, group);
 
     const int line_count = SDL_max(
         size_to_int(medit_file_view_file(medit, file_view)->lines.count),
         1000);
-    if (line_count == ui->line_nr_cached_line_count) {
+    if (line_count == display->line_nr_cached_line_count) {
         return;
     }
-    ui->line_nr_cached_line_count = line_count;
-    ui->line_nr_max_digits = medit_digits_count(line_count);
+    display->line_nr_cached_line_count = line_count;
+    display->line_nr_max_digits = medit_digits_count(line_count);
 
     char buffer[INT64_DIGITS_COUNT] = { 0 };
     int written = snprintf(buffer, sizeof(buffer), "%d ", line_count);
@@ -169,7 +153,7 @@ void ui_sdl3_compute_line_number_gutter_width(SDL3Ui* ui, FileViewGroup* group)
 
     int line_number_width = 0;
     TTF_MeasureString(
-        ui->fonts[FONT_ID_EDITOR].main,
+        display->fonts[FONT_ID_EDITOR].main,
         buffer,
         int_to_size(written),
         0,
@@ -177,12 +161,12 @@ void ui_sdl3_compute_line_number_gutter_width(SDL3Ui* ui, FileViewGroup* group)
         NULL);
     assert(line_number_width >= 0);
 
-    ui->line_nr_padding = line_number_width;
+    display->line_nr_padding = line_number_width;
 }
 
-static void ui_sdl3_draw_line_number(SDL3Ui* ui, size_t row, Rect gutter, FileViewGroup* group)
+static void display_sdl3_draw_line_number(SDL3Display* display, size_t row, Rect gutter, FileViewGroup* group)
 {
-    Meditor* medit = ui->medit;
+    Meditor* medit = display->medit;
     FileView* file_view = medit_get_displayed_file_view_in_group(medit, group);
     bool focused = medit_get_focused_file_view_group(medit) == group;
 
@@ -192,7 +176,7 @@ static void ui_sdl3_draw_line_number(SDL3Ui* ui, size_t row, Rect gutter, FileVi
 
     PixelPos pos = {
         .x = gutter.x,
-        .y = size_to_i32(row * ui->fonts[FONT_ID_EDITOR].line_spacing) + gutter.y - file_view->scrolling.y,
+        .y = size_to_i32(row * display->fonts[FONT_ID_EDITOR].line_spacing) + gutter.y - file_view->scrolling.y,
     };
 
     char line_number[INT64_DIGITS_COUNT] = { 0 };
@@ -200,50 +184,50 @@ static void ui_sdl3_draw_line_number(SDL3Ui* ui, size_t row, Rect gutter, FileVi
         line_number,
         sizeof(line_number),
         "%*zu",
-        ui->line_nr_max_digits,
+        display->line_nr_max_digits,
         row + 1);
     size_t line_number_len = int_to_size(written);
 
     // TODO
-    // ui_sdl3_draw_text(ui, line_number, line_number_len, &ui->fonts[FONT_ID_EDITOR], pos, line_number_color);
+    // display_sdl3_draw_text(display, line_number, line_number_len, &display->fonts[FONT_ID_EDITOR], pos, line_number_color);
 }
 
-static void ui_sdl3_draw_line(
-    SDL3Ui* ui,
+static void display_sdl3_draw_line(
+    SDL3Display* display,
     size_t row,
     Line* line,
     Rect content,
     FileViewGroup* group)
 {
-    Meditor* medit = ui->medit;
+    Meditor* medit = display->medit;
     FileView* file_view = medit_get_displayed_file_view_in_group(medit, group);
 
     PixelPos line_pos = {
         .x = content.x - file_view->scrolling.x,
-        .y = size_to_i32(row * ui->fonts[FONT_ID_EDITOR].line_spacing) + content.y - file_view->scrolling.y,
+        .y = size_to_i32(row * display->fonts[FONT_ID_EDITOR].line_spacing) + content.y - file_view->scrolling.y,
     };
 
     // TODO
-    // ui_sdl3_draw_text(
-    //     ui,
+    // display_sdl3_draw_text(
+    //     display,
     //     line->items,
     //     line->count,
-    //     &ui->fonts[FONT_ID_EDITOR],
+    //     &display->fonts[FONT_ID_EDITOR],
     //     line_pos,
     //     medit->config.color_scheme.editor_fg);
 }
 
 // Draw file lines and line numbers directly to the renderer
 // Must be called after the bg draw layer has been flushed
-void ui_sdl3_draw_file_view_group_content(SDL3Ui* ui, FileViewGroup* group)
+void display_sdl3_draw_file_view_group_content(SDL3Display* display, FileViewGroup* group)
 {
-    Meditor* medit = ui->medit;
+    Meditor* medit = display->medit;
     FileView* displayed_file_view = medit_get_displayed_file_view_in_group(medit, group);
     Lines* lines = &medit_file_view_file(medit, displayed_file_view)->lines;
 
     const size_t first_rendered_line = (size_t)SDL_max(displayed_file_view->scrolling.y, 0)
-        / ui->fonts[FONT_ID_EDITOR].line_spacing;
-    const size_t screen_lines = ((size_t)ui->window_size.height / ui->fonts[FONT_ID_EDITOR].line_spacing) + 1;
+        / display->fonts[FONT_ID_EDITOR].line_spacing;
+    const size_t screen_lines = ((size_t)display->window_size.height / display->fonts[FONT_ID_EDITOR].line_spacing) + 1;
     const size_t rendered_line_count = SDL_min(lines->count, first_rendered_line + screen_lines);
 
     Rect area = group->content_area;
@@ -251,16 +235,16 @@ void ui_sdl3_draw_file_view_group_content(SDL3Ui* ui, FileViewGroup* group)
     Rect content = area;
 
     const SDL_Rect gutter_clip = rect_to_sdl_rect(gutter);
-    assert(SDL_SetRenderClipRect(ui->renderer, &gutter_clip));
+    assert(SDL_SetRenderClipRect(display->renderer, &gutter_clip));
     for (size_t row = first_rendered_line; row < rendered_line_count; ++row) {
-        ui_sdl3_draw_line_number(ui, row, gutter, group);
+        display_sdl3_draw_line_number(display, row, gutter, group);
     }
 
     const SDL_Rect content_clip = rect_to_sdl_rect(content);
-    assert(SDL_SetRenderClipRect(ui->renderer, &content_clip));
+    assert(SDL_SetRenderClipRect(display->renderer, &content_clip));
     for (size_t row = first_rendered_line; row < rendered_line_count; ++row) {
-        ui_sdl3_draw_line(ui, row, &lines->items[row], content, group);
+        display_sdl3_draw_line(display, row, &lines->items[row], content, group);
     }
 
-    assert(SDL_SetRenderClipRect(ui->renderer, NULL));
+    assert(SDL_SetRenderClipRect(display->renderer, NULL));
 }

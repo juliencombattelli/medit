@@ -1,9 +1,9 @@
-#ifndef MEDIT_UI_SDL3_UTILS_FONT_H_
-#define MEDIT_UI_SDL3_UTILS_FONT_H_
+#ifndef MEDIT_DISPLAY_SDL3_UTILS_FONT_H_
+#define MEDIT_DISPLAY_SDL3_UTILS_FONT_H_
 
 #include <SDL3/SDL.h>
 #include <SDL3_ttf/SDL_ttf.h>
 
 TTF_Font* load_emoji_font_aligned_to(TTF_Font* font, const char* path, int size, int width_factor);
 
-#endif // MEDIT_UI_SDL3_UTILS_FONT_H_
+#endif // MEDIT_DISPLAY_SDL3_UTILS_FONT_H_

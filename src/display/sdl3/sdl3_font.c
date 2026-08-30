@@ -6,7 +6,7 @@
 #include <core/safeint.h>
 #include <core/utils.h>
 
-void ui_sdl3_ttf_setup(SDL3Ui* ui)
+void display_sdl3_ttf_setup(SDL3Display* display)
 {
     // The entire SDL_ttf subsystem is (re)created on every entry into the app
     // library, including after a hot reload. libSDL3_ttf.so is referenced only
@@ -23,32 +23,32 @@ void ui_sdl3_ttf_setup(SDL3Ui* ui)
         abort();
     }
 
-    ui->text_engine = TTF_CreateRendererTextEngine(ui->renderer);
-    assert(ui->text_engine != NULL);
+    display->text_engine = TTF_CreateRendererTextEngine(display->renderer);
+    assert(display->text_engine != NULL);
 
     for (FontId id = 0; id < FONT_ID_COUNT; id++) {
-        ui_sdl3_load_font(ui, id);
+        display_sdl3_load_font(display, id);
     }
 }
 
-void ui_sdl3_ttf_teardown(SDL3Ui* ui)
+void display_sdl3_ttf_teardown(SDL3Display* display)
 {
     for (FontId id = 0; id < FONT_ID_COUNT; id++) {
-        ui_sdl3_unload_font(ui, id);
+        display_sdl3_unload_font(display, id);
     }
 
-    TTF_DestroyRendererTextEngine(ui->text_engine);
-    ui->text_engine = NULL;
+    TTF_DestroyRendererTextEngine(display->text_engine);
+    display->text_engine = NULL;
 
     TTF_Quit();
 }
 
-void ui_sdl3_load_font(SDL3Ui* ui, FontId font_id)
+void display_sdl3_load_font(SDL3Display* display, FontId font_id)
 {
     assert(font_id >= 0 && font_id < FONT_ID_COUNT);
 
-    Meditor* medit = ui->medit;
-    Font* font = &ui->fonts[font_id];
+    Meditor* medit = display->medit;
+    Font* font = &display->fonts[font_id];
 
     if (font->props == 0) {
         font->props = SDL_CreateProperties();
@@ -94,10 +94,10 @@ void ui_sdl3_load_font(SDL3Ui* ui, FontId font_id)
     assert(TTF_GetStringSize(font->main, "M", 0, &w, NULL));
     font->default_cursor_width = int_to_size(w);
 
-    ui_sdl3_resize_window(ui);
+    display_sdl3_resize_window(display);
 
-    ui->text_cache = TTF_CreateText(ui->text_engine, font->main, "", 0);
-    assert(ui->text_cache != NULL);
+    display->text_cache = TTF_CreateText(display->text_engine, font->main, "", 0);
+    assert(display->text_cache != NULL);
 
     const int width_factor = 0; // Do not align the emoji font width to the main font width
     font->emoji = load_emoji_font_aligned_to(
@@ -116,14 +116,14 @@ void ui_sdl3_load_font(SDL3Ui* ui, FontId font_id)
     }
 }
 
-void ui_sdl3_unload_font(SDL3Ui* ui, FontId font_id)
+void display_sdl3_unload_font(SDL3Display* display, FontId font_id)
 {
     assert(font_id >= 0 && font_id < FONT_ID_COUNT);
 
-    Font* font = &ui->fonts[font_id];
+    Font* font = &display->fonts[font_id];
 
-    TTF_DestroyText(ui->text_cache);
-    ui->text_cache = NULL;
+    TTF_DestroyText(display->text_cache);
+    display->text_cache = NULL;
 
     TTF_ClearFallbackFonts(font->main);
     TTF_CloseFont(font->main);

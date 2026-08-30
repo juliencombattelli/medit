@@ -12,9 +12,9 @@
 
 #include <string.h>
 
-static void temp_ui_sdl3_setup_layout(SDL3Ui* ui)
+static void temp_display_sdl3_setup_layout(SDL3Display* display)
 {
-    Meditor* medit = ui->medit;
+    Meditor* medit = display->medit;
 
 #if 0
     // Create an empty file in some file view groups
@@ -24,7 +24,7 @@ static void temp_ui_sdl3_setup_layout(SDL3Ui* ui)
         medit_new_empty_file(medit, &dynarray_last(&medit->file_views));
         medit_new_empty_file(medit, &dynarray_last(&medit->file_views));
         medit_new_empty_file(medit, &dynarray_last(&medit->file_views));
-        medit_load_file(medit, "./src/ui/sdl3/sdl3.c");
+        medit_load_file(medit, "./src/display/sdl3/sdl3.c");
     }
 
     // Insert some text in the focused latest created group
@@ -32,14 +32,14 @@ static void temp_ui_sdl3_setup_layout(SDL3Ui* ui)
     medit_insert_text(medit, text, strlen(text));
 
     // Update the layout of the groups in a grid fashion
-    temp_ui_sdl3_update_file_view_groups_size(ui);
+    temp_display_sdl3_update_file_view_groups_size(ui);
 #else
     dynarray_append(&medit->file_views, (FileViewGroup) { 0 });
     medit_new_empty_file(medit, &dynarray_last(&medit->file_views));
 #endif
 }
 
-static Clay_RenderCommandArray medit_layout(SDL3Ui* ui, Ui* ui2)
+static Clay_RenderCommandArray medit_layout(Ui* ui)
 {
     Clay_BeginLayout();
 
@@ -53,7 +53,7 @@ static Clay_RenderCommandArray medit_layout(SDL3Ui* ui, Ui* ui2)
         },
         .backgroundColor = { 0x7F, 0x00, 0x00, 0xFF},
     }) {
-        medit_ui_layout_titlebar(ui2);
+        medit_ui_layout_titlebar(ui);
 
         CLAY(CLAY_ID("window_frame_inner"), {
             .layout = {
@@ -63,7 +63,7 @@ static Clay_RenderCommandArray medit_layout(SDL3Ui* ui, Ui* ui2)
                     .height = CLAY_SIZING_GROW(0),
                 },
                 .padding = CLAY_PADDING_ALL(16),
-                .childGap = ui2->theme.layout_settings.panels_gap,
+                .childGap = ui->theme.layout_settings.panels_gap,
             },
             .backgroundColor = { 0x7F, 0x00, 0x00, 0xFF},
         }) {
@@ -106,10 +106,10 @@ static void handle_clay_errors(Clay_ErrorData error_data)
     printf("%s\n", error_data.errorText.chars);
 }
 
-static void ui_sdl3_setup_clay(SDL3Ui* ui, Ui* ui2)
+static void display_sdl3_setup_clay(SDL3Display* display, Ui* ui)
 {
     int width = 0, height = 0;
-    SDL_GetWindowSize(ui->window, &width, &height);
+    SDL_GetWindowSize(display->window, &width, &height);
     uint32_t mem_size = Clay_MinMemorySize();
     Clay_Context* context = Clay_Initialize(
         Clay_CreateArenaWithCapacityAndMemory(mem_size, malloc(mem_size)),
@@ -139,13 +139,13 @@ static inline uint32_t sdl_get_mouse_state(SDL_Window* window, MouseState* mouse
 
 void medit_ui_titlebar_init(Ui* ui, SDL_Window* window);
 
-MeditAppResult medit_ui_sdl3_run(void* old_ui_state)
+MeditAppResult medit_display_sdl3_run(void* old_display_state)
 {
-    bool reload_requested = old_ui_state != NULL;
-    SDL3Ui* ui = (SDL3Ui*)old_ui_state;
+    bool reload_requested = old_display_state != NULL;
+    SDL3Display* display = (SDL3Display*)old_display_state;
     Meditor* medit = NULL;
 
-    Ui ui2 = {
+    Ui ui = {
         .theme = {
             .color_scheme = {
                 .scrollbar_thumb_inactive = { 100 + 100, 100, 100, 150 },
@@ -169,22 +169,22 @@ MeditAppResult medit_ui_sdl3_run(void* old_ui_state)
     };
 
     if (!reload_requested) {
-        ui = (SDL3Ui*)calloc(1, sizeof(SDL3Ui));
-        ui->medit = (Meditor*)calloc(1, sizeof(Meditor));
-        medit = ui->medit;
+        display = (SDL3Display*)calloc(1, sizeof(SDL3Display));
+        display->medit = (Meditor*)calloc(1, sizeof(Meditor));
+        medit = display->medit;
         medit->config = medit_default_config();
 
-        if (!ui_sdl3_create(ui, medit)) {
+        if (!display_sdl3_create(display, medit)) {
             return (MeditAppResult) { .return_code = MEDIT_STATUS_FAILED_TO_CREATE_GUI };
         }
 
-        ui_sdl3_ttf_setup(ui);
+        display_sdl3_ttf_setup(display);
 
-        ui_sdl3_setup_clay(ui, &ui2);
+        display_sdl3_setup_clay(display, &ui);
 
-        medit_ui_titlebar_init(&ui2, ui->window);
+        medit_ui_titlebar_init(&ui, display->window);
 
-        temp_ui_sdl3_setup_layout(ui);
+        temp_display_sdl3_setup_layout(display);
 
         for (size_t i = 0; i < medit->file_views.count; ++i) {
             FileViewGroup* group = &medit->file_views.items[i];
@@ -203,7 +203,7 @@ MeditAppResult medit_ui_sdl3_run(void* old_ui_state)
         }
 
     } else {
-        medit = ui->medit;
+        medit = display->medit;
         reload_requested = false;
         // The keybinding table lives in the persistent Meditor state, but its
         // action callbacks are function pointers into this shared library. After
@@ -211,33 +211,33 @@ MeditAppResult medit_ui_sdl3_run(void* old_ui_state)
         // different addresses), so the previously stored pointers are stale and
         // would jump into invalid/old code on the next keypress. Re-bind them so
         // they resolve to this freshly loaded library.
-        medit_load_default_keybind_full(medit, &UI_SDL3_ACTIONS, ui);
-        ui_sdl3_ttf_setup(ui);
+        medit_load_default_keybind_full(medit, &DISPLAY_SDL3_ACTIONS, display);
+        display_sdl3_ttf_setup(display);
         printf("Application hot-reloaded\n");
     }
 
-    ui_sdl3_enable_cursor_blink(ui);
+    display_sdl3_enable_cursor_blink(display);
 
     perf_counter_start_periodic_report(
-        &ui->perf_counter,
+        &display->perf_counter,
         PERF_COUNTER_REPORT_PERIOD_MS,
         report_perf_counter,
         NULL);
 
     medit->running = true;
     while (medit->running) {
-        EventReaction reaction = ui_sdl3_handle_event(ui);
-        if (ui->editor_font_size != medit->config.editor_font_size) {
-            ui_sdl3_unload_font(ui, FONT_ID_EDITOR);
-            ui_sdl3_load_font(ui, FONT_ID_EDITOR);
+        EventReaction reaction = display_sdl3_handle_event(display);
+        if (display->editor_font_size != medit->config.editor_font_size) {
+            display_sdl3_unload_font(display, FONT_ID_EDITOR);
+            display_sdl3_load_font(display, FONT_ID_EDITOR);
             reaction |= REQUEST_RENDER;
         }
 
         if (reaction & REQUEST_HOT_RELOADING) {
-            perf_counter_stop_periodic_report(&ui->perf_counter);
-            ui_sdl3_disable_cursor_blink(ui);
-            ui_sdl3_ttf_teardown(ui);
-            return (MeditAppResult) { .should_reload = true, .app_state = ui };
+            perf_counter_stop_periodic_report(&display->perf_counter);
+            display_sdl3_disable_cursor_blink(display);
+            display_sdl3_ttf_teardown(display);
+            return (MeditAppResult) { .should_reload = true, .app_state = display };
         }
 
         if (!(reaction & REQUEST_RENDER)) {
@@ -245,31 +245,31 @@ MeditAppResult medit_ui_sdl3_run(void* old_ui_state)
         }
 
         Clay_SetLayoutDimensions((Clay_Dimensions) {
-            (float)ui->window_size.width,
-            (float)ui->window_size.height,
+            (float)display->window_size.width,
+            (float)display->window_size.height,
         });
 
-        mouse_state_update(&ui2.mouse_state, sdl_get_mouse_state(ui->window, &ui2.mouse_state));
+        mouse_state_update(&ui.mouse_state, sdl_get_mouse_state(display->window, &ui.mouse_state));
 
-        Clay_SetPointerState(ui2.mouse_state.pos,
-            ui2.mouse_state.buttons[MOUSE_BUTTON_LEFT].state < MOUSE_BUTTON_PRESSED);
+        Clay_SetPointerState(ui.mouse_state.pos,
+            ui.mouse_state.buttons[MOUSE_BUTTON_LEFT].state < MOUSE_BUTTON_PRESSED);
 
-        medit_ui_update_scroll_containers(&ui2);
+        medit_ui_update_scroll_containers(&ui);
 
-        medit_ui_update_titlebar(&ui2, ui->window_size.width);
+        medit_ui_update_titlebar(&ui, display->window_size.width);
 
-        if (ui2.mouse_state.buttons[MOUSE_BUTTON_LEFT].state == MOUSE_BUTTON_RELEASED_THIS_FRAME) {
-            if (ui2.titlebar_state.hovered_button == TITLEBAR_BTN_MIN) {
-                SDL_MinimizeWindow(ui->window);
+        if (ui.mouse_state.buttons[MOUSE_BUTTON_LEFT].state == MOUSE_BUTTON_RELEASED_THIS_FRAME) {
+            if (ui.titlebar_state.hovered_button == TITLEBAR_BTN_MIN) {
+                SDL_MinimizeWindow(display->window);
             }
-            if (ui2.titlebar_state.hovered_button == TITLEBAR_BTN_MAX) {
-                if ((SDL_GetWindowFlags(ui->window) & SDL_WINDOW_MAXIMIZED) != 0) {
-                    SDL_RestoreWindow(ui->window);
+            if (ui.titlebar_state.hovered_button == TITLEBAR_BTN_MAX) {
+                if ((SDL_GetWindowFlags(display->window) & SDL_WINDOW_MAXIMIZED) != 0) {
+                    SDL_RestoreWindow(display->window);
                 } else {
-                    SDL_MaximizeWindow(ui->window);
+                    SDL_MaximizeWindow(display->window);
                 }
             }
-            if (ui2.titlebar_state.hovered_button == TITLEBAR_BTN_CLOSE) {
+            if (ui.titlebar_state.hovered_button == TITLEBAR_BTN_CLOSE) {
                 medit->running = false;
             }
         }
@@ -277,17 +277,17 @@ MeditAppResult medit_ui_sdl3_run(void* old_ui_state)
         // {
         //     for (size_t i = 0; i < medit->file_views.count; ++i) {
         //         FileViewGroup* group = &medit->file_views.items[i];
-        //         ui_sdl3_compute_line_number_gutter_width(ui, group);
-        //         ui_sdl3_draw_file_view_group_content(ui, group);
+        //         display_sdl3_compute_line_number_gutter_width(display, group);
+        //         display_sdl3_draw_file_view_group_content(display, group);
         //     }
 
         //     // TODO iterate on all file views
         //     {
         //         FileViewGroup* group = &medit->file_views.items[0];
         //         Rect text_area = group->content_area;
-        //         ui_sdl3_scroll_file_view(ui, text_area, group);
-        //         ui_sdl3_draw_file_view_group_content(ui, group);
-        //         ui_sdl3_queue_cursor(ui, text_area, group);
+        //         display_sdl3_scroll_file_view(display, text_area, group);
+        //         display_sdl3_draw_file_view_group_content(display, group);
+        //         display_sdl3_queue_cursor(display, text_area, group);
         //     }
 
         //     // Draw cursor glyphs on top of cursor rects
@@ -295,29 +295,29 @@ MeditAppResult medit_ui_sdl3_run(void* old_ui_state)
         //     {
         //         FileViewGroup* group = &medit->file_views.items[0];
         //         Rect text_area = group->content_area;
-        //         ui_sdl3_draw_cursor_glyphs(ui, text_area, group);
+        //         display_sdl3_draw_cursor_glyphs(display, text_area, group);
         //     }
         // }
 
-        Clay_RenderCommandArray render_commands = medit_layout(ui, &ui2);
+        Clay_RenderCommandArray render_commands = medit_layout(&ui);
 
-        ui_sdl3_clear(ui);
-        SDL_Clay_RenderClayCommands(ui, &render_commands);
-        ui_sdl3_render_frame(ui);
+        display_sdl3_clear(display);
+        SDL_Clay_RenderClayCommands(display, &render_commands);
+        display_sdl3_render_frame(display);
 
-        perf_counter_frame_end(&ui->perf_counter);
+        perf_counter_frame_end(&display->perf_counter);
     }
 
-    perf_counter_stop_periodic_report(&ui->perf_counter);
-    ui_sdl3_disable_cursor_blink(ui);
+    perf_counter_stop_periodic_report(&display->perf_counter);
+    display_sdl3_disable_cursor_blink(display);
 
-    ui_sdl3_ttf_teardown(ui);
-    ui_sdl3_destroy(ui);
+    display_sdl3_ttf_teardown(display);
+    display_sdl3_destroy(display);
 
     medit_close_all_files(medit);
 
     free(medit);
-    free(ui);
+    free(display);
 
     return (MeditAppResult) { .return_code = MEDIT_STATUS_SUCCESS };
 }

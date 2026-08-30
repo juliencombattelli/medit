@@ -1,5 +1,5 @@
-#ifndef MEDIT_UI_SDL3_UTILS_PERF_COUNTER_H_
-#define MEDIT_UI_SDL3_UTILS_PERF_COUNTER_H_
+#ifndef MEDIT_DISPLAY_SDL3_UTILS_PERF_COUNTER_H_
+#define MEDIT_DISPLAY_SDL3_UTILS_PERF_COUNTER_H_
 
 #include <SDL3/SDL.h>
 
@@ -30,4 +30,4 @@ void perf_counter_start_periodic_report(
     void* userdata);
 void perf_counter_stop_periodic_report(PerfCounter* perf_counter);
 
-#endif // MEDIT_UI_SDL3_UTILS_PERF_COUNTER_H_
+#endif // MEDIT_DISPLAY_SDL3_UTILS_PERF_COUNTER_H_

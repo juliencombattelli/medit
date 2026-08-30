@@ -9,29 +9,29 @@
 // Allocate a null-terminated string copy from the per-frame arena
 // Returns NULL if the arena is full (the label is silently dropped)
 // TODO reallocate a new arena if full? or use buckets?
-// const char* ui_sdl3_arena_str(SDL3Ui* ui, const char* str, size_t len)
+// const char* display_sdl3_arena_str(SDL3Display* display, const char* str, size_t len)
 // {
 //     size_t needed = len + 1;
-//     if (ui->ui_text_arena_used + needed > UI_TEXT_ARENA_SIZE) {
+//     if (display->ui_text_arena_used + needed > TEXT_ARENA_SIZE) {
 //         (void)fprintf(stderr, "ui_text_arena full: dropping label\n");
 //         return NULL;
 //     }
-//     char* dst = &ui->ui_text_arena[ui->ui_text_arena_used];
+//     char* dst = &display->ui_text_arena[display->ui_text_arena_used];
 //     memcpy(dst, str, len);
 //     dst[len] = '\0';
-//     ui->ui_text_arena_used += needed;
+//     display->ui_text_arena_used += needed;
 //     return dst;
 // }
 
-void ui_sdl3_clear(SDL3Ui* ui)
+void display_sdl3_clear(SDL3Display* display)
 {
-    Color color = ui->medit->config.color_scheme.editor_bg;
-    SDL_SetRenderDrawColor(ui->renderer, color_to_RGBA_args(color));
-    SDL_RenderClear(ui->renderer);
+    Color color = display->medit->config.color_scheme.editor_bg;
+    SDL_SetRenderDrawColor(display->renderer, color_to_RGBA_args(color));
+    SDL_RenderClear(display->renderer);
 }
 
-void ui_sdl3_draw_text(
-    SDL3Ui* ui,
+void display_sdl3_draw_text(
+    SDL3Display* display,
     const char* text,
     size_t len,
     Font* font,
@@ -42,7 +42,7 @@ void ui_sdl3_draw_text(
         return;
     }
 
-    TTF_Text* text_obj = ui->text_cache;
+    TTF_Text* text_obj = display->text_cache;
 
     TTF_SetTextFont(text_obj, font->main);
     TTF_SetTextString(text_obj, text, len);
@@ -51,7 +51,7 @@ void ui_sdl3_draw_text(
     TTF_DrawRendererText(text_obj, (float)pos.x, (float)pos.y + (float)font->line_centering_offset);
 }
 
-void ui_sdl3_render_frame(SDL3Ui* ui)
+void display_sdl3_render_frame(SDL3Display* display)
 {
-    SDL_RenderPresent(ui->renderer);
+    SDL_RenderPresent(display->renderer);
 }

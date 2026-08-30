@@ -4,23 +4,23 @@
 #include <core/safeint.h>
 #include <core/utils.h>
 
-static void action_dump_state(Meditor* medit, void* ui)
+static void action_dump_state(Meditor* medit, void* display)
 {
-    MEDIT_UNUSED(ui);
+    MEDIT_UNUSED(display);
     medit_dump_state(medit);
 }
 
-static void action_save_file(Meditor* medit, void* ui)
+static void action_save_file(Meditor* medit, void* display)
 {
-    MEDIT_UNUSED(ui);
+    MEDIT_UNUSED(display);
     medit_save_focused_file(medit);
 }
 
-static void ui_sdl3_open_file_dialog_cb(void* userdata, const char* const* filelist, int filter)
+static void display_sdl3_open_file_dialog_cb(void* userdata, const char* const* filelist, int filter)
 {
     MEDIT_UNUSED(filter);
 
-    SDL3Ui* ui = userdata;
+    SDL3Display* display = userdata;
 
     if (!filelist) {
         (void)fprintf(stderr, "Error: %s\n", SDL_GetError());
@@ -31,25 +31,26 @@ static void ui_sdl3_open_file_dialog_cb(void* userdata, const char* const* filel
         return;
     }
     while (*filelist) {
-        medit_load_file(ui->medit, *filelist);
+        medit_load_file(display->medit, *filelist);
         filelist++;
     }
 }
 
-static void action_open_file_dialog(Meditor* medit, void* ui_)
+static void action_open_file_dialog(Meditor* medit, void* display_)
 {
     MEDIT_UNUSED(medit);
 
-    SDL3Ui* ui = ui_;
-    SDL_ShowOpenFileDialog(ui_sdl3_open_file_dialog_cb, ui, NULL, NULL, 0, NULL, 1);
+    SDL3Display* display = display_;
+    SDL_ShowOpenFileDialog(display_sdl3_open_file_dialog_cb, display, NULL, NULL, 0, NULL, 1);
 }
 
-static void action_toggle_side_panel(Meditor* medit, void* ui_)
+static void action_toggle_side_panel(Meditor* medit, void* display_)
 {
     MEDIT_UNUSED(medit);
+    MEDIT_UNUSED(display_);
 }
 
-const Actions UI_SDL3_ACTIONS = {
+const Actions DISPLAY_SDL3_ACTIONS = {
     MEDIT_CORE_ACTIONS_DEFAULT,
     .save_file = action_save_file,
     .open_file_dialog = action_open_file_dialog,
@@ -57,8 +58,8 @@ const Actions UI_SDL3_ACTIONS = {
     .dump_state = action_dump_state,
 };
 
-static void ui_sdl3_handle_save_of_dirty_file(
-    SDL3Ui* ui,
+static void display_sdl3_handle_save_of_dirty_file(
+    SDL3Display* display,
     File* file,
     SDL_MessageBoxData* messageboxdata,
     bool* cancel_exit)
@@ -78,7 +79,7 @@ static void ui_sdl3_handle_save_of_dirty_file(
         switch (buttonid) {
             case 0:
                 printf("Saving changes for file %s\n", file->name);
-                medit_save_focused_file(ui->medit);
+                medit_save_focused_file(display->medit);
                 break;
             case 1: printf("Discarding changes for file %s\n", file->name); break;
             default: printf("Cancelling exit\n"); *cancel_exit = true;
@@ -88,7 +89,7 @@ static void ui_sdl3_handle_save_of_dirty_file(
     free(msg);
 }
 
-void ui_sdl3_handle_save_of_dirty_files(SDL3Ui* ui)
+void display_sdl3_handle_save_of_dirty_files(SDL3Display* display)
 {
     static const SDL_MessageBoxButtonData buttons[] = {
         {
@@ -118,35 +119,35 @@ void ui_sdl3_handle_save_of_dirty_files(SDL3Ui* ui)
         .colorScheme = NULL,
     };
 
-    for (size_t i = 0; i < ui->medit->opened_files.count; ++i) {
-        File* file = &ui->medit->opened_files.items[i];
+    for (size_t i = 0; i < display->medit->opened_files.count; ++i) {
+        File* file = &display->medit->opened_files.items[i];
         bool cancel_exit = false;
-        ui_sdl3_handle_save_of_dirty_file(ui, file, &messageboxdata, &cancel_exit);
+        display_sdl3_handle_save_of_dirty_file(display, file, &messageboxdata, &cancel_exit);
         if (cancel_exit) {
             break;
         }
     }
 }
 
-void ui_sdl3_on_text_input(SDL3Ui* ui, const char* text)
+void display_sdl3_on_text_input(SDL3Display* display, const char* text)
 {
     size_t text_len = strlen(text);
-    medit_insert_text(ui->medit, text, text_len);
-    medit_cursor_right(ui->medit);
+    medit_insert_text(display->medit, text, text_len);
+    medit_cursor_right(display->medit);
 }
 
-void ui_sdl3_on_key_down(SDL3Ui* ui, SDL_Event* event)
+void display_sdl3_on_key_down(SDL3Display* display, SDL_Event* event)
 {
     switch (event->key.key) {
         case SDLK_RETURN: {
-            medit_split_line_at_cursor(ui->medit);
-            medit_cursor_down(ui->medit);
-            medit_cursor_line_begin(ui->medit);
-            medit_file_view_file(ui->medit, medit_get_focused_file_view(ui->medit))->dirty = true;
+            medit_split_line_at_cursor(display->medit);
+            medit_cursor_down(display->medit);
+            medit_cursor_line_begin(display->medit);
+            medit_file_view_file(display->medit, medit_get_focused_file_view(display->medit))->dirty = true;
         } break;
         case SDLK_BACKSPACE:
-            medit_erase_char(ui->medit);
-            medit_file_view_file(ui->medit, medit_get_focused_file_view(ui->medit))->dirty = true;
+            medit_erase_char(display->medit);
+            medit_file_view_file(display->medit, medit_get_focused_file_view(display->medit))->dirty = true;
             break;
         default: break;
     }
