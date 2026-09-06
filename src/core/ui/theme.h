@@ -29,7 +29,6 @@ typedef struct {
     float bottom_right;
 } CornerRadius;
 
-
 typedef struct {
     uint8_t dragged_tab_transparency;
     uint32_t titlebar_height;
