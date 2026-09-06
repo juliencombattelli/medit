@@ -51,6 +51,8 @@ MeditAppResult medit_loader_reload_app(int argc, char** argv, void* old_app_stat
         lib = app_library_copy;
     }
 #else
+#define APP_LIBRARY_FULL_PATH_MAX_LEN 4096
+    char app_library_full_path[APP_LIBRARY_FULL_PATH_MAX_LEN];
     // When SDL is a shared library, SDL_LoadObject (which wraps dlopen) is
     // called from within libSDL3.so. The dynamic linker then uses SDL's own
     // RUNPATH to search for bare filenames, not the executable's $ORIGIN.
@@ -60,8 +62,6 @@ MeditAppResult medit_loader_reload_app(int argc, char** argv, void* old_app_stat
     if (!base_path) {
         (void)fprintf(stderr, "%s\n", "Failed to get app base path, attempting to load the app library with relative path instead.");
     } else {
-#define APP_LIBRARY_FULL_PATH_MAX_LEN 4096
-        char app_library_full_path[APP_LIBRARY_FULL_PATH_MAX_LEN];
         int len = SDL_snprintf(app_library_full_path, sizeof(app_library_full_path), "%s%s", base_path, app_library);
         if (len > 0 && len < (int)sizeof(app_library_full_path)) {
             lib = app_library_full_path;
