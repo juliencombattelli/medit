@@ -143,7 +143,7 @@ check_asan_supported(
     LINK_OPTIONS ASAN_LINK_OPTIONS
 )
 if(MEDIT_ENABLE_ASAN STREQUAL "ON" AND NOT HAVE_ASAN)
-    message(WARNING
+    message(SEND_ERROR
         "MEDIT_ENABLE_ASAN is set to ON but the current compiler/linker does not support AddressSanitizer "
         "(${CMAKE_C_COMPILER_ID} ${CMAKE_C_COMPILER_VERSION}, ${CMAKE_C_COMPILER}). "
         "AddressSanitizer will not be enabled."
