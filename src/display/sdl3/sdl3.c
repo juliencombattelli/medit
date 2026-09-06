@@ -137,7 +137,7 @@ static inline uint32_t sdl_get_mouse_state(SDL_Window* window, MouseState* mouse
     return mouse_buttons;
 }
 
-void medit_ui_titlebar_init(Ui* ui, SDL_Window* window);
+void medit_ui_titlebar_init(Meditor* medit, SDL_Window* window);
 
 MeditAppResult medit_display_sdl3_run(void* old_display_state)
 {
@@ -159,7 +159,7 @@ MeditAppResult medit_display_sdl3_run(void* old_display_state)
 
         display_sdl3_setup_clay(display);
 
-        medit_ui_titlebar_init(&medit->ui, display->window);
+        medit_ui_titlebar_init(medit, display->window);
 
         temp_display_sdl3_setup_layout(display);
 
