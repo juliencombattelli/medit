@@ -96,8 +96,8 @@ void display_sdl3_load_font(SDL3Display* display, FontId font_id)
 
     display_sdl3_resize_window(display);
 
-    display->text_cache = TTF_CreateText(display->text_engine, font->main, "", 0);
-    assert(display->text_cache != NULL);
+    display->text_cache[font_id] = TTF_CreateText(display->text_engine, font->main, "", 0);
+    assert(display->text_cache[font_id] != NULL);
 
     const int width_factor = 0; // Do not align the emoji font width to the main font width
     font->emoji = load_emoji_font_aligned_to(
@@ -122,8 +122,8 @@ void display_sdl3_unload_font(SDL3Display* display, FontId font_id)
 
     Font* font = &display->fonts[font_id];
 
-    TTF_DestroyText(display->text_cache);
-    display->text_cache = NULL;
+    TTF_DestroyText(display->text_cache[font_id]);
+    display->text_cache[font_id] = NULL;
 
     TTF_ClearFallbackFonts(font->main);
     TTF_CloseFont(font->main);

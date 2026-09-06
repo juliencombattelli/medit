@@ -70,7 +70,7 @@ typedef struct {
     SDL_Window* window;
     SDL_Renderer* renderer;
     TTF_TextEngine* text_engine;
-    TTF_Text* text_cache;
+    TTF_Text* text_cache[FONT_ID_COUNT];
     Font fonts[FONT_ID_COUNT];
     PixelSize window_size;
     CursorBlinker cursor_blinker;

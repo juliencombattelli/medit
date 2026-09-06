@@ -34,7 +34,7 @@ void display_sdl3_draw_text(
     SDL3Display* display,
     const char* text,
     size_t len,
-    Font* font,
+    FontId font_id,
     PixelPos pos,
     Color color)
 {
@@ -42,13 +42,13 @@ void display_sdl3_draw_text(
         return;
     }
 
-    TTF_Text* text_obj = display->text_cache;
+    TTF_Text* text_obj = display->text_cache[font_id];
 
-    TTF_SetTextFont(text_obj, font->main);
+    TTF_SetTextFont(text_obj, display->fonts[font_id].main);
     TTF_SetTextString(text_obj, text, len);
     TTF_SetTextColor(text_obj, color_to_RGBA_args(color));
 
-    TTF_DrawRendererText(text_obj, (float)pos.x, (float)pos.y + (float)font->line_centering_offset);
+    TTF_DrawRendererText(text_obj, (float)pos.x, (float)pos.y + (float)display->fonts[font_id].line_centering_offset);
 }
 
 void display_sdl3_render_frame(SDL3Display* display)
