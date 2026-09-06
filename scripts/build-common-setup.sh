@@ -106,6 +106,8 @@ setup_deps() {
 }
 
 configure_and_build() {
+    export CMAKE_EXPORT_COMPILE_COMMANDS=ON
+
     # All the function arguments will be passed to CMake
     cmake -S . -B "$MEDIT_BUILD_DIR" \
         "$@" \
